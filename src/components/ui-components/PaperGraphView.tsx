@@ -45,7 +45,7 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
         },
         font: { color: '#ffffff', size: 16, face: 'Arial' },
         type: 'user',
-        title: `<div style="max-width: 300px; font-family: Arial; padding: 5px;">${paper.title}</div>` // HTML tooltip
+        title: paper.title
       });
     });
 
@@ -71,7 +71,7 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
           },
           font: { size: 12 },
           type: 'reference',
-          title: `<div style="max-width: 250px; font-family: Arial; padding: 5px;">Reference to "${paper.title}"</div>` // HTML tooltip
+          title: `Reference to "${paper.title}"`
         });
         
         // Add an edge from the user paper to this reference
@@ -102,7 +102,7 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
           },
           font: { size: 12 },
           type: 'citation',
-          title: `<div style="max-width: 250px; font-family: Arial; padding: 5px;">Paper citing "${paper.title}"</div>` // HTML tooltip
+          title: `Paper citing "${paper.title}"`
         });
         
         // Add an edge from this citation to the user paper
@@ -136,7 +136,7 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
           },
           font: { size: 10 },
           type: 'shared',
-          title: `<div style="max-width: 250px; font-family: Arial; padding: 5px;">Reference shared by multiple papers</div>` // HTML tooltip
+          title: `Reference shared by multiple papers`
         });
         
         // Add edges to connect both papers to this shared reference
@@ -190,7 +190,9 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
       tooltipDelay: 200,
       zoomView: true,
       dragView: true,
-      hoverConnectedEdges: true
+      hoverConnectedEdges: true,
+      hideEdgesOnDrag: false,
+      hideEdgesOnZoom: false
     },
     physics: {
       stabilization: {
@@ -228,6 +230,17 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
             graph={graphData}
             options={options}
             events={events}
+            getNetwork={network => {
+              // Save and use the network reference if needed for interactions
+              // Optional: can be used to force a redraw or other manipulations
+              if (network) {
+                console.log("Graph network initialized");
+                // Force redraw after a slight delay to ensure proper initialization
+                setTimeout(() => {
+                  network.redraw();
+                }, 100);
+              }
+            }}
           />
         </div>
       ) : (
