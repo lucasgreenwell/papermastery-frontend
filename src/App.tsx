@@ -60,7 +60,9 @@ const App = () => (
         <TooltipProvider>
           <Toaster />
           <Sonner />
-          <AppRoutes />
+          <div className="min-h-screen bg-background">
+            <AppRoutes />
+          </div>
         </TooltipProvider>
       </AuthProvider>
     </BrowserRouter>
