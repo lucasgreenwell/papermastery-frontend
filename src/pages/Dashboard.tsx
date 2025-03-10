@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { 
   Search, 
@@ -7,7 +6,7 @@ import {
   Clock, 
   List, 
   Grid, 
-  NetworkChart,
+  Network,
   LayoutGrid 
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -118,7 +117,7 @@ const Dashboard = () => {
                   <List size={18} />
                 </ToggleGroupItem>
                 <ToggleGroupItem value="graph" aria-label="Graph view">
-                  <NetworkChart size={18} />
+                  <Network size={18} />
                 </ToggleGroupItem>
               </ToggleGroup>
               
@@ -158,10 +157,7 @@ const Dashboard = () => {
                       title={paper.title}
                       authors={paper.authors}
                       date={paper.date}
-                      abstract={paper.abstract}
-                      pdfUrl={paper.pdfUrl}
                       skillLevel={paper.skillLevel}
-                      readingStatus={paper.readingStatus}
                     />
                   ))}
                 </div>
@@ -180,10 +176,7 @@ const Dashboard = () => {
                       title={paper.title}
                       authors={paper.authors}
                       date={paper.date}
-                      abstract={paper.abstract}
-                      pdfUrl={paper.pdfUrl}
                       skillLevel={paper.skillLevel}
-                      readingStatus={paper.readingStatus}
                     />
                   ))}
                 </div>
@@ -202,10 +195,7 @@ const Dashboard = () => {
                       title={paper.title}
                       authors={paper.authors}
                       date={paper.date}
-                      abstract={paper.abstract}
-                      pdfUrl={paper.pdfUrl}
                       skillLevel={paper.skillLevel}
-                      readingStatus={paper.readingStatus}
                     />
                   ))}
                 </div>
@@ -224,10 +214,7 @@ const Dashboard = () => {
                       title={paper.title}
                       authors={paper.authors}
                       date={paper.date}
-                      abstract={paper.abstract}
-                      pdfUrl={paper.pdfUrl}
                       skillLevel={paper.skillLevel}
-                      readingStatus={paper.readingStatus}
                     />
                   ))}
                 </div>

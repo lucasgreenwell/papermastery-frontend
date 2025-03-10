@@ -4,7 +4,7 @@ import { FileText, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import SkillProgressBar from './SkillProgressBar';
 
-interface PaperCardProps {
+export interface PaperCardProps {
   id: string;
   title: string;
   authors: string[];
@@ -14,7 +14,7 @@ interface PaperCardProps {
 
 const PaperCard = ({ id, title, authors, date, skillLevel }: PaperCardProps) => {
   return (
-    <Link to={`/papers/${id}`} className="paper-card group">
+    <Link to={`/papers/${id}`} className="paper-card group border border-gray-200 rounded-lg bg-white shadow-sm hover:shadow-md transition-shadow flex flex-col">
       <div className="p-6 flex-1">
         <div className="flex items-start gap-4">
           <div className="p-3 bg-blue-50 rounded-lg text-blue-600">
