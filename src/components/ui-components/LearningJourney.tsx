@@ -27,6 +27,10 @@ const LearningJourney = ({ steps, className, onCompleteStep }: LearningJourneyPr
       setCurrentStep(currentStep - 1);
     }
   };
+  
+  const goToStep = (index: number) => {
+    setCurrentStep(index);
+  };
 
   return (
     <div className={cn("relative", className)}>
@@ -55,20 +59,22 @@ const LearningJourney = ({ steps, className, onCompleteStep }: LearningJourneyPr
       </div>
       
       <div className="relative overflow-hidden">
-        <div 
-          className="transition-all duration-500 ease-in-out"
-          style={{ transform: `translateX(-${currentStep * 100}%)`, display: 'flex' }}
-        >
-          {steps.map((step, index) => (
-            <div 
-              key={index} 
-              className="w-full flex-shrink-0"
-              style={{ display: index === currentStep ? 'block' : 'none' }}
-            >
-              {step}
-            </div>
-          ))}
-        </div>
+        {steps.map((step, index) => (
+          <div 
+            key={index} 
+            className={cn(
+              "transition-all duration-500 ease-in-out absolute top-0 left-0 w-full",
+              index === currentStep 
+                ? "opacity-100 translate-x-0" 
+                : index < currentStep 
+                  ? "opacity-0 -translate-x-full" 
+                  : "opacity-0 translate-x-full"
+            )}
+            style={{ display: index === currentStep ? 'block' : 'none' }}
+          >
+            {step}
+          </div>
+        ))}
       </div>
       
       <div className="flex justify-center mt-6 space-x-2">
@@ -83,7 +89,7 @@ const LearningJourney = ({ steps, className, onCompleteStep }: LearningJourneyPr
                 ? "bg-blue-300" 
                 : "bg-gray-200"
             )}
-            onClick={() => setCurrentStep(index)}
+            onClick={() => goToStep(index)}
             style={{ cursor: 'pointer' }}
           />
         ))}

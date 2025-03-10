@@ -1,12 +1,19 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, BookOpen, Brain, GraduationCap, Lightbulb, FileText } from 'lucide-react';
+import { ArrowLeft, BookOpen, Brain, GraduationCap, Lightbulb, FileText, Video, Layers, Presentation, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import PdfViewer from '@/components/ui-components/PdfViewer';
 import SkillLevelSidebar from '@/components/ui-components/SkillLevelSidebar';
 import LearningJourney from '@/components/ui-components/LearningJourney';
 import LearningStepCard from '@/components/ui-components/LearningStepCard';
+import VideoEmbed from '@/components/ui-components/VideoEmbed';
+import MultipleChoiceQuiz from '@/components/ui-components/MultipleChoiceQuiz';
+import { QuizQuestion } from '@/components/ui-components/MultipleChoiceQuiz';
+import Flashcard from '@/components/ui-components/Flashcard';
+import { FlashcardData } from '@/components/ui-components/Flashcard';
+import GoogleSlidesEmbed from '@/components/ui-components/GoogleSlidesEmbed';
+import ChatInterface from '@/components/ui-components/ChatInterface';
 import { useToast } from '@/hooks/use-toast';
 
 const PaperDetails = () => {
@@ -52,6 +59,7 @@ const PaperDetails = () => {
             ],
             quiz: [
               { 
+                id: 'q1',
                 question: 'What is the main innovation in the Transformer architecture?',
                 options: [
                   'Using only attention mechanisms and no recurrence or convolutions',
@@ -59,7 +67,49 @@ const PaperDetails = () => {
                   'Combining CNNs with RNNs',
                   'Using transformations to convert text to images'
                 ],
-                correctAnswer: 0
+                correctAnswer: 0,
+                explanation: 'The Transformer architecture relies entirely on attention mechanisms and does not use recurrence or convolution, making it more parallelizable and efficient for certain tasks.'
+              },
+              {
+                id: 'q2',
+                question: 'What is "multi-head attention" in the Transformer model?',
+                options: [
+                  'An attention mechanism that spans multiple documents',
+                  'Having multiple models attend to the same input',
+                  'Running attention in parallel with different linear projections',
+                  'Applying attention to multiple words simultaneously'
+                ],
+                correctAnswer: 2,
+                explanation: 'Multi-head attention allows the model to jointly attend to information from different representation subspaces, using different linear projections of queries, keys, and values.'
+              },
+              {
+                id: 'q3',
+                question: 'How does the Transformer model handle the lack of sequence information?',
+                options: [
+                  'It doesn\'t need sequence information',
+                  'It uses positional encodings added to the input embeddings',
+                  'It adds recurrent connections to capture sequence',
+                  'It processes tokens in sequential order'
+                ],
+                correctAnswer: 1,
+                explanation: 'Since the Transformer has no recurrence or convolution, it adds positional encodings to the input embeddings to give the model information about the sequence positions.'
+              }
+            ],
+            flashcards: [
+              {
+                id: 'f1',
+                front: 'What is self-attention?',
+                back: 'Self-attention is a mechanism that allows a model to weigh the importance of different positions in a sequence when encoding a specific position. It helps the model capture dependencies between different positions regardless of their distance.'
+              },
+              {
+                id: 'f2',
+                front: 'What is the advantage of the Transformer over RNNs?',
+                back: 'Transformers can process all input tokens in parallel, while RNNs process tokens sequentially. This makes Transformers more efficient for training on large datasets and capable of capturing long-range dependencies more effectively.'
+              },
+              {
+                id: 'f3',
+                front: 'What is layer normalization?',
+                back: 'Layer normalization is a technique used to stabilize and accelerate neural network training by normalizing the inputs across the features. In Transformers, it\'s applied after each sub-layer to maintain stable gradients.'
               }
             ]
           });
@@ -146,48 +196,96 @@ const PaperDetails = () => {
     </LearningStepCard>
   );
   
+  const renderVideoExplanationStep = () => (
+    <LearningStepCard 
+      title="Video Explanation" 
+      icon={<Video size={20} />}
+    >
+      <p className="text-gray-700 mb-4">
+        Watch this video for a visual explanation of the Transformer architecture:
+      </p>
+      <VideoEmbed 
+        videoUrl="https://youtu.be/iDulhoQ2pro?si=BOKgJgIb6xPwVGXO"
+        title="Understanding the Transformer Architecture"
+        className="mb-4"
+      />
+      <Button onClick={() => handleStepComplete(2)}>
+        I've watched the video
+      </Button>
+    </LearningStepCard>
+  );
+  
   const renderQuizStep = () => (
     <LearningStepCard 
-      title="Quiz" 
+      title="Comprehension Quiz" 
       icon={<Brain size={20} />}
     >
-      <div className="mb-6">
-        <h4 className="font-medium text-gray-800 mb-3">
-          What is the main innovation in the Transformer architecture?
-        </h4>
-        <div className="space-y-2">
-          {paper?.quiz[0].options.map((option: string, idx: number) => (
-            <div 
-              key={idx}
-              className="p-3 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-200 cursor-pointer transition-colors"
-              onClick={() => {
-                if (idx === paper.quiz[0].correctAnswer) {
-                  toast({
-                    title: "Correct!",
-                    description: "Great job! You've answered correctly."
-                  });
-                  handleStepComplete(2);
-                } else {
-                  toast({
-                    title: "Incorrect",
-                    description: "That's not right. Try again!",
-                    variant: "destructive"
-                  });
-                }
-              }}
-            >
-              <label className="flex items-start cursor-pointer">
-                <div className="flex items-center h-5">
-                  <span className="w-5 h-5 border border-gray-300 rounded-full flex items-center justify-center mr-2">
-                    {String.fromCharCode(65 + idx)}
-                  </span>
-                </div>
-                <span className="ml-2 text-gray-700">{option}</span>
-              </label>
-            </div>
-          ))}
-        </div>
-      </div>
+      <p className="text-gray-700 mb-4">
+        Test your understanding of the Transformer architecture:
+      </p>
+      <MultipleChoiceQuiz
+        questions={paper?.quiz as QuizQuestion[]}
+        onComplete={(score, total) => {
+          if (score / total >= 0.7) {
+            handleStepComplete(3);
+          }
+        }}
+        className="mb-4"
+      />
+    </LearningStepCard>
+  );
+  
+  const renderFlashcardsStep = () => (
+    <LearningStepCard 
+      title="Flashcards" 
+      icon={<Layers size={20} />}
+    >
+      <p className="text-gray-700 mb-4">
+        Solidify your understanding with these key concept flashcards:
+      </p>
+      <Flashcard
+        cards={paper?.flashcards as FlashcardData[]}
+        onComplete={() => handleStepComplete(4)}
+        className="mb-4"
+      />
+    </LearningStepCard>
+  );
+  
+  const renderSlidesStep = () => (
+    <LearningStepCard 
+      title="Visual Presentation" 
+      icon={<Presentation size={20} />}
+    >
+      <p className="text-gray-700 mb-4">
+        Review these slides summarizing the key findings and implications:
+      </p>
+      <GoogleSlidesEmbed 
+        slideUrl="https://docs.google.com/presentation/d/e/2PACX-1vTiz3WLkAu4a1Qg2rWxLDk0GhE3ds-73zgdK2feYYc-zC7qaSyPHm7d37SlxYZ3IChgnckw-Qe_ku0s/pub?start=false&loop=false&delayms=3000"
+        title="Transformer Architecture - Key Points"
+        className="mb-4"
+      />
+      <Button onClick={() => handleStepComplete(5)}>
+        I've reviewed the slides
+      </Button>
+    </LearningStepCard>
+  );
+  
+  const renderChatStep = () => (
+    <LearningStepCard 
+      title="Ask Questions" 
+      icon={<MessageSquare size={20} />}
+    >
+      <p className="text-gray-700 mb-4">
+        Have questions about the paper? Chat with our AI assistant to deepen your understanding:
+      </p>
+      <ChatInterface 
+        title="Paper Discussion"
+        paperTitle={paper?.title}
+        className="mb-4"
+      />
+      <Button onClick={() => handleStepComplete(6)} className="mt-4">
+        I've completed my discussion
+      </Button>
     </LearningStepCard>
   );
   
@@ -209,7 +307,7 @@ const PaperDetails = () => {
           </div>
         ))}
       </div>
-      <Button onClick={() => handleStepComplete(3)}>
+      <Button onClick={() => handleStepComplete(7)}>
         I've explored related papers
       </Button>
     </LearningStepCard>
@@ -234,7 +332,7 @@ const PaperDetails = () => {
           Analyze how subsequent research has improved upon the original Transformer
         </li>
       </ul>
-      <Button onClick={() => handleStepComplete(4)}>
+      <Button onClick={() => handleStepComplete(8)}>
         I'm ready for mastery
       </Button>
     </LearningStepCard>
@@ -301,7 +399,11 @@ const PaperDetails = () => {
                   steps={[
                     renderSummaryStep(),
                     renderKeyConceptsStep(),
+                    renderVideoExplanationStep(),
                     renderQuizStep(),
+                    renderFlashcardsStep(),
+                    renderSlidesStep(),
+                    renderChatStep(),
                     renderRelatedPapersStep(),
                     renderMasteryStep(),
                   ]}
@@ -324,7 +426,11 @@ const PaperDetails = () => {
                 steps={[
                   renderSummaryStep(),
                   renderKeyConceptsStep(),
+                  renderVideoExplanationStep(),
                   renderQuizStep(),
+                  renderFlashcardsStep(),
+                  renderSlidesStep(),
+                  renderChatStep(),
                   renderRelatedPapersStep(),
                   renderMasteryStep(),
                 ]}
