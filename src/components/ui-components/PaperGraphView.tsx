@@ -84,119 +84,110 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
   });
   
   // Generate more densely connected references for each user paper
-  papers.forEach((paper, paperIndex) => {
-    const level1Count = Math.floor(Math.random() * 5) + 3;
-    for (let i = 0; i < level1Count; i++) {
-      const refId = `ref-${paper.id}-l1-${i}`;
-      const xOffset = i % 2 === 0 ? -100 : 100;
-      
+  // Generate fake related papers and references with more connections
+  useEffect(() => {
+    const nodes: PaperNode[] = [];
+    
+    // Add user papers as blue nodes with more spacing between them
+    papers.forEach((paper, index) => {
       nodes.push({
-        x: paperIndex * 400 + 200 + xOffset + (i * 80),
-        y: 250,
-        z: 400,
-        id: refId,
-        title: `Reference to "${paper.title.substring(0, 15)}..." (L1-${i})`,
-        type: 'reference',
-        refBy: [paper.id]
+        x: index * 400 + 200, // Increase spacing between user papers
+        y: 100,
+        z: 600, // Much larger size for user papers (5x increase)
+        id: paper.id,
+        title: paper.title,
+        type: 'user'
       });
-      // Add edge from paper to level 1 reference
-      edges.push({ source: paper.id, target: refId });
-      
-      // Level 2 references
-      const level2Count = Math.floor(Math.random() * 4) + 2;
-      for (let j = 0; j < level2Count; j++) {
-        const refId2 = `ref-${paper.id}-l2-${i}-${j}`;
-        nodes.push({
-          x: paperIndex * 400 + 200 + xOffset + (i * 80) + (j % 2 === 0 ? -60 : 60),
-          y: 400,
-          z: 300,
-          id: refId2,
-          title: `Secondary reference (L2-${j})`,
-          type: 'reference',
-          refBy: [refId]
-        });
-        // Add edge from level 1 to level 2
-        edges.push({ source: refId, target: refId2 });
+    });
+    
+    // Generate more densely connected references for each user paper
+    papers.forEach((paper, paperIndex) => {
+      // Level 1 references (direct) - more of them
+      const level1Count = Math.floor(Math.random() * 5) + 3; // 3-7 references per paper
+      for (let i = 0; i < level1Count; i++) {
+        const refId = `ref-${paper.id}-l1-${i}`;
+        const xOffset = i % 2 === 0 ? -100 : 100; // Alternate left and right of the main paper
         
-        // Level 3 references
-        if (Math.random() > 0.3) {
-          const level3Count = Math.floor(Math.random() * 3) + 1;
-          for (let k = 0; k < level3Count; k++) {
-            const refId3 = `ref-${paper.id}-l3-${i}-${j}-${k}`;
-            nodes.push({
-              x: paperIndex * 400 + 200 + xOffset + (i * 80) + (j % 2 === 0 ? -60 : 60) + (k * 30),
-              y: 550,
-              z: 200,
-              id: refId3,
-              title: `Tertiary reference (L3-${k})`,
-              type: 'reference',
-              refBy: [refId2]
-            });
-            // Add edge from level 2 to level 3
-            edges.push({ source: refId2, target: refId3 });
+        nodes.push({
+          x: paperIndex * 400 + 200 + xOffset + (i * 80), 
+          y: 250,
+          z: 400, // Larger size for level 1 references (5x increase)
+          id: refId,
+          title: `Reference to "${paper.title.substring(0, 15)}..." (L1-${i})`,
+          type: 'reference',
+          refBy: [paper.id]
+        });
+        
+        // Level 2 references (referenced by level 1) - more of them and more connected
+        const level2Count = Math.floor(Math.random() * 4) + 2; // 2-5 level 2 references
+        for (let j = 0; j < level2Count; j++) {
+          const refId2 = `ref-${paper.id}-l2-${i}-${j}`;
+          nodes.push({
+            x: paperIndex * 400 + 200 + xOffset + (i * 80) + (j % 2 === 0 ? -60 : 60),
+            y: 400,
+            z: 300, // Larger size for level 2 references (5x increase)
+            id: refId2,
+            title: `Secondary reference (L2-${j})`,
+            type: 'reference',
+            refBy: [refId]
+          });
+          
+          // Level 3 references (referenced by level 2) - more of them
+          if (Math.random() > 0.3) { // 70% chance of having level 3 references
+            const level3Count = Math.floor(Math.random() * 3) + 1; // 1-3 level 3 references
+            for (let k = 0; k < level3Count; k++) {
+              const refId3 = `ref-${paper.id}-l3-${i}-${j}-${k}`;
+              nodes.push({
+                x: paperIndex * 400 + 200 + xOffset + (i * 80) + (j % 2 === 0 ? -60 : 60) + (k * 30),
+                y: 550,
+                z: 200, // Larger size for level 3 references (5x increase)
+                id: refId3,
+                title: `Tertiary reference (L3-${k})`,
+                type: 'reference',
+                refBy: [refId2]
+              });
+            }
           }
         }
-      }
-      
-      // Cross-paper connections
-      if (paperIndex > 0 && i === 0) {
-        const prevPaperRefId = `ref-${papers[paperIndex-1].id}-l1-0`;
-        const currentNode = nodes.find(n => n.id === refId);
-        if (currentNode && nodes.find(n => n.id === prevPaperRefId)) {
-          currentNode.refBy?.push(prevPaperRefId);
-          edges.push({ source: prevPaperRefId, target: refId });
+        
+        // Create some cross-paper connections for a more realistic network
+        if (paperIndex > 0 && i === 0) {
+          // Connect to a previous paper's reference
+          const prevPaperRefId = `ref-${papers[paperIndex-1].id}-l1-0`;
+          nodes.find(n => n.id === prevPaperRefId)?.refBy?.push(refId);
         }
       }
-    }
-  });
-  
-  // Common references between papers
-  if (papers.length >= 2) {
-    const commonRefId = 'common-ref-1';
-    nodes.push({
-      x: papers.length * 200,
-      y: 300,
-      z: 400,
-      id: commonRefId,
-      title: 'Common Reference Paper',
-      type: 'reference',
-      refBy: papers.slice(0, Math.min(papers.length, 3)).map(p => p.id)
     });
     
-    // Connect common reference to papers
-    papers.slice(0, Math.min(papers.length, 3)).forEach(paper => {
-      edges.push({ source: paper.id, target: commonRefId });
-    });
-    
-    // Second-level connections to common reference
-    for (let i = 0; i < 3; i++) {
-      const childId = `common-ref-1-child-${i}`;
+    // Add some common references between papers (papers that cite the same sources)
+    if (papers.length >= 2) {
+      const commonRefId = 'common-ref-1';
       nodes.push({
-        x: papers.length * 200 + (i * 100) - 100,
-        y: 450,
-        z: 250,
-        id: childId,
-        title: `Reference cited by common paper (${i})`,
+        x: papers.length * 200, // Position in the middle
+        y: 300,
+        z: 400, // Larger size for common references (5x increase)
+        id: commonRefId,
+        title: 'Common Reference Paper',
         type: 'reference',
-        refBy: [commonRefId]
+        refBy: papers.slice(0, Math.min(papers.length, 3)).map(p => p.id) // Referenced by up to first 3 papers
       });
-      edges.push({ source: commonRefId, target: childId });
+      
+      // Add some second-level connections to this common reference
+      for (let i = 0; i < 3; i++) {
+        nodes.push({
+          x: papers.length * 200 + (i * 100) - 100,
+          y: 450,
+          z: 250, // Medium-large size (5x increase)
+          id: `common-ref-1-child-${i}`,
+          title: `Reference cited by common paper (${i})`,
+          type: 'reference',
+          refBy: [commonRefId]
+        });
+      }
     }
-  }
-  
-  // Add some random additional connections between references
-  const referenceNodes = nodes.filter(n => n.type === 'reference');
-  for (let i = 0; i < Math.min(5, referenceNodes.length); i++) {
-    const sourceNode = referenceNodes[Math.floor(Math.random() * referenceNodes.length)];
-    const targetNode = referenceNodes[Math.floor(Math.random() * referenceNodes.length)];
-    if (sourceNode.id !== targetNode.id && 
-        !edges.some(e => e.source === sourceNode.id && e.target === targetNode.id)) {
-      edges.push({ source: sourceNode.id, target: targetNode.id });
-    }
-  }
-  
-  setGraphData({ nodes, links: edges });
-}, [papers]);
+    
+    setGraphData(nodes);
+  }, [papers]);
 
   // Handle mouse dragging for horizontal scrolling
   const handleMouseDown = (e: React.MouseEvent) => {
