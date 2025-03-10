@@ -27,13 +27,12 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
     // Create graph data structure
     const nodes = [];
     const edges = [];
-    const nodeMap = new Map();
 
     // Add user papers as primary nodes
-    papers.forEach((paper, index) => {
+    papers.forEach((paper) => {
       nodes.push({
         id: paper.id,
-        label: paper.title.length > 25 ? paper.title.substring(0, 25) + '...' : paper.title,
+        label: paper.title.length > 20 ? paper.title.substring(0, 20) + '...' : paper.title,
         shape: 'dot',
         size: 30, // Large size for user papers
         color: {
@@ -44,11 +43,10 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
             border: '#3b82f6'
           }
         },
-        font: { color: '#ffffff', size: 14, face: 'Arial' },
+        font: { color: '#ffffff', size: 16, face: 'Arial' },
         type: 'user',
         title: paper.title
       });
-      nodeMap.set(paper.id, paper);
     });
 
     // Generate reference papers and connections for each user paper
@@ -118,7 +116,7 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
       }
     });
     
-    // Add connections between papers to create a more interconnected graph
+    // Add connections between user papers to create a more interconnected graph
     if (papers.length > 1) {
       for (let i = 0; i < papers.length - 1; i++) {
         // Connect papers via shared references
