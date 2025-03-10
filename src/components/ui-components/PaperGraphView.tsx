@@ -45,7 +45,7 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
         },
         font: { color: '#ffffff', size: 16, face: 'Arial' },
         type: 'user',
-        title: paper.title
+        title: `<div style="max-width: 300px; font-family: Arial; padding: 5px;">${paper.title}</div>` // HTML tooltip
       });
     });
 
@@ -71,7 +71,7 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
           },
           font: { size: 12 },
           type: 'reference',
-          title: `Reference to "${paper.title.substring(0, 20)}..."`
+          title: `<div style="max-width: 250px; font-family: Arial; padding: 5px;">Reference to "${paper.title}"</div>` // HTML tooltip
         });
         
         // Add an edge from the user paper to this reference
@@ -102,7 +102,7 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
           },
           font: { size: 12 },
           type: 'citation',
-          title: `Paper citing "${paper.title.substring(0, 20)}..."`
+          title: `<div style="max-width: 250px; font-family: Arial; padding: 5px;">Paper citing "${paper.title}"</div>` // HTML tooltip
         });
         
         // Add an edge from this citation to the user paper
@@ -136,7 +136,7 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
           },
           font: { size: 10 },
           type: 'shared',
-          title: `Reference shared by multiple papers`
+          title: `<div style="max-width: 250px; font-family: Arial; padding: 5px;">Reference shared by multiple papers</div>` // HTML tooltip
         });
         
         // Add edges to connect both papers to this shared reference
@@ -189,7 +189,8 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
       hover: true,
       tooltipDelay: 200,
       zoomView: true,
-      dragView: true
+      dragView: true,
+      hoverConnectedEdges: true
     },
     physics: {
       stabilization: {
