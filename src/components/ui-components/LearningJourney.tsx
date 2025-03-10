@@ -33,7 +33,7 @@ const LearningJourney = ({ steps, className, onCompleteStep }: LearningJourneyPr
   };
 
   return (
-    <div className={cn("relative", className)}>
+    <div className={cn("relative w-full", className)}>
       <div className="flex justify-between mb-4">
         <Button 
           variant="outline" 
@@ -58,19 +58,14 @@ const LearningJourney = ({ steps, className, onCompleteStep }: LearningJourneyPr
         </Button>
       </div>
       
-      <div className="relative overflow-hidden">
+      <div className="relative min-h-[500px]">
         {steps.map((step, index) => (
           <div 
             key={index} 
             className={cn(
-              "transition-all duration-500 ease-in-out absolute top-0 left-0 w-full",
-              index === currentStep 
-                ? "opacity-100 translate-x-0" 
-                : index < currentStep 
-                  ? "opacity-0 -translate-x-full" 
-                  : "opacity-0 translate-x-full"
+              "transition-all duration-500 ease-in-out w-full",
+              index === currentStep ? "block" : "hidden"
             )}
-            style={{ display: index === currentStep ? 'block' : 'none' }}
           >
             {step}
           </div>
