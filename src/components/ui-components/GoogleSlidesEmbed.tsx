@@ -9,6 +9,10 @@ interface GoogleSlidesEmbedProps {
 }
 
 const GoogleSlidesEmbed = ({ slideUrl, title, className }: GoogleSlidesEmbedProps) => {
+  if (!slideUrl) {
+    return <div className="p-4 border border-red-200 rounded bg-red-50 text-red-700">Slide URL is required</div>;
+  }
+  
   return (
     <div className={cn("relative w-full overflow-hidden", className)}>
       <div className="aspect-w-16 aspect-h-9">

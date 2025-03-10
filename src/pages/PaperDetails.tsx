@@ -222,15 +222,19 @@ const PaperDetails = () => {
       <p className="text-gray-700 mb-4">
         Test your understanding of the Transformer architecture:
       </p>
-      <MultipleChoiceQuiz
-        questions={paper?.quiz as QuizQuestion[]}
-        onComplete={(score, total) => {
-          if (score / total >= 0.7) {
-            handleStepComplete(3);
-          }
-        }}
-        className="mb-4"
-      />
+      {paper?.quiz && paper.quiz.length > 0 ? (
+        <MultipleChoiceQuiz
+          questions={paper.quiz as QuizQuestion[]}
+          onComplete={(score, total) => {
+            if (score / total >= 0.7) {
+              handleStepComplete(3);
+            }
+          }}
+          className="mb-4"
+        />
+      ) : (
+        <p className="text-gray-500 italic">Quiz loading...</p>
+      )}
     </LearningStepCard>
   );
   
@@ -242,11 +246,15 @@ const PaperDetails = () => {
       <p className="text-gray-700 mb-4">
         Solidify your understanding with these key concept flashcards:
       </p>
-      <Flashcard
-        cards={paper?.flashcards as FlashcardData[]}
-        onComplete={() => handleStepComplete(4)}
-        className="mb-4"
-      />
+      {paper?.flashcards && paper.flashcards.length > 0 ? (
+        <Flashcard
+          cards={paper.flashcards as FlashcardData[]}
+          onComplete={() => handleStepComplete(4)}
+          className="mb-4"
+        />
+      ) : (
+        <p className="text-gray-500 italic">Flashcards loading...</p>
+      )}
     </LearningStepCard>
   );
   
@@ -297,7 +305,7 @@ const PaperDetails = () => {
         Understanding how this paper relates to others in the field will deepen your knowledge:
       </p>
       <div className="space-y-4 mb-6">
-        {paper?.relatedPapers.map((related: any) => (
+        {paper?.relatedPapers && paper.relatedPapers.map((related: any) => (
           <div key={related.id} className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
             <h4 className="font-medium text-blue-600">{related.title}</h4>
             <p className="text-sm text-gray-500 mt-1">
@@ -349,6 +357,19 @@ const PaperDetails = () => {
     renderRelatedPapersStep(),
     renderMasteryStep(),
   ];
+
+  // Add loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+        <div className="animate-pulse flex flex-col items-center">
+          <Brain size={48} className="text-blue-200 mb-4" />
+          <h2 className="text-xl font-medium text-gray-400 mb-2">Analyzing Paper...</h2>
+          <p className="text-gray-400">Building your personalized learning journey</p>
+        </div>
+      </div>
+    );
+  }
 
   // Keep the rest of the component the same, just update the steps prop
   return (
