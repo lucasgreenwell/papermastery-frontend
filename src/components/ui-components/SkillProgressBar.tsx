@@ -8,6 +8,7 @@ interface SkillProgressBarProps {
   maxSkill?: number;
   className?: string;
   animated?: boolean;
+  vertical?: boolean;
 }
 
 const SkillProgressBar = ({
@@ -15,7 +16,8 @@ const SkillProgressBar = ({
   previousSkill = 0,
   maxSkill = 100,
   className,
-  animated = true
+  animated = true,
+  vertical = false
 }: SkillProgressBarProps) => {
   const [isAnimating, setIsAnimating] = useState(false);
   
@@ -36,14 +38,26 @@ const SkillProgressBar = ({
   }, [currentSkill, previousSkill, animated]);
 
   return (
-    <div className={cn("skill-progress-bar", className)}>
+    <div className={cn(
+      "skill-progress-bar",
+      vertical ? "h-full w-2" : "h-2 w-full",
+      className
+    )}>
       <div 
         className={cn(
           "skill-progress-fill",
           isAnimating && "animate-skill-up"
         )}
-        style={{
+        style={vertical ? {
+          height: `${percentage}%`,
+          width: '100%',
+          position: 'absolute',
+          bottom: 0,
+          '--initial-height': `${previousPercentage}%`,
+          '--target-height': `${percentage}%`,
+        } as React.CSSProperties : {
           width: `${percentage}%`,
+          height: '100%',
           '--initial-width': `${previousPercentage}%`,
           '--target-width': `${percentage}%`,
         } as React.CSSProperties}

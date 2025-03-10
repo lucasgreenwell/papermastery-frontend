@@ -15,12 +15,12 @@ const PaperDetails = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [paper, setPaper] = useState<any>(null);
   const { toast } = useToast();
-  const [isMobileView, setIsMobileView] = useState(false);
+  const [isSmallScreen, setIsSmallScreen] = useState(false);
   
   // Check screen size for responsive layout
   useEffect(() => {
     const checkScreenSize = () => {
-      setIsMobileView(window.innerWidth < 1200);
+      setIsSmallScreen(window.innerWidth < 1200);
     };
     
     checkScreenSize();
@@ -275,51 +275,51 @@ const PaperDetails = () => {
         </div>
       </header>
       
-      <main className="w-full px-2 py-4">
-        {isMobileView ? (
-          // Mobile/Tablet layout - Vertical stacking with skill level on top
+      <main className="w-full max-w-full px-1 py-4">
+        {isSmallScreen ? (
+          // Mobile/Tablet layout - Vertical stacking with horizontal skill level on top
           <div className="flex flex-col space-y-4">
             {/* Skill Level - Horizontal Bar on Top */}
-            <div className="bg-white rounded-xl shadow-md border border-gray-100 p-4">
-              <div className="flex items-center space-x-4">
-                <div className="font-bold text-xl text-blue-600">
-                  {skillLevel}% Complete
-                </div>
-                <div className="flex-1">
-                  <SkillLevelSidebar skillLevel={skillLevel} className="h-auto" />
-                </div>
-              </div>
-            </div>
-            
-            {/* PDF Viewer */}
-            <div className="h-[40vh]">
-              <PdfViewer pdfUrl={paper?.pdfUrl} className="h-full" />
-            </div>
-            
-            {/* Learning Journey */}
             <div>
-              <LearningJourney
-                steps={[
-                  renderSummaryStep(),
-                  renderKeyConceptsStep(),
-                  renderQuizStep(),
-                  renderRelatedPapersStep(),
-                  renderMasteryStep(),
-                ]}
-                onCompleteStep={handleStepComplete}
+              <SkillLevelSidebar 
+                skillLevel={skillLevel} 
+                className="h-auto" 
+                isHorizontal={true} 
               />
+            </div>
+            
+            {/* Two column layout for PDF and Learning Journey */}
+            <div className="grid grid-cols-12 gap-3">
+              {/* PDF Viewer */}
+              <div className="col-span-6 h-[calc(100vh-14rem)]">
+                <PdfViewer pdfUrl={paper?.pdfUrl} className="h-full" />
+              </div>
+              
+              {/* Learning Journey */}
+              <div className="col-span-6">
+                <LearningJourney
+                  steps={[
+                    renderSummaryStep(),
+                    renderKeyConceptsStep(),
+                    renderQuizStep(),
+                    renderRelatedPapersStep(),
+                    renderMasteryStep(),
+                  ]}
+                  onCompleteStep={handleStepComplete}
+                />
+              </div>
             </div>
           </div>
         ) : (
-          // Desktop layout - Three column with PDF on left
-          <div className="grid grid-cols-12 gap-4">
+          // Desktop layout - Three column with wider PDF on left
+          <div className="grid grid-cols-12 gap-3">
             {/* PDF Viewer - Left Column */}
-            <div className="col-span-3 h-[calc(100vh-9rem)] sticky top-20">
+            <div className="col-span-5 h-[calc(100vh-9rem)] sticky top-20">
               <PdfViewer pdfUrl={paper?.pdfUrl} className="h-full" />
             </div>
             
             {/* Learning Journey - Middle Column */}
-            <div className="col-span-6">
+            <div className="col-span-5">
               <LearningJourney
                 steps={[
                   renderSummaryStep(),
@@ -333,8 +333,11 @@ const PaperDetails = () => {
             </div>
             
             {/* Skill Level - Right Column */}
-            <div className="col-span-3 h-[calc(100vh-9rem)] sticky top-20">
-              <SkillLevelSidebar skillLevel={skillLevel} className="h-full" />
+            <div className="col-span-2 h-[calc(100vh-9rem)] sticky top-20">
+              <SkillLevelSidebar 
+                skillLevel={skillLevel} 
+                className="h-full" 
+              />
             </div>
           </div>
         )}
