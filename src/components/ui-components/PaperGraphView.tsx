@@ -132,7 +132,7 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
         if (paperIndex > 0 && i === 0) {
           // Connect to a previous paper's reference
           const prevPaperRefId = `ref-${papers[paperIndex-1].id}-l1-0`;
-          nodes.find(n => n.id === refId)!.refBy?.push(prevPaperRefId);
+          nodes.find(n => n.id === prevPaperRefId)?.refBy?.push(refId);
         }
       }
     });
