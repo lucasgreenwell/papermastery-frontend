@@ -62,70 +62,105 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
   const [scrollLeft, setScrollLeft] = useState(0);
   const [graphData, setGraphData] = useState<PaperNode[]>([]);
   
-  // Generate fake related papers and references
+  // Generate paper nodes and their connections
   useEffect(() => {
     const nodes: PaperNode[] = [];
     
-    // Add user papers as blue nodes
+    // Add user papers as blue nodes in the center row
     papers.forEach((paper, index) => {
       nodes.push({
-        x: index * 200 + 100,
-        y: 100,
-        z: 60, // Large size for user papers
+        x: index * 300 + 200,
+        y: 250,
+        z: 300, // Very large size for user papers
         id: paper.id,
         title: paper.title,
         type: 'user'
       });
     });
     
-    // Generate up to 3 levels of related papers for each user paper
+    // Generate connected reference papers for each user paper
     papers.forEach((paper, paperIndex) => {
-      // Level 1 references (direct)
-      const level1Count = Math.floor(Math.random() * 3) + 1;
-      for (let i = 0; i < level1Count; i++) {
+      // First level references (direct references from user papers)
+      const refCount = Math.min(paperIndex + 2, 4); // Ensure some variety but not too many
+      for (let i = 0; i < refCount; i++) {
         const refId = `ref-${paper.id}-l1-${i}`;
         nodes.push({
-          x: paperIndex * 200 + 70 + (i * 50),
-          y: 200,
-          z: 30, // Medium size for level 1 references
+          x: paperIndex * 300 + 200 + ((i % 2 === 0) ? -120 : 120),
+          y: 150, // Above the user papers
+          z: 150, // Medium-large size for reference papers
           id: refId,
           title: `Reference to "${paper.title.substring(0, 15)}..." (L1-${i})`,
           type: 'reference',
           refBy: [paper.id]
         });
         
-        // Level 2 references (referenced by level 1)
-        if (Math.random() > 0.3) {
-          const level2Count = Math.floor(Math.random() * 2) + 1;
-          for (let j = 0; j < level2Count; j++) {
-            const refId2 = `ref-${paper.id}-l2-${i}-${j}`;
-            nodes.push({
-              x: paperIndex * 200 + 60 + (i * 50) + (j * 20),
-              y: 300,
-              z: 20, // Smaller size for level 2 references
-              id: refId2,
-              title: `Secondary reference (L2-${j})`,
-              type: 'reference',
-              refBy: [refId]
-            });
-            
-            // Level 3 references (referenced by level 2)
-            if (Math.random() > 0.5) {
-              const refId3 = `ref-${paper.id}-l3-${i}-${j}`;
-              nodes.push({
-                x: paperIndex * 200 + 50 + (i * 50) + (j * 20),
-                y: 400,
-                z: 10, // Smallest size for level 3 references
-                id: refId3,
-                title: `Tertiary reference (L3)`,
-                type: 'reference',
-                refBy: [refId2]
-              });
-            }
+        // Second level references (referenced by first level)
+        if (i < 2) { // Limit second level references for simplicity
+          const refId2 = `ref-${paper.id}-l2-${i}`;
+          nodes.push({
+            x: paperIndex * 300 + 200 + ((i % 2 === 0) ? -160 : 160),
+            y: 50, // Above first level
+            z: 100, // Medium size
+            id: refId2,
+            title: `Secondary reference (L2-${i})`,
+            type: 'reference',
+            refBy: [refId]
+          });
+        }
+      }
+      
+      // Add references below user papers as well
+      for (let i = 0; i < refCount - 1; i++) {
+        const refId = `ref-below-${paper.id}-l1-${i}`;
+        nodes.push({
+          x: paperIndex * 300 + 200 + ((i % 2 === 0) ? -100 : 100),
+          y: 350, // Below the user papers
+          z: 150,
+          id: refId,
+          title: `Citation of "${paper.title.substring(0, 15)}..." (C1-${i})`,
+          type: 'reference', 
+          refBy: [paper.id]
+        });
+        
+        // Add some connections between reference papers horizontally
+        if (paperIndex > 0 && i === 0) {
+          const prevPaperRefId = `ref-below-${papers[paperIndex-1].id}-l1-0`;
+          const existingNode = nodes.find(n => n.id === refId);
+          if (existingNode && existingNode.refBy) {
+            existingNode.refBy.push(prevPaperRefId);
           }
         }
       }
     });
+    
+    // Add some cross-references between papers to make the graph more connected
+    if (papers.length > 1) {
+      // Connect first and second user papers
+      const ref1 = `cross-ref-1-2`;
+      nodes.push({
+        x: 350,
+        y: 200,
+        z: 120,
+        id: ref1,
+        title: "Cross-reference between papers",
+        type: 'reference',
+        refBy: [papers[0].id, papers[1].id]
+      });
+      
+      // If there's a third paper, connect it too
+      if (papers.length > 2) {
+        const ref2 = `cross-ref-2-3`;
+        nodes.push({
+          x: 650,
+          y: 200, 
+          z: 120,
+          id: ref2,
+          title: "Another cross-reference",
+          type: 'reference',
+          refBy: [papers[1].id, papers[2].id]
+        });
+      }
+    }
     
     setGraphData(nodes);
   }, [papers]);
@@ -156,10 +191,10 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
     }
   };
 
-  // Calculate the required width based on the data
+  // Calculate width based on data to ensure scrolling works
   const graphWidth = Math.max(
-    papers.length * 200 + 200, // Base width from user papers
-    800 // Minimum width
+    papers.length * 300 + 400, // Base width from user papers
+    1200 // Minimum width to ensure scrolling is possible
   );
 
   return (
@@ -172,7 +207,7 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
       onMouseLeave={handleMouseUp}
       style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
     >
-      <div className="min-h-[500px] min-w-full relative">
+      <div className="min-h-[500px]" style={{ width: `${graphWidth}px` }}>
         {graphData.length > 0 ? (
           <ResponsiveContainer width="100%" height={500}>
             <ScatterChart 
@@ -180,27 +215,31 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
             >
               <XAxis type="number" dataKey="x" hide domain={['dataMin', 'dataMax']} />
               <YAxis type="number" dataKey="y" hide domain={['dataMin', 'dataMax']} />
-              <ZAxis type="number" dataKey="z" range={[20, 60]} />
+              <ZAxis type="number" dataKey="z" range={[100, 300]} />
               <Tooltip content={<CustomTooltip />} cursor={{ strokeDasharray: '3 3' }} />
               
-              {/* Lines connecting referenced papers */}
+              {/* Draw connecting lines between nodes */}
               {graphData.map((node) => {
-                if (node.refBy) {
-                  const parentNode = graphData.find(n => n.id === node.refBy![0]);
-                  if (parentNode) {
-                    return (
-                      <line
-                        key={`line-${node.id}-${parentNode.id}`}
-                        x1={parentNode.x}
-                        y1={parentNode.y}
-                        x2={node.x}
-                        y2={node.y}
-                        stroke="#ccc"
-                        strokeWidth={1}
-                        style={{ pointerEvents: 'none' }}
-                      />
-                    );
-                  }
+                if (node.refBy && node.refBy.length > 0) {
+                  return node.refBy.map((parentId) => {
+                    const parentNode = graphData.find(n => n.id === parentId);
+                    if (parentNode) {
+                      return (
+                        <line
+                          key={`line-${node.id}-${parentId}`}
+                          x1={parentNode.x}
+                          y1={parentNode.y}
+                          x2={node.x}
+                          y2={node.y}
+                          stroke="#ccc"
+                          strokeWidth={2}
+                          strokeOpacity={0.8}
+                          style={{ pointerEvents: 'none' }}
+                        />
+                      );
+                    }
+                    return null;
+                  });
                 }
                 return null;
               })}
