@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, BookOpen, Brain, GraduationCap, Lightbulb, FileText, Video, Layers, Presentation, MessageSquare } from 'lucide-react';
@@ -153,7 +152,7 @@ const PaperDetails = () => {
     }
   };
 
-  // Learning journey steps
+  // Modified learning journey steps with all components
   const renderSummaryStep = () => (
     <LearningStepCard 
       title="Paper Summary" 
@@ -338,18 +337,20 @@ const PaperDetails = () => {
     </LearningStepCard>
   );
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
-        <div className="animate-pulse flex flex-col items-center">
-          <Brain size={48} className="text-blue-200 mb-4 animate-float" />
-          <h2 className="text-xl font-medium text-gray-400 mb-2">Analyzing Paper...</h2>
-          <p className="text-gray-400">Building your personalized learning journey</p>
-        </div>
-      </div>
-    );
-  }
+  // Update the steps array in both mobile and desktop layouts
+  const learningJourneySteps = [
+    renderSummaryStep(),
+    renderKeyConceptsStep(),
+    renderVideoExplanationStep(),
+    renderQuizStep(),
+    renderFlashcardsStep(),
+    renderSlidesStep(),
+    renderChatStep(),
+    renderRelatedPapersStep(),
+    renderMasteryStep(),
+  ];
 
+  // Keep the rest of the component the same, just update the steps prop
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -375,7 +376,6 @@ const PaperDetails = () => {
       
       <main className="w-full max-w-full px-1 py-4">
         {isSmallScreen ? (
-          // Mobile/Tablet layout - Vertical stacking with horizontal skill level on top
           <div className="flex flex-col space-y-4">
             {/* Skill Level - Horizontal Bar on Top */}
             <div>
@@ -386,54 +386,30 @@ const PaperDetails = () => {
               />
             </div>
             
-            {/* Two column layout for PDF and Learning Journey */}
             <div className="grid grid-cols-12 gap-3">
               {/* PDF Viewer */}
               <div className="col-span-6 h-[calc(100vh-14rem)]">
                 <PdfViewer pdfUrl={paper?.pdfUrl} className="h-full" />
               </div>
               
-              {/* Learning Journey */}
               <div className="col-span-6">
                 <LearningJourney
-                  steps={[
-                    renderSummaryStep(),
-                    renderKeyConceptsStep(),
-                    renderVideoExplanationStep(),
-                    renderQuizStep(),
-                    renderFlashcardsStep(),
-                    renderSlidesStep(),
-                    renderChatStep(),
-                    renderRelatedPapersStep(),
-                    renderMasteryStep(),
-                  ]}
+                  steps={learningJourneySteps}
                   onCompleteStep={handleStepComplete}
                 />
               </div>
             </div>
           </div>
         ) : (
-          // Desktop layout - Three column with wider PDF on left
           <div className="grid grid-cols-12 gap-3">
             {/* PDF Viewer - Left Column */}
             <div className="col-span-5 h-[calc(100vh-9rem)] sticky top-20">
               <PdfViewer pdfUrl={paper?.pdfUrl} className="h-full" />
             </div>
             
-            {/* Learning Journey - Middle Column */}
             <div className="col-span-5">
               <LearningJourney
-                steps={[
-                  renderSummaryStep(),
-                  renderKeyConceptsStep(),
-                  renderVideoExplanationStep(),
-                  renderQuizStep(),
-                  renderFlashcardsStep(),
-                  renderSlidesStep(),
-                  renderChatStep(),
-                  renderRelatedPapersStep(),
-                  renderMasteryStep(),
-                ]}
+                steps={learningJourneySteps}
                 onCompleteStep={handleStepComplete}
               />
             </div>
