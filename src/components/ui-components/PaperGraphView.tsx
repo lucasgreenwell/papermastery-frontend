@@ -3,6 +3,12 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Graph from 'react-graph-vis';
 import { cn } from '@/lib/utils';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface Paper {
   id: string;
@@ -20,6 +26,10 @@ interface PaperGraphViewProps {
 const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
   const navigate = useNavigate();
   const [graphData, setGraphData] = useState({ nodes: [], edges: [] });
+  const [hoveredNode, setHoveredNode] = useState(null);
+  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
+  const [tooltipContent, setTooltipContent] = useState('');
+  const [showTooltip, setShowTooltip] = useState(false);
 
   useEffect(() => {
     if (!papers || papers.length === 0) return;
@@ -45,7 +55,7 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
         },
         font: { color: '#ffffff', size: 16, face: 'Arial' },
         type: 'user',
-        title: paper.title
+        fullTitle: paper.title // Store full title for tooltip
       });
     });
 
@@ -71,7 +81,7 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
           },
           font: { size: 12 },
           type: 'reference',
-          title: `Reference to "${paper.title}"`
+          fullTitle: `Reference to "${paper.title}"`
         });
         
         // Add an edge from the user paper to this reference
@@ -102,7 +112,7 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
           },
           font: { size: 12 },
           type: 'citation',
-          title: `Paper citing "${paper.title}"`
+          fullTitle: `Paper citing "${paper.title}"`
         });
         
         // Add an edge from this citation to the user paper
@@ -136,7 +146,7 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
           },
           font: { size: 10 },
           type: 'shared',
-          title: `Reference shared by multiple papers`
+          fullTitle: `Reference shared by multiple papers`
         });
         
         // Add edges to connect both papers to this shared reference
@@ -219,6 +229,26 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
           navigate(`/papers/${selectedNode.id}`);
         }
       }
+    },
+    hoverNode: function(event) {
+      const { node } = event;
+      const hoveredNode = graphData.nodes.find(n => n.id === node);
+      if (hoveredNode) {
+        setHoveredNode(node);
+        setTooltipContent(hoveredNode.fullTitle);
+        setShowTooltip(true);
+        
+        // Get position from event
+        const canvasBounds = event.event.srcElement.getBoundingClientRect();
+        setTooltipPosition({
+          x: event.event.clientX - canvasBounds.left,
+          y: event.event.clientY - canvasBounds.top
+        });
+      }
+    },
+    blurNode: function() {
+      setShowTooltip(false);
+      setHoveredNode(null);
     }
   };
 
@@ -232,7 +262,6 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
             events={events}
             getNetwork={network => {
               // Save and use the network reference if needed for interactions
-              // Optional: can be used to force a redraw or other manipulations
               if (network) {
                 console.log("Graph network initialized");
                 // Force redraw after a slight delay to ensure proper initialization
@@ -242,6 +271,18 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
               }
             }}
           />
+          {showTooltip && (
+            <div 
+              className="absolute bg-white px-3 py-2 rounded-md shadow-lg border border-gray-200 z-50 text-sm max-w-xs"
+              style={{
+                left: `${tooltipPosition.x}px`,
+                top: `${tooltipPosition.y - 10}px`,
+                transform: 'translateY(-100%)'
+              }}
+            >
+              {tooltipContent}
+            </div>
+          )}
         </div>
       ) : (
         <div className="flex items-center justify-center h-[500px]">
