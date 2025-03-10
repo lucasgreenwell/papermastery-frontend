@@ -1,7 +1,8 @@
+
 import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Brain, LogOut, Search } from 'lucide-react';
+import { Brain, LogOut, Search, Upload } from 'lucide-react';
 import PaperCard from '@/components/ui-components/PaperCard';
 import PaperUploadForm from '@/components/ui-components/PaperUploadForm';
 import { useToast } from '@/hooks/use-toast';
