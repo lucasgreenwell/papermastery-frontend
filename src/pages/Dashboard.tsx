@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Brain, LogOut, Search, Upload } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import PaperCard from '@/components/ui-components/PaperCard';
 import PaperUploadForm from '@/components/ui-components/PaperUploadForm';
 import { useToast } from '@/hooks/use-toast';
@@ -67,11 +68,11 @@ const Dashboard = () => {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="w-full px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-2">
+        <div className="w-full px-2 sm:px-4 py-4 flex justify-between items-center">
+          <Link to="/" className="flex items-center gap-2">
             <Brain className="text-blue-600" size={24} />
             <span className="font-bold text-xl">Paper Mastery</span>
-          </div>
+          </Link>
           
           <div className="flex items-center gap-4">
             <div className="text-sm text-gray-600">
@@ -85,7 +86,7 @@ const Dashboard = () => {
         </div>
       </header>
       
-      <main className="w-full px-4 py-8">
+      <main className="w-full px-2 sm:px-4 py-8">
         <div className="mb-8">
           <h1 className="text-2xl font-bold mb-6">My Research Papers</h1>
           

@@ -15,6 +15,21 @@ const PaperDetails = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [paper, setPaper] = useState<any>(null);
   const { toast } = useToast();
+  const [isMobileView, setIsMobileView] = useState(false);
+  
+  // Check screen size for responsive layout
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsMobileView(window.innerWidth < 1200);
+    };
+    
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    
+    return () => {
+      window.removeEventListener('resize', checkScreenSize);
+    };
+  }, []);
   
   // Mock paper data - would fetch from API/Supabase in real app
   useEffect(() => {
@@ -241,46 +256,88 @@ const PaperDetails = () => {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+        <div className="px-2 sm:px-4 py-4 flex justify-between items-center">
           <div className="flex items-center">
             <Button variant="ghost" size="icon" asChild className="mr-2">
               <Link to="/dashboard">
                 <ArrowLeft size={18} />
               </Link>
             </Button>
-            <h1 className="text-xl font-bold truncate max-w-md">
+            <Link to="/" className="flex items-center">
+              <Brain className="text-blue-600 mr-2" size={24} />
+              <span className="font-bold hidden sm:inline">Paper Mastery</span>
+            </Link>
+            <span className="mx-2 text-gray-300">|</span>
+            <h1 className="text-lg sm:text-xl font-bold truncate max-w-[150px] sm:max-w-md">
               {paper?.title}
             </h1>
           </div>
         </div>
       </header>
       
-      <main className="container mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* PDF Viewer - Left Sidebar */}
-          <div className="lg:col-span-3 h-[calc(100vh-9rem)] sticky top-20">
-            <PdfViewer pdfUrl={paper?.pdfUrl} className="h-full" />
+      <main className="w-full px-2 py-4">
+        {isMobileView ? (
+          // Mobile/Tablet layout - Vertical stacking with skill level on top
+          <div className="flex flex-col space-y-4">
+            {/* Skill Level - Horizontal Bar on Top */}
+            <div className="bg-white rounded-xl shadow-md border border-gray-100 p-4">
+              <div className="flex items-center space-x-4">
+                <div className="font-bold text-xl text-blue-600">
+                  {skillLevel}% Complete
+                </div>
+                <div className="flex-1">
+                  <SkillLevelSidebar skillLevel={skillLevel} className="h-auto" />
+                </div>
+              </div>
+            </div>
+            
+            {/* PDF Viewer */}
+            <div className="h-[40vh]">
+              <PdfViewer pdfUrl={paper?.pdfUrl} className="h-full" />
+            </div>
+            
+            {/* Learning Journey */}
+            <div>
+              <LearningJourney
+                steps={[
+                  renderSummaryStep(),
+                  renderKeyConceptsStep(),
+                  renderQuizStep(),
+                  renderRelatedPapersStep(),
+                  renderMasteryStep(),
+                ]}
+                onCompleteStep={handleStepComplete}
+              />
+            </div>
           </div>
-          
-          {/* Learning Journey - Middle */}
-          <div className="lg:col-span-6">
-            <LearningJourney
-              steps={[
-                renderSummaryStep(),
-                renderKeyConceptsStep(),
-                renderQuizStep(),
-                renderRelatedPapersStep(),
-                renderMasteryStep(),
-              ]}
-              onCompleteStep={handleStepComplete}
-            />
+        ) : (
+          // Desktop layout - Three column with PDF on left
+          <div className="grid grid-cols-12 gap-4">
+            {/* PDF Viewer - Left Column */}
+            <div className="col-span-3 h-[calc(100vh-9rem)] sticky top-20">
+              <PdfViewer pdfUrl={paper?.pdfUrl} className="h-full" />
+            </div>
+            
+            {/* Learning Journey - Middle Column */}
+            <div className="col-span-6">
+              <LearningJourney
+                steps={[
+                  renderSummaryStep(),
+                  renderKeyConceptsStep(),
+                  renderQuizStep(),
+                  renderRelatedPapersStep(),
+                  renderMasteryStep(),
+                ]}
+                onCompleteStep={handleStepComplete}
+              />
+            </div>
+            
+            {/* Skill Level - Right Column */}
+            <div className="col-span-3 h-[calc(100vh-9rem)] sticky top-20">
+              <SkillLevelSidebar skillLevel={skillLevel} className="h-full" />
+            </div>
           </div>
-          
-          {/* Skill Level - Right Sidebar */}
-          <div className="lg:col-span-3 h-[calc(100vh-9rem)] sticky top-20">
-            <SkillLevelSidebar skillLevel={skillLevel} className="h-full" />
-          </div>
-        </div>
+        )}
       </main>
     </div>
   );
