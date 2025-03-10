@@ -1,18 +1,21 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { Session, User } from '@supabase/supabase-js';
+import { toast } from 'sonner';
 
-// This is a mock authentication context
-// In a real app, this would connect to Supabase
-
-interface User {
+interface UserProfile {
   id: string;
   email: string;
   name?: string;
+  username?: string;
+  avatar_url?: string;
 }
 
 interface AuthContextType {
-  user: User | null;
+  user: UserProfile | null;
+  session: Session | null;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, name: string) => Promise<void>;
@@ -22,37 +25,105 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Mock implementation - would be replaced with actual Supabase Auth
   useEffect(() => {
-    // Check if user is already signed in (e.g., from localStorage)
-    const checkUser = async () => {
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, currentSession) => {
+        setSession(currentSession);
+        setIsLoading(true);
+
+        if (currentSession) {
+          try {
+            // Get user profile from profiles table
+            const { data: profile, error } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', currentSession.user.id)
+              .single();
+
+            if (error) {
+              console.error('Error fetching profile:', error);
+              throw error;
+            }
+
+            setUser({
+              id: currentSession.user.id,
+              email: currentSession.user.email || '',
+              name: profile?.display_name,
+              username: profile?.username,
+              avatar_url: profile?.avatar_url
+            });
+          } catch (error) {
+            console.error('Error setting user data:', error);
+            toast.error('Error loading user profile');
+          }
+        } else {
+          setUser(null);
+        }
+        
+        setIsLoading(false);
+      }
+    );
+
+    // Check for existing session on mount
+    const checkSession = async () => {
       try {
-        const storedUser = localStorage.getItem('insight_user');
-        if (storedUser) {
-          setUser(JSON.parse(storedUser));
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        setSession(currentSession);
+
+        if (currentSession) {
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', currentSession.user.id)
+            .single();
+
+          if (error) {
+            console.error('Error fetching profile:', error);
+            throw error;
+          }
+
+          setUser({
+            id: currentSession.user.id,
+            email: currentSession.user.email || '',
+            name: profile?.display_name,
+            username: profile?.username,
+            avatar_url: profile?.avatar_url
+          });
         }
       } catch (error) {
-        console.error('Error checking authentication:', error);
+        console.error('Error checking session:', error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    checkUser();
+    checkSession();
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
     setIsLoading(true);
     
     try {
-      // Mock login - would use Supabase Auth's signIn
-      const mockUser = { id: '123', email };
-      setUser(mockUser);
-      localStorage.setItem('insight_user', JSON.stringify(mockUser));
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        toast.error(error.message);
+        throw error;
+      }
+
       navigate('/dashboard');
     } catch (error) {
       console.error('Error signing in:', error);
@@ -66,11 +137,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     
     try {
-      // Mock signup - would use Supabase Auth's signUp
-      const mockUser = { id: '123', email, name };
-      setUser(mockUser);
-      localStorage.setItem('insight_user', JSON.stringify(mockUser));
-      navigate('/dashboard');
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name: name,
+          },
+        },
+      });
+
+      if (error) {
+        toast.error(error.message);
+        throw error;
+      }
+
+      toast.success('Account created! Please check your email for verification.');
+      navigate('/auth');
     } catch (error) {
       console.error('Error signing up:', error);
       throw error;
@@ -83,9 +166,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     
     try {
-      // Mock signout - would use Supabase Auth's signOut
-      setUser(null);
-      localStorage.removeItem('insight_user');
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        toast.error(error.message);
+        throw error;
+      }
+      
       navigate('/auth');
     } catch (error) {
       console.error('Error signing out:', error);
@@ -96,7 +183,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, session, isLoading, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );
