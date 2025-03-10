@@ -31,6 +31,11 @@ interface PaperNode {
   refBy?: string[];
 }
 
+interface Edge {
+  source: string;
+  target: string;
+}
+
 interface PaperGraphViewProps {
   papers: Paper[];
   className?: string;
@@ -61,10 +66,12 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
   const [graphData, setGraphData] = useState<PaperNode[]>([]);
+  const [edges, setEdges] = useState<Edge[]>([]);
   
   // Generate paper nodes and their connections
   useEffect(() => {
     const nodes: PaperNode[] = [];
+    const connectionEdges: Edge[] = [];
     
     // Add user papers as blue nodes in the center row
     papers.forEach((paper, index) => {
@@ -94,6 +101,12 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
           refBy: [paper.id]
         });
         
+        // Add the edge between user paper and this reference
+        connectionEdges.push({
+          source: paper.id,
+          target: refId
+        });
+        
         // Second level references (referenced by first level)
         if (i < 2) { // Limit second level references for simplicity
           const refId2 = `ref-${paper.id}-l2-${i}`;
@@ -105,6 +118,12 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
             title: `Secondary reference (L2-${i})`,
             type: 'reference',
             refBy: [refId]
+          });
+          
+          // Add the edge between first level reference and second level
+          connectionEdges.push({
+            source: refId,
+            target: refId2
           });
         }
       }
@@ -122,12 +141,21 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
           refBy: [paper.id]
         });
         
+        // Add the edge between user paper and this citation
+        connectionEdges.push({
+          source: paper.id,
+          target: refId
+        });
+        
         // Add some connections between reference papers horizontally
         if (paperIndex > 0 && i === 0) {
           const prevPaperRefId = `ref-below-${papers[paperIndex-1].id}-l1-0`;
-          const existingNode = nodes.find(n => n.id === refId);
-          if (existingNode && existingNode.refBy) {
-            existingNode.refBy.push(prevPaperRefId);
+          const existingNode = nodes.find(n => n.id === prevPaperRefId);
+          if (existingNode) {
+            connectionEdges.push({
+              source: prevPaperRefId,
+              target: refId
+            });
           }
         }
       }
@@ -147,6 +175,16 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
         refBy: [papers[0].id, papers[1].id]
       });
       
+      // Add edges for cross-reference
+      connectionEdges.push({
+        source: papers[0].id,
+        target: ref1
+      });
+      connectionEdges.push({
+        source: papers[1].id,
+        target: ref1
+      });
+      
       // If there's a third paper, connect it too
       if (papers.length > 2) {
         const ref2 = `cross-ref-2-3`;
@@ -159,10 +197,21 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
           type: 'reference',
           refBy: [papers[1].id, papers[2].id]
         });
+        
+        // Add edges for second cross-reference
+        connectionEdges.push({
+          source: papers[1].id,
+          target: ref2
+        });
+        connectionEdges.push({
+          source: papers[2].id,
+          target: ref2
+        });
       }
     }
     
     setGraphData(nodes);
+    setEdges(connectionEdges);
   }, [papers]);
 
   // Handle mouse dragging for horizontal scrolling
@@ -218,31 +267,28 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
               <ZAxis type="number" dataKey="z" range={[100, 300]} />
               <Tooltip content={<CustomTooltip />} cursor={{ strokeDasharray: '3 3' }} />
               
-              {/* Draw connecting lines between nodes */}
-              {graphData.map((node) => {
-                if (node.refBy && node.refBy.length > 0) {
-                  return node.refBy.map((parentId) => {
-                    const parentNode = graphData.find(n => n.id === parentId);
-                    if (parentNode) {
-                      return (
-                        <line
-                          key={`line-${node.id}-${parentId}`}
-                          x1={parentNode.x}
-                          y1={parentNode.y}
-                          x2={node.x}
-                          y2={node.y}
-                          stroke="#ccc"
-                          strokeWidth={2}
-                          strokeOpacity={0.8}
-                          style={{ pointerEvents: 'none' }}
-                        />
-                      );
-                    }
-                    return null;
-                  });
-                }
-                return null;
-              })}
+              {/* Custom rendering for edges between nodes */}
+              <svg>
+                {edges.map((edge, index) => {
+                  const sourceNode = graphData.find(n => n.id === edge.source);
+                  const targetNode = graphData.find(n => n.id === edge.target);
+                  
+                  if (sourceNode && targetNode) {
+                    return (
+                      <line
+                        key={`edge-${index}`}
+                        x1={sourceNode.x}
+                        y1={sourceNode.y}
+                        x2={targetNode.x}
+                        y2={targetNode.y}
+                        stroke="#aaa"
+                        strokeWidth={2}
+                      />
+                    );
+                  }
+                  return null;
+                })}
+              </svg>
               
               <Scatter 
                 name="Papers Graph" 
