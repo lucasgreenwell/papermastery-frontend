@@ -15,7 +15,7 @@ const GoogleSlidesEmbed = ({ slideUrl, title, className }: GoogleSlidesEmbedProp
   
   return (
     <div className={cn("relative w-full overflow-hidden", className)}>
-      <div className="aspect-w-16 aspect-h-9">
+      <div className="aspect-slides">
         <iframe
           src={slideUrl}
           title={title || "Google Slides Presentation"}

@@ -21,7 +21,7 @@ const VideoEmbed = ({ videoUrl, title, className }: VideoEmbedProps) => {
 
   return (
     <div className={cn("relative w-full overflow-hidden", className)}>
-      <div className="aspect-w-16 aspect-h-9">
+      <div className="aspect-video">
         <iframe
           src={embedUrl}
           title={title || "Embedded video"}
