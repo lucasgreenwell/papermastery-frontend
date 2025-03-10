@@ -6,3 +6,9 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+// Add types for react-graph-vis if needed
+declare global {
+  interface Window {
+    vis: any;
+  }
+}
