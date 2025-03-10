@@ -1,262 +1,141 @@
+
 import React, { useState } from 'react';
-import { 
-  Search, 
-  Plus, 
-  Brain, 
-  Clock, 
-  List, 
-  Grid, 
-  Network,
-  LayoutGrid 
-} from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Toggle } from '@/components/ui/toggle';
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Brain, LogOut, Search, Upload } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import PaperCard from '@/components/ui-components/PaperCard';
+import PaperUploadForm from '@/components/ui-components/PaperUploadForm';
 import { useToast } from '@/hooks/use-toast';
-import PapersGraph from '@/components/ui-components/PapersGraph';
+import { Input } from '@/components/ui/input';
 
 const Dashboard = () => {
+  const { user, signOut } = useAuth();
   const { toast } = useToast();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [viewMode, setViewMode] = useState<'list' | 'graph'>('list');
+  const [searchQuery, setSearchQuery] = useState('');
   
-  // Mock data for demonstration
-  const papers = [
+  // Mock data for papers
+  const [papers, setPapers] = useState([
     {
       id: '1',
       title: 'Attention Is All You Need',
       authors: ['Ashish Vaswani', 'Noam Shazeer', 'Niki Parmar'],
-      date: '2017-06-12',
-      abstract: 'The dominant sequence transduction models are based on complex recurrent or convolutional neural networks that include an encoder and a decoder. The best performing models also connect the encoder and decoder through an attention mechanism. We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely.',
-      pdfUrl: 'https://arxiv.org/pdf/1706.03762.pdf',
-      categories: ['deep-learning', 'nlp'],
-      readingStatus: 'in-progress',
-      skillLevel: 65,
+      date: 'June 12, 2017',
+      skillLevel: 75,
     },
     {
       id: '2',
       title: 'BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding',
       authors: ['Jacob Devlin', 'Ming-Wei Chang', 'Kenton Lee', 'Kristina Toutanova'],
-      date: '2018-10-11',
-      abstract: 'We introduce a new language representation model called BERT, which stands for Bidirectional Encoder Representations from Transformers. Unlike recent language representation models, BERT is designed to pre-train deep bidirectional representations from unlabeled text by jointly conditioning on both left and right context in all layers.',
-      pdfUrl: 'https://arxiv.org/pdf/1810.04805.pdf',
-      categories: ['deep-learning', 'nlp'],
-      readingStatus: 'not-started',
-      skillLevel: 0,
+      date: 'October 11, 2018',
+      skillLevel: 45,
     },
     {
       id: '3',
-      title: 'GPT-3: Language Models are Few-Shot Learners',
-      authors: ['Tom B. Brown', 'Benjamin Mann', 'Nick Ryder'],
-      date: '2020-05-28',
-      abstract: 'Recent work has demonstrated substantial gains on many NLP tasks and benchmarks by pre-training on a large corpus of text followed by fine-tuning on a specific task. While typically task-agnostic in architecture, this method still requires task-specific fine-tuning datasets of thousands or tens of thousands of examples. By contrast, humans can generally perform a new language task from only a few examples or from simple instructions.',
-      pdfUrl: 'https://arxiv.org/pdf/2005.14165.pdf',
-      categories: ['deep-learning', 'nlp'],
-      readingStatus: 'completed',
-      skillLevel: 100,
+      title: 'Deep Residual Learning for Image Recognition',
+      authors: ['Kaiming He', 'Xiangyu Zhang', 'Shaoqing Ren', 'Jian Sun'],
+      date: 'December 10, 2015',
+      skillLevel: 30,
     },
-    {
-      id: '4',
-      title: 'An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale',
-      authors: ['Alexey Dosovitskiy', 'Lucas Beyer', 'Alexander Kolesnikov'],
-      date: '2020-10-22',
-      abstract: 'While the Transformer architecture has become the de-facto standard for natural language processing tasks, its applications to computer vision remain limited. In vision, attention is either applied in conjunction with convolutional networks, or used to replace certain components of convolutional networks while keeping their overall structure in place.',
-      pdfUrl: 'https://arxiv.org/pdf/2010.11929.pdf',
-      categories: ['deep-learning', 'computer-vision'],
-      readingStatus: 'not-started',
-      skillLevel: 20,
-    },
-  ];
-  
-  // Filter papers based on search term
-  const filteredPapers = papers.filter(paper => 
-    paper.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    paper.authors.some(author => author.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    paper.abstract.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-  
-  // Toggle between list and graph views
-  const handleViewChange = (value: string) => {
-    if (value === 'list' || value === 'graph') {
-      setViewMode(value);
-    }
+  ]);
+
+  const handlePaperUpload = async (input: string, type: 'url' | 'file') => {
+    // This would connect to your backend to process the paper
+    // For now, we'll just add a mock paper to the list
+    
+    const newPaper = {
+      id: (papers.length + 1).toString(),
+      title: type === 'url' ? 'New Paper from URL' : input,
+      authors: ['Author One', 'Author Two'],
+      date: new Date().toLocaleDateString(),
+      skillLevel: 0,
+    };
+    
+    setPapers([newPaper, ...papers]);
+    
+    toast({
+      title: "Paper uploaded successfully",
+      description: "Your paper is now being processed.",
+    });
   };
+
+  const filteredPapers = papers.filter(paper => 
+    paper.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    paper.authors.some(author => author.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="py-4 flex items-center justify-between">
-            <div className="flex items-center">
-              <Brain className="text-blue-600 mr-2" size={28} />
-              <h1 className="text-xl font-bold">Paper Mastery</h1>
+        <div className="w-full px-2 sm:px-4 py-4 flex justify-between items-center">
+          <Link to="/" className="flex items-center gap-2">
+            <Brain className="text-blue-600" size={24} />
+            <span className="font-bold text-xl">Paper Mastery</span>
+          </Link>
+          
+          <div className="flex items-center gap-4">
+            <div className="text-sm text-gray-600">
+              Welcome, {user?.name || user?.email}
             </div>
-            
-            <div className="flex items-center space-x-2">
-              <Button variant="outline" size="sm">
-                Account
-              </Button>
-            </div>
+            <Button variant="outline" size="sm" onClick={() => signOut()}>
+              <LogOut size={16} className="mr-2" />
+              Sign Out
+            </Button>
           </div>
         </div>
       </header>
       
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="w-full px-2 sm:px-4 py-8">
         <div className="mb-8">
-          <h2 className="text-2xl font-bold mb-6">Your Paper Library</h2>
+          <h1 className="text-2xl font-bold mb-6">My Research Papers</h1>
           
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-            <div className="flex items-center gap-4">
-              {/* View toggle */}
-              <ToggleGroup type="single" value={viewMode} onValueChange={handleViewChange} className="flex border rounded-md">
-                <ToggleGroupItem value="list" aria-label="List view">
-                  <List size={18} />
-                </ToggleGroupItem>
-                <ToggleGroupItem value="graph" aria-label="Graph view">
-                  <Network size={18} />
-                </ToggleGroupItem>
-              </ToggleGroup>
-              
-              {/* Search bar */}
-              <div className="relative flex-1 min-w-[200px] sm:min-w-[300px]">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-                <Input
-                  type="search"
-                  placeholder="Search papers..."
-                  className="pl-9"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-1">
+              <PaperUploadForm onSubmit={handlePaperUpload} />
             </div>
             
-            <Button className="flex-shrink-0" onClick={() => toast({ title: "Upload feature", description: "This feature is not implemented yet." })}>
-              <Plus className="mr-2 h-4 w-4" /> Add Paper
-            </Button>
-          </div>
-          
-          <Tabs defaultValue="all">
-            <TabsList className="mb-6">
-              <TabsTrigger value="all">All Papers</TabsTrigger>
-              <TabsTrigger value="in-progress">In Progress</TabsTrigger>
-              <TabsTrigger value="completed">Completed</TabsTrigger>
-              <TabsTrigger value="not-started">Not Started</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="all" className="mt-0">
-              {viewMode === 'list' ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredPapers.map((paper) => (
-                    <PaperCard
-                      key={paper.id}
-                      id={paper.id}
-                      title={paper.title}
-                      authors={paper.authors}
-                      date={paper.date}
-                      skillLevel={paper.skillLevel}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <PapersGraph />
-              )}
-            </TabsContent>
-            
-            <TabsContent value="in-progress" className="mt-0">
-              {viewMode === 'list' ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredPapers.filter(p => p.readingStatus === 'in-progress').map((paper) => (
-                    <PaperCard
-                      key={paper.id}
-                      id={paper.id}
-                      title={paper.title}
-                      authors={paper.authors}
-                      date={paper.date}
-                      skillLevel={paper.skillLevel}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <PapersGraph />
-              )}
-            </TabsContent>
-            
-            <TabsContent value="completed" className="mt-0">
-              {viewMode === 'list' ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredPapers.filter(p => p.readingStatus === 'completed').map((paper) => (
-                    <PaperCard
-                      key={paper.id}
-                      id={paper.id}
-                      title={paper.title}
-                      authors={paper.authors}
-                      date={paper.date}
-                      skillLevel={paper.skillLevel}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <PapersGraph />
-              )}
-            </TabsContent>
-            
-            <TabsContent value="not-started" className="mt-0">
-              {viewMode === 'list' ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredPapers.filter(p => p.readingStatus === 'not-started').map((paper) => (
-                    <PaperCard
-                      key={paper.id}
-                      id={paper.id}
-                      title={paper.title}
-                      authors={paper.authors}
-                      date={paper.date}
-                      skillLevel={paper.skillLevel}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <PapersGraph />
-              )}
-            </TabsContent>
-          </Tabs>
-        </div>
-        
-        <div>
-          <h2 className="text-2xl font-bold mb-6">Recent Activity</h2>
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <div className="space-y-4">
-              <div className="flex items-start gap-3">
-                <div className="bg-blue-100 p-2 rounded-full">
-                  <Clock size={16} className="text-blue-700" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">2 hours ago</p>
-                  <p className="font-medium">You reached 65% mastery on "Attention Is All You Need"</p>
+            <div className="lg:col-span-2 space-y-6">
+              {/* Search */}
+              <div className="bg-white rounded-xl shadow-md p-4 border border-gray-100">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                  <Input
+                    placeholder="Search papers by title or author..."
+                    className="pl-10"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
                 </div>
               </div>
               
-              <div className="flex items-start gap-3">
-                <div className="bg-blue-100 p-2 rounded-full">
-                  <Clock size={16} className="text-blue-700" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Yesterday</p>
-                  <p className="font-medium">You completed "GPT-3: Language Models are Few-Shot Learners"</p>
-                </div>
-              </div>
-              
-              <div className="flex items-start gap-3">
-                <div className="bg-blue-100 p-2 rounded-full">
-                  <Clock size={16} className="text-blue-700" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">3 days ago</p>
-                  <p className="font-medium">You added "An Image is Worth 16x16 Words" to your library</p>
-                </div>
+              {/* Papers list */}
+              <div className="space-y-4">
+                {filteredPapers.length > 0 ? (
+                  filteredPapers.map(paper => (
+                    <PaperCard
+                      key={paper.id}
+                      id={paper.id}
+                      title={paper.title}
+                      authors={paper.authors}
+                      date={paper.date}
+                      skillLevel={paper.skillLevel}
+                    />
+                  ))
+                ) : (
+                  <div className="bg-white rounded-xl shadow-md p-8 text-center border border-gray-100">
+                    <Upload size={48} className="mx-auto text-gray-300 mb-4" />
+                    <h3 className="text-lg font-medium text-gray-700 mb-2">No papers found</h3>
+                    <p className="text-gray-500 mb-4">
+                      {searchQuery ? 'No papers match your search query.' : 'Start by uploading your first research paper.'}
+                    </p>
+                    {searchQuery && (
+                      <Button variant="outline" onClick={() => setSearchQuery('')}>
+                        Clear search
+                      </Button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
