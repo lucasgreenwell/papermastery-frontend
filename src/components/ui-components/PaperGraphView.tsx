@@ -62,70 +62,107 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
   const [scrollLeft, setScrollLeft] = useState(0);
   const [graphData, setGraphData] = useState<PaperNode[]>([]);
   
-  // Generate fake related papers and references
+  // Generate fake related papers and references with more connections
   useEffect(() => {
     const nodes: PaperNode[] = [];
     
-    // Add user papers as blue nodes
+    // Add user papers as blue nodes with more spacing between them
     papers.forEach((paper, index) => {
       nodes.push({
-        x: index * 200 + 100,
+        x: index * 400 + 200, // Increase spacing between user papers
         y: 100,
-        z: 60, // Large size for user papers
+        z: 120, // Much larger size for user papers
         id: paper.id,
         title: paper.title,
         type: 'user'
       });
     });
     
-    // Generate up to 3 levels of related papers for each user paper
+    // Generate more densely connected references for each user paper
     papers.forEach((paper, paperIndex) => {
-      // Level 1 references (direct)
-      const level1Count = Math.floor(Math.random() * 3) + 1;
+      // Level 1 references (direct) - more of them
+      const level1Count = Math.floor(Math.random() * 5) + 3; // 3-7 references per paper
       for (let i = 0; i < level1Count; i++) {
         const refId = `ref-${paper.id}-l1-${i}`;
+        const xOffset = i % 2 === 0 ? -100 : 100; // Alternate left and right of the main paper
+        
         nodes.push({
-          x: paperIndex * 200 + 70 + (i * 50),
-          y: 200,
-          z: 30, // Medium size for level 1 references
+          x: paperIndex * 400 + 200 + xOffset + (i * 80), 
+          y: 250,
+          z: 80, // Larger size for level 1 references
           id: refId,
           title: `Reference to "${paper.title.substring(0, 15)}..." (L1-${i})`,
           type: 'reference',
           refBy: [paper.id]
         });
         
-        // Level 2 references (referenced by level 1)
-        if (Math.random() > 0.3) {
-          const level2Count = Math.floor(Math.random() * 2) + 1;
-          for (let j = 0; j < level2Count; j++) {
-            const refId2 = `ref-${paper.id}-l2-${i}-${j}`;
-            nodes.push({
-              x: paperIndex * 200 + 60 + (i * 50) + (j * 20),
-              y: 300,
-              z: 20, // Smaller size for level 2 references
-              id: refId2,
-              title: `Secondary reference (L2-${j})`,
-              type: 'reference',
-              refBy: [refId]
-            });
-            
-            // Level 3 references (referenced by level 2)
-            if (Math.random() > 0.5) {
-              const refId3 = `ref-${paper.id}-l3-${i}-${j}`;
+        // Level 2 references (referenced by level 1) - more of them and more connected
+        const level2Count = Math.floor(Math.random() * 4) + 2; // 2-5 level 2 references
+        for (let j = 0; j < level2Count; j++) {
+          const refId2 = `ref-${paper.id}-l2-${i}-${j}`;
+          nodes.push({
+            x: paperIndex * 400 + 200 + xOffset + (i * 80) + (j % 2 === 0 ? -60 : 60),
+            y: 400,
+            z: 60, // Larger size for level 2 references
+            id: refId2,
+            title: `Secondary reference (L2-${j})`,
+            type: 'reference',
+            refBy: [refId]
+          });
+          
+          // Level 3 references (referenced by level 2) - more of them
+          if (Math.random() > 0.3) { // 70% chance of having level 3 references
+            const level3Count = Math.floor(Math.random() * 3) + 1; // 1-3 level 3 references
+            for (let k = 0; k < level3Count; k++) {
+              const refId3 = `ref-${paper.id}-l3-${i}-${j}-${k}`;
               nodes.push({
-                x: paperIndex * 200 + 50 + (i * 50) + (j * 20),
-                y: 400,
-                z: 10, // Smallest size for level 3 references
+                x: paperIndex * 400 + 200 + xOffset + (i * 80) + (j % 2 === 0 ? -60 : 60) + (k * 30),
+                y: 550,
+                z: 40, // Larger size for level 3 references
                 id: refId3,
-                title: `Tertiary reference (L3)`,
+                title: `Tertiary reference (L3-${k})`,
                 type: 'reference',
                 refBy: [refId2]
               });
             }
           }
         }
+        
+        // Create some cross-paper connections for a more realistic network
+        if (paperIndex > 0 && i === 0) {
+          // Connect to a previous paper's reference
+          const prevPaperRefId = `ref-${papers[paperIndex-1].id}-l1-0`;
+          nodes.find(n => n.id === refId)!.refBy?.push(prevPaperRefId);
+        }
       }
     });
+    
+    // Add some common references between papers (papers that cite the same sources)
+    if (papers.length >= 2) {
+      const commonRefId = 'common-ref-1';
+      nodes.push({
+        x: papers.length * 200, // Position in the middle
+        y: 300,
+        z: 80, // Larger size for common references
+        id: commonRefId,
+        title: 'Common Reference Paper',
+        type: 'reference',
+        refBy: papers.slice(0, Math.min(papers.length, 3)).map(p => p.id) // Referenced by up to first 3 papers
+      });
+      
+      // Add some second-level connections to this common reference
+      for (let i = 0; i < 3; i++) {
+        nodes.push({
+          x: papers.length * 200 + (i * 100) - 100,
+          y: 450,
+          z: 50, // Medium-large size
+          id: `common-ref-1-child-${i}`,
+          title: `Reference cited by common paper (${i})`,
+          type: 'reference',
+          refBy: [commonRefId]
+        });
+      }
+    }
     
     setGraphData(nodes);
   }, [papers]);
@@ -156,10 +193,10 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
     }
   };
 
-  // Calculate the required width based on the data
+  // Calculate the required width based on the data - much wider to ensure scrolling is needed
   const graphWidth = Math.max(
-    papers.length * 200 + 200, // Base width from user papers
-    800 // Minimum width
+    papers.length * 400 + 600, // Wider base width
+    1200 // Increased minimum width
   );
 
   return (
@@ -172,35 +209,38 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
       onMouseLeave={handleMouseUp}
       style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
     >
-      <div className="min-h-[500px] min-w-full relative">
+      <div className="min-h-[600px] min-w-full relative" style={{ width: graphWidth }}>
         {graphData.length > 0 ? (
-          <ResponsiveContainer width="100%" height={500}>
+          <ResponsiveContainer width="100%" height={600}>
             <ScatterChart 
               margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
             >
               <XAxis type="number" dataKey="x" hide domain={['dataMin', 'dataMax']} />
               <YAxis type="number" dataKey="y" hide domain={['dataMin', 'dataMax']} />
-              <ZAxis type="number" dataKey="z" range={[20, 60]} />
+              <ZAxis type="number" dataKey="z" range={[40, 120]} /> {/* Increased size range */}
               <Tooltip content={<CustomTooltip />} cursor={{ strokeDasharray: '3 3' }} />
               
               {/* Lines connecting referenced papers */}
               {graphData.map((node) => {
                 if (node.refBy) {
-                  const parentNode = graphData.find(n => n.id === node.refBy![0]);
-                  if (parentNode) {
-                    return (
-                      <line
-                        key={`line-${node.id}-${parentNode.id}`}
-                        x1={parentNode.x}
-                        y1={parentNode.y}
-                        x2={node.x}
-                        y2={node.y}
-                        stroke="#ccc"
-                        strokeWidth={1}
-                        style={{ pointerEvents: 'none' }}
-                      />
-                    );
-                  }
+                  return node.refBy.map(refId => {
+                    const parentNode = graphData.find(n => n.id === refId);
+                    if (parentNode) {
+                      return (
+                        <line
+                          key={`line-${node.id}-${parentNode.id}`}
+                          x1={parentNode.x}
+                          y1={parentNode.y}
+                          x2={node.x}
+                          y2={node.y}
+                          stroke="#ccc"
+                          strokeWidth={1.5} // Thicker lines
+                          style={{ pointerEvents: 'none' }}
+                        />
+                      );
+                    }
+                    return null;
+                  });
                 }
                 return null;
               })}
@@ -231,8 +271,8 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
         
         <div className="text-center p-4 border-t border-gray-100">
           <p className="text-xs text-gray-500">
-            <span className="inline-block h-3 w-3 bg-blue-500 rounded-full mr-1"></span> Your papers
-            <span className="inline-block h-3 w-3 bg-gray-400 rounded-full ml-4 mr-1"></span> Referenced papers
+            <span className="inline-block h-4 w-4 bg-blue-500 rounded-full mr-1"></span> Your papers
+            <span className="inline-block h-4 w-4 bg-gray-400 rounded-full ml-4 mr-1"></span> Referenced papers
           </p>
           <p className="text-xs text-gray-400 mt-1">
             Click and drag to explore the graph. Click on blue nodes to view paper details.
