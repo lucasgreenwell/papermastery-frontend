@@ -71,7 +71,7 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
       nodes.push({
         x: index * 400 + 200, // Increase spacing between user papers
         y: 100,
-        z: 120, // Much larger size for user papers
+        z: 600, // Much larger size for user papers (5x increase)
         id: paper.id,
         title: paper.title,
         type: 'user'
@@ -89,7 +89,7 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
         nodes.push({
           x: paperIndex * 400 + 200 + xOffset + (i * 80), 
           y: 250,
-          z: 80, // Larger size for level 1 references
+          z: 400, // Larger size for level 1 references (5x increase)
           id: refId,
           title: `Reference to "${paper.title.substring(0, 15)}..." (L1-${i})`,
           type: 'reference',
@@ -103,7 +103,7 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
           nodes.push({
             x: paperIndex * 400 + 200 + xOffset + (i * 80) + (j % 2 === 0 ? -60 : 60),
             y: 400,
-            z: 60, // Larger size for level 2 references
+            z: 300, // Larger size for level 2 references (5x increase)
             id: refId2,
             title: `Secondary reference (L2-${j})`,
             type: 'reference',
@@ -118,7 +118,7 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
               nodes.push({
                 x: paperIndex * 400 + 200 + xOffset + (i * 80) + (j % 2 === 0 ? -60 : 60) + (k * 30),
                 y: 550,
-                z: 40, // Larger size for level 3 references
+                z: 200, // Larger size for level 3 references (5x increase)
                 id: refId3,
                 title: `Tertiary reference (L3-${k})`,
                 type: 'reference',
@@ -143,7 +143,7 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
       nodes.push({
         x: papers.length * 200, // Position in the middle
         y: 300,
-        z: 80, // Larger size for common references
+        z: 400, // Larger size for common references (5x increase)
         id: commonRefId,
         title: 'Common Reference Paper',
         type: 'reference',
@@ -155,7 +155,7 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
         nodes.push({
           x: papers.length * 200 + (i * 100) - 100,
           y: 450,
-          z: 50, // Medium-large size
+          z: 250, // Medium-large size (5x increase)
           id: `common-ref-1-child-${i}`,
           title: `Reference cited by common paper (${i})`,
           type: 'reference',
@@ -217,7 +217,7 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
             >
               <XAxis type="number" dataKey="x" hide domain={['dataMin', 'dataMax']} />
               <YAxis type="number" dataKey="y" hide domain={['dataMin', 'dataMax']} />
-              <ZAxis type="number" dataKey="z" range={[40, 120]} /> {/* Increased size range */}
+              <ZAxis type="number" dataKey="z" range={[200, 600]} /> {/* Increased size range by 5x */}
               <Tooltip content={<CustomTooltip />} cursor={{ strokeDasharray: '3 3' }} />
               
               {/* Lines connecting referenced papers */}
@@ -234,7 +234,7 @@ const PaperGraphView = ({ papers, className }: PaperGraphViewProps) => {
                           x2={node.x}
                           y2={node.y}
                           stroke="#ccc"
-                          strokeWidth={1.5} // Thicker lines
+                          strokeWidth={3} // Thicker lines (doubled)
                           style={{ pointerEvents: 'none' }}
                         />
                       );
