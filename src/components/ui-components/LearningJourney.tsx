@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, BookOpen } from 'lucide-react';
+import { ChevronLeft, ChevronRight, BookOpen, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import ChatInterface from '@/components/ui-components/ChatInterface';
@@ -60,79 +60,77 @@ const LearningJourney = ({ steps, className, onCompleteStep, paperTitle }: Learn
       </div>
       
       {/* Content Area - with fixed height and overflow */}
-      <div className="flex-1 overflow-hidden flex flex-col h-full">
+      <div className="flex-1 overflow-y-auto mb-4">
         {chatMode ? (
-          <div className="h-full relative">
-            <ChatInterface
-              title="Mastery Bot"
-              paperTitle={paperTitle}
-              className="h-full"
-            />
-          </div>
+          <ChatInterface
+            title="Mastery Bot"
+            paperTitle={paperTitle}
+            className="h-full"
+          />
         ) : (
-          <div className="h-full flex flex-col">
-            <div className="flex-1 overflow-y-auto pb-4">
-              {steps.map((step, index) => (
-                <div 
-                  key={index} 
-                  className={cn(
-                    "transition-all duration-500 ease-in-out w-full",
-                    index === currentStep ? "block" : "hidden"
-                  )}
-                >
-                  {step}
-                </div>
-              ))}
-            </div>
-            
-            {/* Navigation Section - Fixed at Bottom */}
-            <div className="mt-auto pt-4 border-t border-gray-100">
-              <div className="flex justify-between w-full mb-6">
-                <Button 
-                  variant="outline" 
-                  size="icon"
-                  onClick={goToPrevStep}
-                  disabled={currentStep === 0}
-                >
-                  <ChevronLeft size={18} />
-                </Button>
-                
-                <div className="text-sm text-gray-500">
-                  Step {currentStep + 1} of {steps.length}
-                </div>
-                
-                <Button 
-                  variant="outline" 
-                  size="icon"
-                  onClick={goToNextStep}
-                  disabled={currentStep === steps.length - 1}
-                >
-                  <ChevronRight size={18} />
-                </Button>
+          <div className="h-full">
+            {steps.map((step, index) => (
+              <div 
+                key={index} 
+                className={cn(
+                  "transition-all duration-500 ease-in-out w-full",
+                  index === currentStep ? "block" : "hidden"
+                )}
+              >
+                {step}
               </div>
-              
-              {/* Dots Navigation */}
-              <div className="flex justify-center space-x-2">
-                {steps.map((_, index) => (
-                  <div 
-                    key={index}
-                    className={cn(
-                      "h-3 w-3 rounded-full transition-all duration-300",
-                      index === currentStep 
-                        ? "bg-blue-600 w-8" 
-                        : index < currentStep 
-                        ? "bg-blue-300" 
-                        : "bg-gray-200"
-                    )}
-                    onClick={() => goToStep(index)}
-                    style={{ cursor: 'pointer' }}
-                  />
-                ))}
-              </div>
-            </div>
+            ))}
           </div>
         )}
       </div>
+      
+      {/* Navigation Section - Fixed at Bottom */}
+      {!chatMode && (
+        <div className="mt-auto pt-4 border-t border-gray-100">
+          <div className="flex justify-between w-full mb-6">
+            <Button 
+              variant="outline" 
+              size="icon"
+              onClick={goToPrevStep}
+              disabled={currentStep === 0}
+            >
+              <ChevronLeft size={18} />
+            </Button>
+            
+            <div className="text-sm text-gray-500">
+              Step {currentStep + 1} of {steps.length}
+            </div>
+            
+            <Button 
+              variant="outline" 
+              size="icon"
+              onClick={goToNextStep}
+              disabled={currentStep === steps.length - 1}
+            >
+              <ChevronRight size={18} />
+            </Button>
+          </div>
+          
+          {/* Dots Navigation */}
+          <div className="flex justify-center space-x-2">
+            {steps.map((_, index) => (
+              <div 
+                key={index}
+                className={cn(
+                  "h-3 w-3 rounded-full transition-all duration-300",
+                  index === currentStep 
+                    ? "bg-blue-600 w-8" 
+                    : index < currentStep 
+                    ? "bg-blue-300" 
+                    : "bg-gray-200"
+                )}
+                onClick={() => goToStep(index)}
+                style={{ cursor: 'pointer' }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
