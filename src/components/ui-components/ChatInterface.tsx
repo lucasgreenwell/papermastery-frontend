@@ -159,7 +159,7 @@ const ChatInterface = ({ title, className, paperTitle }: ChatInterfaceProps) => 
       
       <form 
         onSubmit={handleSendMessage}
-        className="px-4 py-3 border-t border-gray-200 flex items-center gap-2"
+        className="px-4 py-3 border-t border-gray-200 flex items-center gap-2 mt-auto"
       >
         <Input
           value={inputValue}
