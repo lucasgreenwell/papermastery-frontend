@@ -21,29 +21,12 @@ const PaperDetails = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [paper, setPaper] = useState<any>(null);
   const { toast } = useToast();
-  const [isSmallScreen, setIsSmallScreen] = useState(false);
   
-  // Check screen size for responsive layout
-  useEffect(() => {
-    const checkScreenSize = () => {
-      setIsSmallScreen(window.innerWidth < 1200);
-    };
-    
-    checkScreenSize();
-    window.addEventListener('resize', checkScreenSize);
-    
-    return () => {
-      window.removeEventListener('resize', checkScreenSize);
-    };
-  }, []);
-  
-  // Mock paper data - would fetch from API/Supabase in real app
   useEffect(() => {
     const fetchPaper = async () => {
       setIsLoading(true);
       
       try {
-        // Mock data for demonstration
         setTimeout(() => {
           setPaper({
             id,
@@ -115,10 +98,8 @@ const PaperDetails = () => {
           
           setIsLoading(false);
           
-          // Start with skill level 0
           setSkillLevel(0);
           
-          // Then after a delay, update to show user has read the summary
           setTimeout(() => {
             setSkillLevel(20);
             
@@ -138,8 +119,6 @@ const PaperDetails = () => {
   }, [id, toast]);
   
   const handleStepComplete = (stepIndex: number) => {
-    // Increase skill level as user progresses through steps
-    // This is simplified - in a real app you'd base this on quiz results, etc.
     const newLevel = Math.min(skillLevel + 10, 100);
     
     if (newLevel > skillLevel) {
@@ -152,7 +131,6 @@ const PaperDetails = () => {
     }
   };
 
-  // Modified learning journey steps with all components
   const renderSummaryStep = () => (
     <LearningStepCard 
       title="Paper Summary" 
@@ -345,7 +323,6 @@ const PaperDetails = () => {
     </LearningStepCard>
   );
 
-  // Update the steps array in both mobile and desktop layouts
   const learningJourneySteps = [
     renderSummaryStep(),
     renderKeyConceptsStep(),
@@ -358,7 +335,6 @@ const PaperDetails = () => {
     renderMasteryStep(),
   ];
 
-  // Add loading state
   if (isLoading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
@@ -371,10 +347,8 @@ const PaperDetails = () => {
     );
   }
 
-  // Keep the rest of the component the same, just update the steps prop
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="px-2 sm:px-4 py-4 flex justify-between items-center">
           <div className="flex items-center">
@@ -395,55 +369,29 @@ const PaperDetails = () => {
         </div>
       </header>
       
-      <main className="w-full max-w-full px-1 py-4">
-        {isSmallScreen ? (
-          <div className="flex flex-col space-y-4">
-            {/* Skill Level - Horizontal Bar on Top */}
-            <div>
-              <SkillLevelSidebar 
-                skillLevel={skillLevel} 
-                className="h-auto" 
-                isHorizontal={true} 
-              />
-            </div>
-            
-            <div className="grid grid-cols-12 gap-3">
-              {/* PDF Viewer */}
-              <div className="col-span-6 h-[calc(100vh-14rem)]">
-                <PdfViewer pdfUrl={paper?.pdfUrl} className="h-full" />
-              </div>
-              
-              <div className="col-span-6">
-                <LearningJourney
-                  steps={learningJourneySteps}
-                  onCompleteStep={handleStepComplete}
-                />
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-12 gap-3">
-            {/* PDF Viewer - Left Column */}
-            <div className="col-span-5 h-[calc(100vh-9rem)] sticky top-20">
+      <main className="w-full max-w-full py-4">
+        <div className="container mx-auto px-4 mb-6">
+          <SkillLevelSidebar 
+            skillLevel={skillLevel} 
+            className="w-full" 
+            isHorizontal={true} 
+          />
+        </div>
+        
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="h-[calc(100vh-12rem)]">
               <PdfViewer pdfUrl={paper?.pdfUrl} className="h-full" />
             </div>
             
-            <div className="col-span-5">
+            <div className="h-[calc(100vh-12rem)] overflow-y-auto">
               <LearningJourney
                 steps={learningJourneySteps}
                 onCompleteStep={handleStepComplete}
               />
             </div>
-            
-            {/* Skill Level - Right Column */}
-            <div className="col-span-2 h-[calc(100vh-9rem)] sticky top-20">
-              <SkillLevelSidebar 
-                skillLevel={skillLevel} 
-                className="h-full" 
-              />
-            </div>
           </div>
-        )}
+        </div>
       </main>
     </div>
   );

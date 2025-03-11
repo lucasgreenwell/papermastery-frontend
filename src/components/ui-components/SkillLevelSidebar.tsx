@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Award, 
   Brain, 
@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import SkillProgressBar from './SkillProgressBar';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface MilestoneProps {
   title: string;
@@ -21,6 +22,7 @@ interface MilestoneProps {
   skillLevel: number;
   threshold: number;
   isHorizontal?: boolean;
+  showOnHover?: boolean;
 }
 
 const Milestone = ({ 
@@ -31,45 +33,66 @@ const Milestone = ({
   isActive, 
   skillLevel,
   threshold,
-  isHorizontal = false 
-}: MilestoneProps) => (
-  <div className={cn(
-    "relative transition-all duration-300",
-    isHorizontal 
-      ? "flex items-center gap-2 py-2" 
-      : "flex items-start gap-3 p-4 rounded-lg",
-    isCompleted ? "bg-blue-50" : isActive ? "bg-gray-50" : "opacity-70"
-  )}>
+  isHorizontal = false,
+  showOnHover = false
+}: MilestoneProps) => {
+  
+  const content = (
     <div className={cn(
-      "rounded-full flex items-center justify-center",
-      isHorizontal ? "w-8 h-8 min-w-8" : "p-2",
-      isCompleted ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-500"
+      "relative transition-all duration-300",
+      isHorizontal 
+        ? "flex items-center gap-2 py-2" 
+        : "flex items-start gap-3 p-4 rounded-lg",
+      isCompleted ? "bg-blue-50" : isActive ? "bg-gray-50" : "opacity-70"
     )}>
-      {icon}
+      <div className={cn(
+        "rounded-full flex items-center justify-center",
+        isHorizontal ? "w-10 h-10 min-w-10" : "w-10 h-10 p-2",
+        isCompleted ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-500"
+      )}>
+        {icon}
+      </div>
+      
+      {!showOnHover && (
+        isHorizontal ? (
+          <div className="flex-1 min-w-0">
+            <h4 className={cn(
+              "font-medium text-sm truncate",
+              isCompleted ? "text-blue-700" : "text-gray-700"
+            )}>
+              {title}
+            </h4>
+          </div>
+        ) : (
+          <div>
+            <h4 className={cn(
+              "font-medium",
+              isCompleted ? "text-blue-700" : "text-gray-700"
+            )}>
+              {title}
+            </h4>
+            <p className="text-sm text-gray-500">{description}</p>
+          </div>
+        )
+      )}
     </div>
-    
-    {isHorizontal ? (
-      <div className="flex-1 min-w-0">
-        <h4 className={cn(
-          "font-medium text-sm truncate",
-          isCompleted ? "text-blue-700" : "text-gray-700"
-        )}>
-          {title}
-        </h4>
-      </div>
-    ) : (
-      <div>
-        <h4 className={cn(
-          "font-medium",
-          isCompleted ? "text-blue-700" : "text-gray-700"
-        )}>
-          {title}
-        </h4>
-        <p className="text-sm text-gray-500">{description}</p>
-      </div>
-    )}
-  </div>
-);
+  );
+  
+  // If showOnHover is true, wrap in Tooltip
+  return showOnHover ? (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div>{content}</div>
+      </TooltipTrigger>
+      <TooltipContent>
+        <div className="max-w-[200px]">
+          <h4 className="font-medium text-sm">{title}</h4>
+          <p className="text-xs text-gray-500">{description}</p>
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  ) : content;
+};
 
 interface SkillLevelSidebarProps {
   skillLevel: number;
@@ -96,31 +119,31 @@ const SkillLevelSidebar = ({
     {
       title: "Introduction",
       description: "Understand the paper summary",
-      icon: <FileText size={isHorizontal ? 14 : 18} />,
+      icon: <FileText size={isHorizontal ? 18 : 18} />,
       threshold: 20,
     },
     {
       title: "Basic Concepts",
       description: "Learn the fundamental concepts",
-      icon: <BookOpen size={isHorizontal ? 14 : 18} />,
+      icon: <BookOpen size={isHorizontal ? 18 : 18} />,
       threshold: 40,
     },
     {
       title: "Deep Understanding",
       description: "Understand the key innovations",
-      icon: <Brain size={isHorizontal ? 14 : 18} />,
+      icon: <Brain size={isHorizontal ? 18 : 18} />,
       threshold: 60,
     },
     {
       title: "Critical Analysis",
       description: "Analyze implications & limitations",
-      icon: <Lightbulb size={isHorizontal ? 14 : 18} />,
+      icon: <Lightbulb size={isHorizontal ? 18 : 18} />,
       threshold: 80,
     },
     {
       title: "Mastery",
       description: "Connect with broader literature",
-      icon: <GraduationCap size={isHorizontal ? 14 : 18} />,
+      icon: <GraduationCap size={isHorizontal ? 18 : 18} />,
       threshold: 100,
     },
   ];
@@ -133,15 +156,26 @@ const SkillLevelSidebar = ({
     )}>
       {isHorizontal ? (
         <div className="flex items-center gap-4">
-          <div className="flex flex-col items-center justify-center">
-            <div className="p-2 bg-blue-50 rounded-lg inline-flex mb-1">
+          <div className="flex items-center">
+            <div className="p-2 bg-blue-50 rounded-lg inline-flex mr-2">
               <TrendingUp size={20} className="text-blue-600" />
             </div>
-            <div className="text-lg font-bold text-blue-600">{skillLevel}%</div>
-            <div className="text-xs font-medium text-gray-500">{levelName}</div>
+            <div>
+              <div className="text-lg font-bold text-blue-600">{skillLevel}%</div>
+              <div className="text-xs font-medium text-gray-500">{levelName}</div>
+            </div>
           </div>
           
-          <div className="flex-1 flex items-center gap-2 overflow-x-auto pb-2 pr-1">
+          <div className="flex-1">
+            <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div 
+                className="absolute top-0 left-0 h-full bg-blue-500 transition-all duration-1000"
+                style={{ width: `${skillLevel}%` }}
+              />
+            </div>
+          </div>
+          
+          <div className="flex items-center justify-between gap-2">
             {milestones.map((milestone, index) => (
               <Milestone
                 key={index}
@@ -154,6 +188,7 @@ const SkillLevelSidebar = ({
                 isActive={skillLevel < milestone.threshold && 
                         (index === 0 || skillLevel >= milestones[index - 1].threshold)}
                 isHorizontal={true}
+                showOnHover={true}
               />
             ))}
           </div>
@@ -193,7 +228,7 @@ const SkillLevelSidebar = ({
                   <div 
                     key={index}
                     className={cn(
-                      "relative z-10 w-4 h-4 rounded-full border-2 transition-colors",
+                      "relative z-10 w-6 h-6 rounded-full border-2 transition-colors",
                       isFilled
                         ? "bg-blue-500 border-blue-600"
                         : "bg-gray-100 border-gray-300"
