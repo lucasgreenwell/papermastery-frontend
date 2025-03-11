@@ -181,17 +181,26 @@ const SkillLevelSidebar = ({
             <div className="relative flex flex-col justify-between h-full mr-4 py-2">
               <div className="absolute left-1/2 top-0 bottom-0 w-1 bg-gray-200 -translate-x-1/2"></div>
               
-              {milestones.map((milestone, index) => (
-                <div 
-                  key={index}
-                  className={cn(
-                    "relative z-10 w-4 h-4 rounded-full border-2 transition-colors",
-                    skillLevel >= milestone.threshold
-                      ? "bg-blue-500 border-blue-600"
-                      : "bg-gray-100 border-gray-300"
-                  )}
-                />
-              ))}
+              {milestones.map((milestone, index) => {
+                // Calculate if this bubble should be filled
+                // Important: For the progress visualization, we need to invert the index
+                // since in the UI the first milestone is at the top but we want to fill from bottom to top
+                const invertedIndex = milestones.length - 1 - index;
+                const invertedThreshold = milestones[invertedIndex].threshold;
+                const isFilled = skillLevel >= invertedThreshold;
+                
+                return (
+                  <div 
+                    key={index}
+                    className={cn(
+                      "relative z-10 w-4 h-4 rounded-full border-2 transition-colors",
+                      isFilled
+                        ? "bg-blue-500 border-blue-600"
+                        : "bg-gray-100 border-gray-300"
+                    )}
+                  />
+                );
+              })}
               
               {/* Animated fill for progress */}
               <div 
