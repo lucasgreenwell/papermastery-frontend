@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,32 +8,134 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { Brain } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const Auth = () => {
-  const [isSignUp, setIsSignUp] = useState(false);
+  // Get hash param for password reset flow
+  const location = useLocation();
+  const navigate = useNavigate();
+  const hashParams = new URLSearchParams(location.hash.substring(1));
+  const isResetMode = hashParams.get('type') === 'recovery';
+
+  const [activeTab, setActiveTab] = useState<'signin' | 'signup' | 'reset'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [name, setName] = useState('');
-  const { signIn, signUp, isLoading } = useAuth();
+  const { signIn, signUp, resetPassword, updatePassword, isLoading, user } = useAuth();
   const { toast } = useToast();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Redirect to dashboard if already logged in
+  useEffect(() => {
+    if (user && !isResetMode) {
+      navigate('/dashboard');
+    }
+    
+    // If we have a recovery token in the URL, switch to reset password mode
+    if (isResetMode) {
+      setActiveTab('reset');
+    }
+  }, [user, navigate, isResetMode]);
+
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     
     try {
-      if (isSignUp) {
-        await signUp(email, password, name);
-      } else {
-        await signIn(email, password);
-      }
+      await signIn(email, password);
     } catch (error) {
-      toast({
-        title: 'Authentication error',
-        description: 'Failed to authenticate. Please check your credentials.',
-        variant: 'destructive',
-      });
+      console.error('Sign in error:', error);
     }
   };
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      await signUp(email, password, name);
+    } catch (error) {
+      console.error('Sign up error:', error);
+    }
+  };
+
+  const handlePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    try {
+      await resetPassword(email);
+    } catch (error) {
+      console.error('Password reset error:', error);
+    }
+  };
+
+  const handlePasswordUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (password !== confirmPassword) {
+      toast({
+        title: 'Passwords do not match',
+        description: 'Please make sure your passwords match',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    try {
+      await updatePassword(password);
+    } catch (error) {
+      console.error('Password update error:', error);
+    }
+  };
+
+  if (isResetMode) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-blue-50 to-white p-4">
+        <div className="max-w-md w-full">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center p-4 bg-blue-600 rounded-xl text-white mb-4">
+              <Brain size={32} />
+            </div>
+            <h1 className="text-3xl font-bold text-gray-900">Reset Password</h1>
+          </div>
+
+          <Card>
+            <form onSubmit={handlePasswordUpdate}>
+              <CardHeader>
+                <CardTitle>Create new password</CardTitle>
+                <CardDescription>Enter your new password below</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="new-password">New Password</Label>
+                  <Input
+                    id="new-password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password">Confirm Password</Label>
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                  />
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? 'Updating password...' : 'Update Password'}
+                </Button>
+              </CardFooter>
+            </form>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-blue-50 to-white p-4">
@@ -47,14 +149,15 @@ const Auth = () => {
         </div>
 
         <Card className="animate-scale-in shadow-lg border-0">
-          <Tabs defaultValue="signin" onValueChange={(value) => setIsSignUp(value === 'signup')}>
-            <TabsList className="grid w-full grid-cols-2">
+          <Tabs value={activeTab} onValueChange={(value: string) => setActiveTab(value as 'signin' | 'signup' | 'reset')}>
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="signin">Sign In</TabsTrigger>
               <TabsTrigger value="signup">Sign Up</TabsTrigger>
+              <TabsTrigger value="reset">Reset</TabsTrigger>
             </TabsList>
             
             <TabsContent value="signin">
-              <form onSubmit={handleSubmit}>
+              <form onSubmit={handleSignIn}>
                 <CardHeader>
                   <CardTitle>Welcome back</CardTitle>
                   <CardDescription>Sign in to your account to continue</CardDescription>
@@ -72,12 +175,7 @@ const Auth = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="password">Password</Label>
-                      <Button variant="link" className="p-0 h-auto text-xs">
-                        Forgot password?
-                      </Button>
-                    </div>
+                    <Label htmlFor="password">Password</Label>
                     <Input 
                       id="password" 
                       type="password"
@@ -96,7 +194,7 @@ const Auth = () => {
             </TabsContent>
             
             <TabsContent value="signup">
-              <form onSubmit={handleSubmit}>
+              <form onSubmit={handleSignUp}>
                 <CardHeader>
                   <CardTitle>Create an account</CardTitle>
                   <CardDescription>Enter your details to get started</CardDescription>
@@ -141,12 +239,35 @@ const Auth = () => {
                 </CardFooter>
               </form>
             </TabsContent>
+
+            <TabsContent value="reset">
+              <form onSubmit={handlePasswordReset}>
+                <CardHeader>
+                  <CardTitle>Reset Password</CardTitle>
+                  <CardDescription>Enter your email to receive a password reset link</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email-reset">Email</Label>
+                    <Input 
+                      id="email-reset" 
+                      type="email" 
+                      placeholder="name@example.com" 
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading ? 'Sending reset link...' : 'Send Reset Link'}
+                  </Button>
+                </CardFooter>
+              </form>
+            </TabsContent>
           </Tabs>
         </Card>
-        
-        <p className="text-center text-sm text-gray-500 mt-4">
-          By signing in, you agree to our Terms of Service and Privacy Policy.
-        </p>
       </div>
     </div>
   );
