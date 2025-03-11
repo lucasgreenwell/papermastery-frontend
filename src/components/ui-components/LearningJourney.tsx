@@ -37,7 +37,7 @@ const LearningJourney = ({ steps, className, onCompleteStep, paperTitle }: Learn
   };
 
   return (
-    <div className={cn("relative w-full", className)}>
+    <div className={cn("relative w-full flex flex-col h-full", className)}>
       {/* Chat Toolbar */}
       <div className="flex justify-end mb-4">
         <Button 
@@ -59,31 +59,33 @@ const LearningJourney = ({ steps, className, onCompleteStep, paperTitle }: Learn
         </Button>
       </div>
       
-      {/* Chat Interface or Content */}
-      {chatMode ? (
-        <ChatInterface
-          title="Paper Discussion"
-          paperTitle={paperTitle}
-          className="mb-8"
-        />
-      ) : (
-        <div className="relative min-h-[500px] mb-8">
-          {steps.map((step, index) => (
-            <div 
-              key={index} 
-              className={cn(
-                "transition-all duration-500 ease-in-out w-full",
-                index === currentStep ? "block" : "hidden"
-              )}
-            >
-              {step}
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Content Area - with fixed height and overflow */}
+      <div className="flex-1 overflow-y-auto mb-4">
+        {chatMode ? (
+          <ChatInterface
+            title="Paper Discussion"
+            paperTitle={paperTitle}
+            className="h-full"
+          />
+        ) : (
+          <div className="h-full">
+            {steps.map((step, index) => (
+              <div 
+                key={index} 
+                className={cn(
+                  "transition-all duration-500 ease-in-out w-full",
+                  index === currentStep ? "block" : "hidden"
+                )}
+              >
+                {step}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
       
-      {/* Navigation Section - Now Below Content */}
-      <div className="flex flex-col items-center mt-6">
+      {/* Navigation Section - Fixed at Bottom */}
+      <div className="mt-auto pt-4 border-t border-gray-100">
         <div className="flex justify-between w-full mb-6">
           <Button 
             variant="outline" 

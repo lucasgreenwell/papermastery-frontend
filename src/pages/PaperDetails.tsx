@@ -361,11 +361,12 @@ const PaperDetails = () => {
             <PdfViewer pdfUrl={paper?.pdfUrl} className="h-full" />
           </div>
           
-          <div className="h-full overflow-y-auto p-4">
+          <div className="h-full p-4 flex flex-col">
             <LearningJourney
               steps={learningJourneySteps}
               onCompleteStep={handleStepComplete}
               paperTitle={paper?.title}
+              className="h-full"
             />
           </div>
         </div>
