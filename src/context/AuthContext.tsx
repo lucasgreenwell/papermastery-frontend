@@ -32,47 +32,93 @@ interface ProfileData {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<any>(null)
-  const [session, setSession] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    let mounted = true
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, currentSession) => {
+        setSession(currentSession);
+        setIsLoading(true);
 
-    // 1. Fetch the initial session (important for page reloads)
-    async function fetchSession() {
-      const { data: { session }, error } = await supabase.auth.getSession()
-      if (!mounted) return
+        if (currentSession) {
+          try {
+            // Get user profile from profiles table with explicit type casting
+            const { data: profileData, error } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', currentSession.user.id)
+              .single<ProfileData>();
 
-      if (error) {
-        console.error('Error retrieving session', error)
+            if (error) {
+              console.error('Error fetching profile:', error);
+              throw error;
+            }
+
+            setUser({
+              id: currentSession.user.id,
+              email: currentSession.user.email || '',
+              name: profileData?.display_name,
+              username: profileData?.username,
+              avatar_url: profileData?.avatar_url
+            });
+          } catch (error) {
+            console.error('Error setting user data:', error);
+            toast.error('Error loading user profile');
+          }
+        } else {
+          setUser(null);
+        }
+        
+        setIsLoading(false);
       }
+    );
 
-      setSession(session)
-      setUser(session?.user ?? null)
-      setLoading(false) // <--- Don’t forget to flip off loading
-    }
+    // Check for existing session on mount
+    const checkSession = async () => {
+      try {
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        setSession(currentSession);
 
-    fetchSession()
+        if (currentSession) {
+          // Use type assertion for the profile query
+          const { data: profileData, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', currentSession.user.id)
+            .single<ProfileData>();
 
-    // 2. Listen for auth changes (login, logout, token refresh, etc.)
-    const {
-      data: subscription,
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!mounted) return
+          if (error) {
+            console.error('Error fetching profile:', error);
+            throw error;
+          }
 
-      setSession(session)
-      setUser(session?.user ?? null)
-      setLoading(false) // <--- Also ensure we stop loading here
-    })
+          setUser({
+            id: currentSession.user.id,
+            email: currentSession.user.email || '',
+            name: profileData?.display_name,
+            username: profileData?.username,
+            avatar_url: profileData?.avatar_url
+          });
+        }
+      } catch (error) {
+        console.error('Error checking session:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-    // 3. Cleanup the subscription on unmount
+    checkSession();
+
     return () => {
-      mounted = false
-      subscription.unsubscribe()
-    }
-  }, [])
+      subscription.unsubscribe();
+    };
+  }, []);
+
   const signIn = async (email: string, password: string) => {
     setIsLoading(true);
     
