@@ -69,12 +69,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           } catch (error) {
             console.error('Error setting user data:', error);
             toast.error('Error loading user profile');
+          } finally {
+            setIsLoading(false);
           }
         } else {
           setUser(null);
+          setIsLoading(false);
         }
-        
-        setIsLoading(false);
       }
     );
 
