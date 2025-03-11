@@ -45,7 +45,7 @@ const Milestone = ({
       isCompleted ? "text-blue-600" : isActive ? "text-gray-700" : "text-gray-400"
     )}>
       <div className={cn(
-        "rounded-full flex items-center justify-center",
+        "rounded-full flex items-center justify-center checkpoint-icon-mobile-hidden",
         isHorizontal ? "w-10 h-10" : "w-10 h-10 p-2",
         isCompleted ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-500"
       )}>

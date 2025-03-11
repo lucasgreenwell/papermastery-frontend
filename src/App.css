@@ -118,6 +118,11 @@
     display: none;
   }
   
+  /* Hide checkpoint icons on mobile */
+  .checkpoint-icon-mobile-hidden {
+    display: none;
+  }
+  
   /* Make the dots navigation more compact on small screens */
   .dots-nav-compact {
     gap: 4px;
@@ -142,5 +147,12 @@
   .filter-toggles-compact .inline {
     padding-left: 6px;
     padding-right: 6px;
+  }
+}
+
+/* Hide milestone descriptions on smaller screens */
+@media (max-width: 768px) {
+  .milestone-description {
+    display: none;
   }
 }
