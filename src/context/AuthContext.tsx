@@ -26,22 +26,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { toast } = useToast();
 
   useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, currentSession) => {
-        if (currentSession) {
-          setUser(currentSession.user);
-          setSession(currentSession);
-        } else {
-          setUser(null);
-          setSession(null);
-        }
-        setIsLoading(false);
-      }
-    );
-
     // Get initial session
     const initializeAuth = async () => {
+      setIsLoading(true);
       try {
         const { data: { session: initialSession } } = await supabase.auth.getSession();
         if (initialSession) {
@@ -55,7 +42,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
+    // Initialize auth immediately
     initializeAuth();
+
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, currentSession) => {
+        console.log('Auth state changed:', event, currentSession ? 'Session exists' : 'No session');
+        
+        if (currentSession) {
+          setUser(currentSession.user);
+          setSession(currentSession);
+        } else {
+          setUser(null);
+          setSession(null);
+        }
+        setIsLoading(false);
+      }
+    );
 
     // Cleanup subscription on unmount
     return () => {

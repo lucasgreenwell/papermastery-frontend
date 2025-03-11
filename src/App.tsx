@@ -22,6 +22,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
   
   if (!user) {
+    console.log('Not authenticated, redirecting to auth page');
     return <Navigate to="/auth" replace />;
   }
   
@@ -29,7 +30,11 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const AppRoutes = () => {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
   
   return (
     <Routes>

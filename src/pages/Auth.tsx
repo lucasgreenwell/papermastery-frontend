@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,14 +25,18 @@ const Auth = () => {
   const { signIn, signUp, resetPassword, updatePassword, isLoading, user } = useAuth();
   const { toast } = useToast();
 
+  console.log('Auth component - User state:', user ? 'Logged in' : 'Not logged in');
+
   // Redirect to dashboard if already logged in
   useEffect(() => {
     if (user && !isResetMode) {
+      console.log('User is authenticated, redirecting to dashboard');
       navigate('/dashboard');
     }
     
     // If we have a recovery token in the URL, switch to reset password mode
     if (isResetMode) {
+      console.log('Reset password mode detected');
       setIsPasswordReset(false); // Show the password update form directly
     }
   }, [user, navigate, isResetMode]);
