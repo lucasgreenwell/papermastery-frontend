@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, BookOpen, Brain, GraduationCap, Lightbulb, FileText, Video, Layers, Presentation, MessageSquare } from 'lucide-react';
+import { ArrowLeft, BookOpen, Brain, GraduationCap, Lightbulb, FileText, Video, Layers, Presentation } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import PdfViewer from '@/components/ui-components/PdfViewer';
 import SkillLevelSidebar from '@/components/ui-components/SkillLevelSidebar';
@@ -12,7 +12,6 @@ import { QuizQuestion } from '@/components/ui-components/MultipleChoiceQuiz';
 import Flashcard from '@/components/ui-components/Flashcard';
 import { FlashcardData } from '@/components/ui-components/Flashcard';
 import GoogleSlidesEmbed from '@/components/ui-components/GoogleSlidesEmbed';
-import ChatInterface from '@/components/ui-components/ChatInterface';
 import { useToast } from '@/hooks/use-toast';
 
 const PaperDetails = () => {
@@ -255,25 +254,6 @@ const PaperDetails = () => {
     </LearningStepCard>
   );
   
-  const renderChatStep = () => (
-    <LearningStepCard 
-      title="Ask Questions" 
-      icon={<MessageSquare size={20} />}
-    >
-      <p className="text-gray-700 mb-4">
-        Have questions about the paper? Chat with our AI assistant to deepen your understanding:
-      </p>
-      <ChatInterface 
-        title="Paper Discussion"
-        paperTitle={paper?.title}
-        className="mb-4"
-      />
-      <Button onClick={() => handleStepComplete(6)} className="mt-4">
-        I've completed my discussion
-      </Button>
-    </LearningStepCard>
-  );
-  
   const renderRelatedPapersStep = () => (
     <LearningStepCard 
       title="Related Papers" 
@@ -330,7 +310,6 @@ const PaperDetails = () => {
     renderQuizStep(),
     renderFlashcardsStep(),
     renderSlidesStep(),
-    renderChatStep(),
     renderRelatedPapersStep(),
     renderMasteryStep(),
   ];
@@ -376,16 +355,17 @@ const PaperDetails = () => {
         </div>
       </header>
       
-      <main className="w-full py-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-[calc(100vh-12rem)]">
+      <main className="w-full">
+        <div className="grid grid-cols-1 md:grid-cols-2 h-[calc(100vh-12rem)]">
           <div className="h-full">
             <PdfViewer pdfUrl={paper?.pdfUrl} className="h-full" />
           </div>
           
-          <div className="h-full overflow-y-auto">
+          <div className="h-full overflow-y-auto p-4">
             <LearningJourney
               steps={learningJourneySteps}
               onCompleteStep={handleStepComplete}
+              paperTitle={paper?.title}
             />
           </div>
         </div>
