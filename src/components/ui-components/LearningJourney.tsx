@@ -1,7 +1,8 @@
 
-import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, BookOpen } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ChevronLeft, ChevronRight, BookOpen, FileText, Video, Brain, Layers, Presentation } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
 import ChatInterface from '@/components/ui-components/ChatInterface';
 
@@ -12,12 +13,57 @@ interface LearningJourneyProps {
   paperTitle?: string;
 }
 
+// Define content types for filtering
+type ContentType = 'all' | 'summary' | 'video' | 'quiz' | 'flashcard' | 'slides';
+
 const LearningJourney = ({ steps, className, onCompleteStep, paperTitle }: LearningJourneyProps) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [chatMode, setChatMode] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<ContentType>('all');
+  const [filteredSteps, setFilteredSteps] = useState(steps);
+  const [stepMap, setStepMap] = useState<Record<number, number>>({});
+  
+  // Create a mapping between filtered steps and original steps
+  useEffect(() => {
+    if (activeFilter === 'all') {
+      setFilteredSteps(steps);
+      // Reset the step map (1:1 mapping)
+      const map: Record<number, number> = {};
+      steps.forEach((_, index) => {
+        map[index] = index;
+      });
+      setStepMap(map);
+    } else {
+      // Find steps that match the filter and create a mapping
+      const filtered: React.ReactNode[] = [];
+      const map: Record<number, number> = {};
+      
+      steps.forEach((step, index) => {
+        const stepString = JSON.stringify(step);
+        if (
+          (activeFilter === 'summary' && stepString.includes('Paper Summary')) ||
+          (activeFilter === 'video' && stepString.includes('Video Explanation')) ||
+          (activeFilter === 'quiz' && stepString.includes('Comprehension Quiz')) ||
+          (activeFilter === 'flashcard' && stepString.includes('Flashcards')) ||
+          (activeFilter === 'slides' && stepString.includes('Visual Presentation'))
+        ) {
+          map[filtered.length] = index;
+          filtered.push(step);
+        }
+      });
+      
+      setFilteredSteps(filtered);
+      setStepMap(map);
+      
+      // If we have filtered steps, set current step to first filtered step
+      if (filtered.length > 0) {
+        setCurrentStep(0);
+      }
+    }
+  }, [activeFilter, steps]);
   
   const goToNextStep = () => {
-    if (currentStep < steps.length - 1) {
+    if (currentStep < filteredSteps.length - 1) {
       setCurrentStep(currentStep + 1);
     }
   };
@@ -35,15 +81,55 @@ const LearningJourney = ({ steps, className, onCompleteStep, paperTitle }: Learn
   const toggleChatMode = () => {
     setChatMode(!chatMode);
   };
+  
+  const handleFilterChange = (value: string) => {
+    if (value) {
+      setActiveFilter(value as ContentType);
+    }
+  };
 
   return (
     <div className={cn("relative w-full flex flex-col h-full", className)}>
-      {/* Chat Toolbar */}
-      <div className="flex justify-end mb-4">
+      {/* Toolbar with Chat Toggle and Content Filters */}
+      <div className="flex flex-wrap justify-between items-center gap-2 mb-4">
+        {!chatMode && (
+          <ToggleGroup 
+            type="single" 
+            value={activeFilter}
+            onValueChange={handleFilterChange} 
+            className="flex-1 justify-start"
+          >
+            <ToggleGroupItem value="all" aria-label="Show all content">
+              <FileText size={16} />
+              <span className="hidden sm:inline ml-1">All</span>
+            </ToggleGroupItem>
+            <ToggleGroupItem value="summary" aria-label="Show summaries">
+              <FileText size={16} />
+              <span className="hidden sm:inline ml-1">Summary</span>
+            </ToggleGroupItem>
+            <ToggleGroupItem value="video" aria-label="Show videos">
+              <Video size={16} />
+              <span className="hidden sm:inline ml-1">Video</span>
+            </ToggleGroupItem>
+            <ToggleGroupItem value="quiz" aria-label="Show quizzes">
+              <Brain size={16} />
+              <span className="hidden sm:inline ml-1">Quiz</span>
+            </ToggleGroupItem>
+            <ToggleGroupItem value="flashcard" aria-label="Show flashcards">
+              <Layers size={16} />
+              <span className="hidden sm:inline ml-1">Cards</span>
+            </ToggleGroupItem>
+            <ToggleGroupItem value="slides" aria-label="Show slides">
+              <Presentation size={16} />
+              <span className="hidden sm:inline ml-1">Slides</span>
+            </ToggleGroupItem>
+          </ToggleGroup>
+        )}
+        
         <Button 
           variant="outline"
           onClick={toggleChatMode}
-          className="gap-2"
+          className="gap-2 ml-auto"
         >
           {chatMode ? (
             <>
@@ -69,23 +155,29 @@ const LearningJourney = ({ steps, className, onCompleteStep, paperTitle }: Learn
           />
         ) : (
           <div className="h-full overflow-y-auto">
-            {steps.map((step, index) => (
-              <div 
-                key={index} 
-                className={cn(
-                  "transition-all duration-500 ease-in-out w-full",
-                  index === currentStep ? "block" : "hidden"
-                )}
-              >
-                {step}
+            {filteredSteps.length > 0 ? (
+              filteredSteps.map((step, index) => (
+                <div 
+                  key={index} 
+                  className={cn(
+                    "transition-all duration-500 ease-in-out w-full",
+                    index === currentStep ? "block" : "hidden"
+                  )}
+                >
+                  {step}
+                </div>
+              ))
+            ) : (
+              <div className="flex h-full items-center justify-center text-gray-500">
+                No content matches the selected filter
               </div>
-            ))}
+            )}
           </div>
         )}
       </div>
       
       {/* Navigation Section - Fixed at Bottom */}
-      {!chatMode && (
+      {!chatMode && filteredSteps.length > 0 && (
         <div className="mt-auto pt-4 border-t border-gray-100 flex-shrink-0">
           <div className="flex justify-between w-full mb-6">
             <Button 
@@ -98,14 +190,14 @@ const LearningJourney = ({ steps, className, onCompleteStep, paperTitle }: Learn
             </Button>
             
             <div className="text-sm text-gray-500">
-              Step {currentStep + 1} of {steps.length}
+              Step {currentStep + 1} of {filteredSteps.length}
             </div>
             
             <Button 
               variant="outline" 
               size="icon"
               onClick={goToNextStep}
-              disabled={currentStep === steps.length - 1}
+              disabled={currentStep === filteredSteps.length - 1}
             >
               <ChevronRight size={18} />
             </Button>
@@ -113,7 +205,7 @@ const LearningJourney = ({ steps, className, onCompleteStep, paperTitle }: Learn
           
           {/* Dots Navigation */}
           <div className="flex justify-center space-x-2">
-            {steps.map((_, index) => (
+            {filteredSteps.map((_, index) => (
               <div 
                 key={index}
                 className={cn(
