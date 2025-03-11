@@ -87,7 +87,7 @@ const ChatInterface = ({ title, className, paperTitle }: ChatInterfaceProps) => 
   };
 
   return (
-    <div className={cn("flex flex-col rounded-lg border border-gray-200 bg-white overflow-hidden", className)}>
+    <div className={cn("flex flex-col h-full rounded-lg border border-gray-200 bg-white overflow-hidden", className)}>
       {title && (
         <div className="py-3 px-4 border-b border-gray-200 bg-gray-50">
           <h3 className="text-lg font-medium flex items-center gap-2">
@@ -97,21 +97,25 @@ const ChatInterface = ({ title, className, paperTitle }: ChatInterfaceProps) => 
         </div>
       )}
       
-      <div className="flex-1 overflow-y-auto p-4 max-h-[400px] min-h-[300px]">
+      <div className="flex-1 overflow-y-auto p-4">
         {messages.map((message) => (
           <div 
             key={message.id} 
             className={cn(
-              "mb-4 max-w-[80%]",
-              message.sender === 'user' ? "ml-auto" : "mr-auto"
+              "mb-4 flex",
+              message.sender === 'user' ? "justify-end" : "justify-start"
             )}
           >
-            <div className="flex items-start gap-2">
+            <div 
+              className={cn(
+                "flex items-start gap-2 max-w-[80%]",
+                message.sender === 'user' ? "flex-row-reverse" : "flex-row"
+              )}
+            >
               <div 
                 className={cn(
                   "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0",
-                  message.sender === 'user' ? "bg-blue-100" : "bg-gray-100",
-                  message.sender === 'user' ? "order-2" : "order-1"
+                  message.sender === 'user' ? "bg-blue-100" : "bg-gray-100"
                 )}
               >
                 {message.sender === 'user' ? (
@@ -125,8 +129,8 @@ const ChatInterface = ({ title, className, paperTitle }: ChatInterfaceProps) => 
                 className={cn(
                   "py-2 px-3 rounded-lg",
                   message.sender === 'user' 
-                    ? "bg-blue-600 text-white order-1" 
-                    : "bg-gray-100 text-gray-800 order-2"
+                    ? "bg-blue-600 text-white" 
+                    : "bg-gray-100 text-gray-800"
                 )}
               >
                 <p className="text-sm">{message.text}</p>
@@ -155,7 +159,7 @@ const ChatInterface = ({ title, className, paperTitle }: ChatInterfaceProps) => 
       
       <form 
         onSubmit={handleSendMessage}
-        className="p-3 border-t border-gray-200 flex gap-2"
+        className="px-4 py-3 border-t border-gray-200 flex items-center gap-2"
       >
         <Input
           value={inputValue}
