@@ -87,7 +87,7 @@ const ChatInterface = ({ title, className, paperTitle }: ChatInterfaceProps) => 
   };
 
   return (
-    <div className={cn("flex flex-col h-full rounded-lg border border-gray-200 bg-white overflow-hidden", className)}>
+    <div className={cn("flex flex-col h-full rounded-lg border border-gray-200 bg-white", className)}>
       {title && (
         <div className="py-3 px-4 border-b border-gray-200 bg-gray-50">
           <h3 className="text-lg font-medium flex items-center gap-2">
@@ -97,7 +97,7 @@ const ChatInterface = ({ title, className, paperTitle }: ChatInterfaceProps) => 
         </div>
       )}
       
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto p-4" style={{ height: 'calc(100% - 120px)' }}>
         {messages.map((message) => (
           <div 
             key={message.id} 
@@ -159,7 +159,8 @@ const ChatInterface = ({ title, className, paperTitle }: ChatInterfaceProps) => 
       
       <form 
         onSubmit={handleSendMessage}
-        className="px-4 py-3 border-t border-gray-200 flex items-center gap-2 mt-auto"
+        className="px-4 py-3 border-t border-gray-200 flex items-center gap-2 mt-auto w-full"
+        style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'white' }}
       >
         <Input
           value={inputValue}
