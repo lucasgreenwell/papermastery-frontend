@@ -106,3 +106,41 @@
   width: 100%;
   height: 100%;
 }
+
+/* Mobile responsiveness fixes */
+@media (max-width: 640px) {
+  #root {
+    padding: 1rem;
+  }
+  
+  /* Hide the skill level percentage text and arrows on very small screens */
+  .skill-level-percentage {
+    display: none;
+  }
+  
+  /* Make the dots navigation more compact on small screens */
+  .dots-nav-compact {
+    gap: 4px;
+  }
+  
+  .dots-nav-compact > div {
+    height: 8px !important;
+    width: 8px !important;
+  }
+  
+  .dots-nav-compact > div.active {
+    width: 24px !important;
+  }
+  
+  /* Ensure content doesn't cause horizontal overflow */
+  .no-horizontal-overflow {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+  
+  /* Make filter toggles more compact */
+  .filter-toggles-compact .inline {
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+}

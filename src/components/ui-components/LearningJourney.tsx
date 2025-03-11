@@ -89,19 +89,19 @@ const LearningJourney = ({ steps, className, onCompleteStep, paperTitle }: Learn
   };
 
   return (
-    <div className={cn("relative w-full flex flex-col h-full", className)}>
+    <div className={cn("relative w-full flex flex-col h-full no-horizontal-overflow", className)}>
       {/* Toolbar with Chat Toggle and Content Filters */}
-      <div className="flex flex-wrap justify-between items-center gap-2 mb-4">
+      <div className="flex flex-wrap justify-between items-center gap-1 mb-4">
         {!chatMode && (
           <ToggleGroup 
             type="single" 
             value={activeFilter}
             onValueChange={handleFilterChange} 
-            className="flex-1 justify-start"
+            className="flex-1 justify-start filter-toggles-compact overflow-x-auto"
           >
             <ToggleGroupItem value="all" aria-label="Show all content">
               <FileText size={16} />
-              <span className="hidden sm:inline ml-1">All</span>
+              <span className="hidden xs:inline ml-1">All</span>
             </ToggleGroupItem>
             <ToggleGroupItem value="summary" aria-label="Show summaries">
               <FileText size={16} />
@@ -129,17 +129,18 @@ const LearningJourney = ({ steps, className, onCompleteStep, paperTitle }: Learn
         <Button 
           variant="outline"
           onClick={toggleChatMode}
-          className="gap-2 ml-auto"
+          className="gap-1 sm:gap-2 ml-auto px-2 sm:px-4"
+          size="sm"
         >
           {chatMode ? (
             <>
               <BookOpen size={16} />
-              Learning Journey
+              <span className="text-xs sm:text-sm">Learning</span>
             </>
           ) : (
             <>
               <ChatIcon size={16} className="text-blue-600" />
-              Chat Mode
+              <span className="text-xs sm:text-sm">Chat</span>
             </>
           )}
         </Button>
@@ -179,17 +180,18 @@ const LearningJourney = ({ steps, className, onCompleteStep, paperTitle }: Learn
       {/* Navigation Section - Fixed at Bottom */}
       {!chatMode && filteredSteps.length > 0 && (
         <div className="mt-auto pt-4 border-t border-gray-100 flex-shrink-0">
-          <div className="flex justify-between w-full mb-6">
+          <div className="flex justify-between w-full mb-4">
             <Button 
               variant="outline" 
               size="icon"
               onClick={goToPrevStep}
               disabled={currentStep === 0}
+              className="h-8 w-8"
             >
-              <ChevronLeft size={18} />
+              <ChevronLeft size={16} />
             </Button>
             
-            <div className="text-sm text-gray-500">
+            <div className="text-xs sm:text-sm text-gray-500">
               Step {currentStep + 1} of {filteredSteps.length}
             </div>
             
@@ -198,20 +200,24 @@ const LearningJourney = ({ steps, className, onCompleteStep, paperTitle }: Learn
               size="icon"
               onClick={goToNextStep}
               disabled={currentStep === filteredSteps.length - 1}
+              className="h-8 w-8"
             >
-              <ChevronRight size={18} />
+              <ChevronRight size={16} />
             </Button>
           </div>
           
           {/* Dots Navigation */}
-          <div className="flex justify-center space-x-2">
+          <div className={cn(
+            "flex justify-center",
+            filteredSteps.length > 5 ? "space-x-1 dots-nav-compact" : "space-x-2"
+          )}>
             {filteredSteps.map((_, index) => (
               <div 
                 key={index}
                 className={cn(
                   "h-3 w-3 rounded-full transition-all duration-300",
                   index === currentStep 
-                    ? "bg-blue-600 w-8" 
+                    ? "bg-blue-600 w-8 active" 
                     : index < currentStep 
                     ? "bg-blue-300" 
                     : "bg-gray-200"

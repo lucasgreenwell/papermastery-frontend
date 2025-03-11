@@ -21,6 +21,26 @@ const PaperDetails = () => {
   const [paper, setPaper] = useState<any>(null);
   const { toast } = useToast();
   
+  const [showPdf, setShowPdf] = useState(true);
+  
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        setShowPdf(false);
+      } else {
+        setShowPdf(true);
+      }
+    };
+    
+    handleResize();
+    
+    window.addEventListener('resize', handleResize);
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+  
   useEffect(() => {
     const fetchPaper = async () => {
       setIsLoading(true);
@@ -116,6 +136,10 @@ const PaperDetails = () => {
     
     fetchPaper();
   }, [id, toast]);
+  
+  const togglePdfView = () => {
+    setShowPdf(!showPdf);
+  };
   
   const handleStepComplete = (stepIndex: number) => {
     const newLevel = Math.min(skillLevel + 10, 100);
@@ -327,27 +351,38 @@ const PaperDetails = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 w-full">
+    <div className="min-h-screen bg-gray-50 w-full no-horizontal-overflow">
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center">
-            <Button variant="ghost" size="icon" asChild className="mr-2">
+        <div className="px-2 sm:px-4 py-3 sm:py-4 flex justify-between items-center">
+          <div className="flex items-center overflow-hidden">
+            <Button variant="ghost" size="icon" asChild className="mr-1 sm:mr-2 flex-shrink-0">
               <Link to="/dashboard">
                 <ArrowLeft size={18} />
               </Link>
             </Button>
-            <Link to="/" className="flex items-center">
-              <Brain className="text-blue-600 mr-2" size={24} />
+            <Link to="/" className="flex items-center flex-shrink-0">
+              <Brain className="text-blue-600 mr-1 sm:mr-2" size={20} />
               <span className="font-bold hidden sm:inline">Paper Mastery</span>
             </Link>
-            <span className="mx-2 text-gray-300">|</span>
-            <h1 className="text-lg sm:text-xl font-bold truncate max-w-[150px] sm:max-w-md">
+            <span className="mx-1 sm:mx-2 text-gray-300 flex-shrink-0">|</span>
+            <h1 className="text-sm sm:text-lg font-bold truncate">
               {paper?.title}
             </h1>
           </div>
+          
+          <div className="md:hidden">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={togglePdfView}
+              className="text-xs px-2 py-1 h-8"
+            >
+              {showPdf ? "Learning" : "PDF"}
+            </Button>
+          </div>
         </div>
 
-        <div className="w-full">
+        <div className="w-full overflow-hidden">
           <SkillLevelSidebar 
             skillLevel={skillLevel}
             isHorizontal={true} 
@@ -355,20 +390,24 @@ const PaperDetails = () => {
         </div>
       </header>
       
-      <main className="w-full">
+      <main className="w-full overflow-hidden">
         <div className="grid grid-cols-1 md:grid-cols-2 h-[calc(100vh-12rem)]">
-          <div className="h-full">
-            <PdfViewer pdfUrl={paper?.pdfUrl} className="h-full" />
-          </div>
+          {(showPdf || window.innerWidth >= 768) && (
+            <div className={`h-full ${!showPdf && window.innerWidth < 768 ? 'hidden' : ''} md:block`}>
+              <PdfViewer pdfUrl={paper?.pdfUrl} className="h-full" />
+            </div>
+          )}
           
-          <div className="h-full p-4 flex flex-col">
-            <LearningJourney
-              steps={learningJourneySteps}
-              onCompleteStep={handleStepComplete}
-              paperTitle={paper?.title}
-              className="h-full"
-            />
-          </div>
+          {(!showPdf || window.innerWidth >= 768) && (
+            <div className={`h-full p-2 sm:p-4 flex flex-col ${showPdf && window.innerWidth < 768 ? 'hidden' : ''} md:block`}>
+              <LearningJourney
+                steps={learningJourneySteps}
+                onCompleteStep={handleStepComplete}
+                paperTitle={paper?.title}
+                className="h-full"
+              />
+            </div>
+          )}
         </div>
       </main>
     </div>
