@@ -1,11 +1,16 @@
 /**
- * Environment configuration for the Paper Mastery application.
- * This file provides a centralized way to access environment-specific variables.
+ * Environment configuration for the application.
+ * This module provides a centralized way to access environment-specific variables.
  */
 
-/**
- * Environment configuration interface
- */
+// Default values for environment variables
+const defaults = {
+  API_URL: 'http://localhost:8000',
+  API_TIMEOUT: 30000,
+  API_VERSION: 'v1',
+};
+
+// Type definition for environment configuration
 interface Env {
   API_URL: string;
   API_TIMEOUT: number;
@@ -13,44 +18,46 @@ interface Env {
 }
 
 /**
- * Default environment values
+ * Get environment variable with fallback to default value
  */
-const defaultEnv: Env = {
-  API_URL: 'http://localhost:8000',
-  API_TIMEOUT: 30000,
-  API_VERSION: 'v1',
-};
+function getEnvVar<T>(key: keyof Env, defaultValue: T): T {
+  const envVar = import.meta.env[`VITE_${key}`];
+  return envVar !== undefined ? (envVar as T) : defaultValue;
+}
 
 /**
- * Get environment variables with type safety
- */
-const getEnvValue = <T>(key: string, defaultValue: T): T => {
-  const envKey = `VITE_${key}`;
-  const value = import.meta.env[envKey];
-  return value !== undefined ? (value as T) : defaultValue;
-};
-
-/**
- * Environment configuration
+ * Environment configuration object with type-safe access to environment variables
  */
 export const env: Env = {
-  API_URL: getEnvValue('API_URL', defaultEnv.API_URL),
-  API_TIMEOUT: getEnvValue('API_TIMEOUT', defaultEnv.API_TIMEOUT),
-  API_VERSION: getEnvValue('API_VERSION', defaultEnv.API_VERSION),
+  API_URL: getEnvVar('API_URL', defaults.API_URL),
+  API_TIMEOUT: getEnvVar('API_TIMEOUT', defaults.API_TIMEOUT),
+  API_VERSION: getEnvVar('API_VERSION', defaults.API_VERSION),
 };
 
 /**
- * Validate required environment variables
+ * Validate that all required environment variables are set
  */
-const validateEnv = () => {
-  const requiredVars: (keyof Env)[] = ['API_URL'];
-  
-  for (const key of requiredVars) {
-    if (!env[key]) {
-      console.error(`Missing required environment variable: ${key}`);
-    }
-  }
-};
+function validateEnv(environment: Env): void {
+  const missingVars: string[] = [];
 
-// Run validation
-validateEnv(); 
+  if (!environment.API_URL) {
+    missingVars.push('API_URL');
+  }
+
+  if (missingVars.length > 0) {
+    throw new Error(`Missing required environment variables: ${missingVars.join(', ')}`);
+  }
+}
+
+// Validate environment variables on import
+validateEnv(env);
+
+/**
+ * Get the full API URL including version
+ */
+export function getApiUrl(path: string = ''): string {
+  const baseUrl = env.API_URL.endsWith('/') ? env.API_URL.slice(0, -1) : env.API_URL;
+  const versionPath = `/api/${env.API_VERSION}`;
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${baseUrl}${versionPath}${normalizedPath}`;
+} 

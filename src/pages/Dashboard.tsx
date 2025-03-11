@@ -1,8 +1,7 @@
-
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Brain, LogOut, Search, Upload, Network, ListFilter } from 'lucide-react';
+import { Brain, LogOut, Search, Upload, Network, ListFilter, Loader2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import PaperCard from '@/components/ui-components/PaperCard';
 import PaperUploadForm from '@/components/ui-components/PaperUploadForm';
@@ -12,37 +11,42 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ScatterChart, Scatter, XAxis, YAxis, ZAxis, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 import PaperGraphView from '@/components/ui-components/PaperGraphView';
+import { papersAPI } from '@/services/papersAPI';
+import { PaperResponse } from '@/services/types';
 
 const Dashboard = () => {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'list' | 'graph'>('list');
+  const [papers, setPapers] = useState<PaperResponse[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
-  // Mock data for papers
-  const [papers, setPapers] = useState([
-    {
-      id: '1',
-      title: 'Attention Is All You Need',
-      authors: ['Ashish Vaswani', 'Noam Shazeer', 'Niki Parmar'],
-      date: 'June 12, 2017',
-      skillLevel: 75,
-    },
-    {
-      id: '2',
-      title: 'BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding',
-      authors: ['Jacob Devlin', 'Ming-Wei Chang', 'Kenton Lee', 'Kristina Toutanova'],
-      date: 'October 11, 2018',
-      skillLevel: 45,
-    },
-    {
-      id: '3',
-      title: 'Deep Residual Learning for Image Recognition',
-      authors: ['Kaiming He', 'Xiangyu Zhang', 'Shaoqing Ren', 'Jian Sun'],
-      date: 'December 10, 2015',
-      skillLevel: 30,
-    },
-  ]);
+  // Fetch papers on component mount
+  useEffect(() => {
+    const fetchPapers = async () => {
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        const fetchedPapers = await papersAPI.listPapers();
+        setPapers(fetchedPapers);
+      } catch (err: any) {
+        console.error('Error fetching papers:', err);
+        setError(err.message || 'Failed to fetch papers');
+        toast({
+          title: "Error",
+          description: err.message || 'Failed to fetch papers',
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchPapers();
+  }, [toast]);
 
   const handlePaperUpload = async (input: string, type: 'url' | 'file') => {
     // This would connect to your backend to process the paper
@@ -51,12 +55,13 @@ const Dashboard = () => {
     const newPaper = {
       id: (papers.length + 1).toString(),
       title: type === 'url' ? 'New Paper from URL' : input,
-      authors: ['Author One', 'Author Two'],
-      date: new Date().toLocaleDateString(),
-      skillLevel: 0,
+      authors: [{ name: 'Author One', affiliations: [] }, { name: 'Author Two', affiliations: [] }],
+      abstract: 'Paper abstract',
+      arxiv_id: 'arxiv.123456',
+      publication_date: new Date().toISOString(),
     };
     
-    setPapers([newPaper, ...papers]);
+    setPapers([newPaper as PaperResponse, ...papers]);
     
     toast({
       title: "Paper uploaded successfully",
@@ -64,7 +69,16 @@ const Dashboard = () => {
     });
   };
 
-  const filteredPapers = papers.filter(paper => 
+  // Format paper data for display
+  const formattedPapers = papers.map(paper => ({
+    id: paper.id,
+    title: paper.title,
+    authors: paper.authors.map(author => author.name),
+    date: new Date(paper.publication_date).toLocaleDateString(),
+    skillLevel: 0, // This would come from user progress data
+  }));
+
+  const filteredPapers = formattedPapers.filter(paper => 
     paper.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     paper.authors.some(author => author.toLowerCase().includes(searchQuery.toLowerCase()))
   );
@@ -137,7 +151,21 @@ const Dashboard = () => {
               </div>
               
               {/* Papers: List or Graph View */}
-              {viewMode === 'list' ? (
+              {isLoading ? (
+                <div className="bg-white rounded-xl shadow-md p-8 text-center border border-gray-100">
+                  <Loader2 size={48} className="mx-auto text-blue-500 mb-4 animate-spin" />
+                  <h3 className="text-lg font-medium text-gray-700 mb-2">Loading papers...</h3>
+                  <p className="text-gray-500">Please wait while we fetch your papers.</p>
+                </div>
+              ) : error ? (
+                <div className="bg-white rounded-xl shadow-md p-8 text-center border border-gray-100">
+                  <h3 className="text-lg font-medium text-red-600 mb-2">Error loading papers</h3>
+                  <p className="text-gray-500 mb-4">{error}</p>
+                  <Button onClick={() => window.location.reload()}>
+                    Try Again
+                  </Button>
+                </div>
+              ) : viewMode === 'list' ? (
                 <div className="space-y-4">
                   {filteredPapers.length > 0 ? (
                     filteredPapers.map(paper => (
@@ -166,7 +194,7 @@ const Dashboard = () => {
                   )}
                 </div>
               ) : (
-                <PaperGraphView papers={papers} />
+                <PaperGraphView papers={formattedPapers} />
               )}
             </div>
           </div>
