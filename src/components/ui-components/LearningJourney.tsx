@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, BookOpen, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import ChatInterface from '@/components/ui-components/ChatInterface';
@@ -60,15 +60,15 @@ const LearningJourney = ({ steps, className, onCompleteStep, paperTitle }: Learn
       </div>
       
       {/* Content Area - with fixed height and overflow */}
-      <div className="flex-1 overflow-y-auto mb-4">
+      <div className="flex-1 flex flex-col overflow-hidden">
         {chatMode ? (
           <ChatInterface
             title="Mastery Bot"
             paperTitle={paperTitle}
-            className="h-full"
+            className="h-full flex flex-col"
           />
         ) : (
-          <div className="h-full">
+          <div className="h-full overflow-y-auto">
             {steps.map((step, index) => (
               <div 
                 key={index} 
@@ -86,7 +86,7 @@ const LearningJourney = ({ steps, className, onCompleteStep, paperTitle }: Learn
       
       {/* Navigation Section - Fixed at Bottom */}
       {!chatMode && (
-        <div className="mt-auto pt-4 border-t border-gray-100">
+        <div className="mt-auto pt-4 border-t border-gray-100 flex-shrink-0">
           <div className="flex justify-between w-full mb-6">
             <Button 
               variant="outline" 

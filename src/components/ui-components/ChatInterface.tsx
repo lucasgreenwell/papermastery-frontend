@@ -87,9 +87,9 @@ const ChatInterface = ({ title, className, paperTitle }: ChatInterfaceProps) => 
   };
 
   return (
-    <div className={cn("flex flex-col h-full rounded-lg border border-gray-200 bg-white overflow-hidden", className)}>
+    <div className={cn("flex flex-col h-full rounded-lg border border-gray-200 bg-white", className)}>
       {title && (
-        <div className="py-3 px-4 border-b border-gray-200 bg-gray-50">
+        <div className="py-3 px-4 border-b border-gray-200 bg-gray-50 flex-shrink-0">
           <h3 className="text-lg font-medium flex items-center gap-2">
             <Bot size={18} className="text-blue-600" />
             {title}
@@ -97,7 +97,7 @@ const ChatInterface = ({ title, className, paperTitle }: ChatInterfaceProps) => 
         </div>
       )}
       
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto p-4 pb-0">
         {messages.map((message) => (
           <div 
             key={message.id} 
@@ -159,22 +159,24 @@ const ChatInterface = ({ title, className, paperTitle }: ChatInterfaceProps) => 
       
       <form 
         onSubmit={handleSendMessage}
-        className="px-4 py-3 border-t border-gray-200 flex items-center gap-2"
+        className="px-4 py-3 border-t border-gray-200 mt-auto flex-shrink-0"
       >
-        <Input
-          value={inputValue}
-          onChange={handleInputChange}
-          placeholder="Ask a question about the paper..."
-          className="flex-1"
-          disabled={isLoading}
-        />
-        <Button 
-          type="submit" 
-          disabled={!inputValue.trim() || isLoading}
-          size="icon"
-        >
-          <Send size={18} />
-        </Button>
+        <div className="flex items-center gap-2">
+          <Input
+            value={inputValue}
+            onChange={handleInputChange}
+            placeholder="Ask a question about the paper..."
+            className="flex-1"
+            disabled={isLoading}
+          />
+          <Button 
+            type="submit" 
+            disabled={!inputValue.trim() || isLoading}
+            size="icon"
+          >
+            <Send size={18} />
+          </Button>
+        </div>
       </form>
     </div>
   );
