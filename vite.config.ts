@@ -19,4 +19,8 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  define: {
+    // Add polyfill for the global object needed by react-graph-vis
+    global: 'globalThis',
+  },
 }));
