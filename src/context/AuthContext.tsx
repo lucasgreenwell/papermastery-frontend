@@ -22,6 +22,14 @@ interface AuthContextType {
   signOut: () => Promise<void>;
 }
 
+// Define a type for the profile data to avoid type errors
+interface ProfileData {
+  id: string;
+  display_name?: string;
+  username?: string;
+  avatar_url?: string;
+}
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -39,12 +47,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (currentSession) {
           try {
-            // Get user profile from profiles table
-            const { data: profile, error } = await supabase
+            // Get user profile from profiles table with explicit type casting
+            const { data: profileData, error } = await supabase
               .from('profiles')
               .select('*')
               .eq('id', currentSession.user.id)
-              .single();
+              .single<ProfileData>();
 
             if (error) {
               console.error('Error fetching profile:', error);
@@ -54,9 +62,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser({
               id: currentSession.user.id,
               email: currentSession.user.email || '',
-              name: profile?.display_name,
-              username: profile?.username,
-              avatar_url: profile?.avatar_url
+              name: profileData?.display_name,
+              username: profileData?.username,
+              avatar_url: profileData?.avatar_url
             });
           } catch (error) {
             console.error('Error setting user data:', error);
@@ -77,11 +85,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(currentSession);
 
         if (currentSession) {
-          const { data: profile, error } = await supabase
+          // Use type assertion for the profile query
+          const { data: profileData, error } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', currentSession.user.id)
-            .single();
+            .single<ProfileData>();
 
           if (error) {
             console.error('Error fetching profile:', error);
@@ -91,9 +100,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser({
             id: currentSession.user.id,
             email: currentSession.user.email || '',
-            name: profile?.display_name,
-            username: profile?.username,
-            avatar_url: profile?.avatar_url
+            name: profileData?.display_name,
+            username: profileData?.username,
+            avatar_url: profileData?.avatar_url
           });
         }
       } catch (error) {
