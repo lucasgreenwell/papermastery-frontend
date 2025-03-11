@@ -69,6 +69,9 @@ const Dashboard = () => {
     paper.authors.some(author => author.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
+  // Get display name - either from user metadata or fallback to email
+  const displayName = user?.user_metadata?.name || user?.email || 'User';
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -81,7 +84,7 @@ const Dashboard = () => {
           
           <div className="flex items-center gap-4">
             <div className="text-sm text-gray-600">
-              Welcome, {user?.name || user?.email}
+              Welcome, {displayName}
             </div>
             <Button variant="outline" size="sm" onClick={() => signOut()}>
               <LogOut size={16} className="mr-2" />
