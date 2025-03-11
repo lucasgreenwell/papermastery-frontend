@@ -348,9 +348,9 @@ const PaperDetails = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 w-full">
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="px-2 sm:px-4 py-4 flex justify-between items-center">
+        <div className="px-4 py-4 flex justify-between items-center">
           <div className="flex items-center">
             <Button variant="ghost" size="icon" asChild className="mr-2">
               <Link to="/dashboard">
@@ -367,29 +367,26 @@ const PaperDetails = () => {
             </h1>
           </div>
         </div>
-      </header>
-      
-      <main className="w-full max-w-full py-4">
-        <div className="container mx-auto px-4 mb-6">
+
+        <div className="w-full">
           <SkillLevelSidebar 
-            skillLevel={skillLevel} 
-            className="w-full" 
+            skillLevel={skillLevel}
             isHorizontal={true} 
           />
         </div>
-        
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="h-[calc(100vh-12rem)]">
-              <PdfViewer pdfUrl={paper?.pdfUrl} className="h-full" />
-            </div>
-            
-            <div className="h-[calc(100vh-12rem)] overflow-y-auto">
-              <LearningJourney
-                steps={learningJourneySteps}
-                onCompleteStep={handleStepComplete}
-              />
-            </div>
+      </header>
+      
+      <main className="w-full py-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-[calc(100vh-12rem)]">
+          <div className="h-full">
+            <PdfViewer pdfUrl={paper?.pdfUrl} className="h-full" />
+          </div>
+          
+          <div className="h-full overflow-y-auto">
+            <LearningJourney
+              steps={learningJourneySteps}
+              onCompleteStep={handleStepComplete}
+            />
           </div>
         </div>
       </main>

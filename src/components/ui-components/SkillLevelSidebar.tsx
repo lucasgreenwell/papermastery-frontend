@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { 
   Award, 
@@ -39,58 +38,37 @@ const Milestone = ({
   
   const content = (
     <div className={cn(
-      "relative transition-all duration-300",
+      "transition-all duration-300",
       isHorizontal 
-        ? "flex items-center gap-2 py-2" 
+        ? "flex items-center justify-center" 
         : "flex items-start gap-3 p-4 rounded-lg",
-      isCompleted ? "bg-blue-50" : isActive ? "bg-gray-50" : "opacity-70"
+      isCompleted ? "text-blue-600" : isActive ? "text-gray-700" : "text-gray-400"
     )}>
       <div className={cn(
         "rounded-full flex items-center justify-center",
-        isHorizontal ? "w-10 h-10 min-w-10" : "w-10 h-10 p-2",
+        isHorizontal ? "w-10 h-10" : "w-10 h-10 p-2",
         isCompleted ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-500"
       )}>
         {icon}
       </div>
-      
-      {!showOnHover && (
-        isHorizontal ? (
-          <div className="flex-1 min-w-0">
-            <h4 className={cn(
-              "font-medium text-sm truncate",
-              isCompleted ? "text-blue-700" : "text-gray-700"
-            )}>
-              {title}
-            </h4>
-          </div>
-        ) : (
-          <div>
-            <h4 className={cn(
-              "font-medium",
-              isCompleted ? "text-blue-700" : "text-gray-700"
-            )}>
-              {title}
-            </h4>
-            <p className="text-sm text-gray-500">{description}</p>
-          </div>
-        )
-      )}
     </div>
   );
   
   // If showOnHover is true, wrap in Tooltip
   return showOnHover ? (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <div>{content}</div>
-      </TooltipTrigger>
-      <TooltipContent>
-        <div className="max-w-[200px]">
-          <h4 className="font-medium text-sm">{title}</h4>
-          <p className="text-xs text-gray-500">{description}</p>
-        </div>
-      </TooltipContent>
-    </Tooltip>
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div>{content}</div>
+        </TooltipTrigger>
+        <TooltipContent>
+          <div className="max-w-[200px]">
+            <h4 className="font-medium text-sm">{title}</h4>
+            <p className="text-xs text-gray-500">{description}</p>
+          </div>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   ) : content;
 };
 
@@ -150,8 +128,8 @@ const SkillLevelSidebar = ({
 
   return (
     <div className={cn(
-      "flex flex-col bg-white rounded-xl shadow-md border border-gray-100",
-      isHorizontal ? "p-3" : "p-4",
+      "bg-white rounded-xl shadow-md border border-gray-100",
+      isHorizontal ? "p-4 w-full" : "p-4",
       className
     )}>
       {isHorizontal ? (
@@ -166,31 +144,40 @@ const SkillLevelSidebar = ({
             </div>
           </div>
           
-          <div className="flex-1">
-            <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden">
+          <div className="flex-1 relative">
+            {/* Main progress bar */}
+            <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
               <div 
                 className="absolute top-0 left-0 h-full bg-blue-500 transition-all duration-1000"
                 style={{ width: `${skillLevel}%` }}
               />
             </div>
-          </div>
-          
-          <div className="flex items-center justify-between gap-2">
-            {milestones.map((milestone, index) => (
-              <Milestone
-                key={index}
-                title={milestone.title}
-                description={milestone.description}
-                icon={milestone.icon}
-                skillLevel={skillLevel}
-                threshold={milestone.threshold}
-                isCompleted={skillLevel >= milestone.threshold}
-                isActive={skillLevel < milestone.threshold && 
-                        (index === 0 || skillLevel >= milestones[index - 1].threshold)}
-                isHorizontal={true}
-                showOnHover={true}
-              />
-            ))}
+            
+            {/* Milestones positioned along the progress bar */}
+            <div className="absolute top-0 left-0 w-full h-full">
+              {milestones.map((milestone, index) => (
+                <div 
+                  key={index} 
+                  className="absolute top-0 -translate-y-1/3"
+                  style={{ 
+                    left: `${milestone.threshold - 3}%`,
+                  }}
+                >
+                  <Milestone
+                    title={milestone.title}
+                    description={milestone.description}
+                    icon={milestone.icon}
+                    skillLevel={skillLevel}
+                    threshold={milestone.threshold}
+                    isCompleted={skillLevel >= milestone.threshold}
+                    isActive={skillLevel < milestone.threshold && 
+                            (index === 0 || skillLevel >= milestones[index - 1].threshold)}
+                    isHorizontal={true}
+                    showOnHover={true}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       ) : (
