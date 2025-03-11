@@ -1,138 +1,58 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { Session, User } from '@supabase/supabase-js';
-import { toast } from 'sonner';
 
-interface UserProfile {
+// This is a mock authentication context
+// In a real app, this would connect to Supabase
+
+interface User {
   id: string;
   email: string;
   name?: string;
-  username?: string;
-  avatar_url?: string;
 }
 
 interface AuthContextType {
-  user: UserProfile | null;
-  session: Session | null;
+  user: User | null;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, name: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
-// Define a type for the profile data to avoid type errors
-interface ProfileData {
-  id: string;
-  display_name?: string;
-  username?: string;
-  avatar_url?: string;
-}
-
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
+  // Mock implementation - would be replaced with actual Supabase Auth
   useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, currentSession) => {
-        setSession(currentSession);
-        setIsLoading(true);
-
-        if (currentSession) {
-          try {
-            // Get user profile from profiles table with explicit type casting
-            const { data: profileData, error } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', currentSession.user.id)
-              .single<ProfileData>();
-
-            if (error) {
-              console.error('Error fetching profile:', error);
-              throw error;
-            }
-
-            setUser({
-              id: currentSession.user.id,
-              email: currentSession.user.email || '',
-              name: profileData?.display_name,
-              username: profileData?.username,
-              avatar_url: profileData?.avatar_url
-            });
-          } catch (error) {
-            console.error('Error setting user data:', error);
-            toast.error('Error loading user profile');
-          }
-        } else {
-          setUser(null);
-        }
-        
-        setIsLoading(false);
-      }
-    );
-
-    // Check for existing session on mount
-    const checkSession = async () => {
+    // Check if user is already signed in (e.g., from localStorage)
+    const checkUser = async () => {
       try {
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
-        setSession(currentSession);
-
-        if (currentSession) {
-          // Use type assertion for the profile query
-          const { data: profileData, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', currentSession.user.id)
-            .single<ProfileData>();
-
-          if (error) {
-            console.error('Error fetching profile:', error);
-            throw error;
-          }
-
-          setUser({
-            id: currentSession.user.id,
-            email: currentSession.user.email || '',
-            name: profileData?.display_name,
-            username: profileData?.username,
-            avatar_url: profileData?.avatar_url
-          });
+        const storedUser = localStorage.getItem('insight_user');
+        if (storedUser) {
+          setUser(JSON.parse(storedUser));
         }
       } catch (error) {
-        console.error('Error checking session:', error);
+        console.error('Error checking authentication:', error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    checkSession();
-
-    return () => {
-      subscription.unsubscribe();
-    };
+    checkUser();
   }, []);
 
   const signIn = async (email: string, password: string) => {
     setIsLoading(true);
     
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        toast.error(error.message);
-        throw error;
-      }
-
+      // Mock login - would use Supabase Auth's signIn
+      const mockUser = { id: '123', email };
+      setUser(mockUser);
+      localStorage.setItem('insight_user', JSON.stringify(mockUser));
       navigate('/dashboard');
     } catch (error) {
       console.error('Error signing in:', error);
@@ -146,23 +66,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     
     try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            name: name,
-          },
-        },
-      });
-
-      if (error) {
-        toast.error(error.message);
-        throw error;
-      }
-
-      toast.success('Account created! Please check your email for verification.');
-      navigate('/auth');
+      // Mock signup - would use Supabase Auth's signUp
+      const mockUser = { id: '123', email, name };
+      setUser(mockUser);
+      localStorage.setItem('insight_user', JSON.stringify(mockUser));
+      navigate('/dashboard');
     } catch (error) {
       console.error('Error signing up:', error);
       throw error;
@@ -175,13 +83,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     
     try {
-      const { error } = await supabase.auth.signOut();
-      
-      if (error) {
-        toast.error(error.message);
-        throw error;
-      }
-      
+      // Mock signout - would use Supabase Auth's signOut
+      setUser(null);
+      localStorage.removeItem('insight_user');
       navigate('/auth');
     } catch (error) {
       console.error('Error signing out:', error);
@@ -192,7 +96,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, isLoading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, isLoading, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );
