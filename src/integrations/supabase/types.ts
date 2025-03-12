@@ -129,6 +129,54 @@ export type Database = {
           },
         ]
       }
+      messages: {
+        Row: {
+          conversation_id: string
+          created_at: string | null
+          id: string
+          paper_id: string | null
+          sender: string
+          sources: Json | null
+          text: string
+          user_id: string | null
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string | null
+          id?: string
+          paper_id?: string | null
+          sender?: string
+          sources?: Json | null
+          text: string
+          user_id?: string | null
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string | null
+          id?: string
+          paper_id?: string | null
+          sender?: string
+          sources?: Json | null
+          text?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "user_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "queries_paper_id_fkey"
+            columns: ["paper_id"]
+            isOneToOne: false
+            referencedRelation: "papers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       papers: {
         Row: {
           abstract: string
@@ -209,41 +257,6 @@ export type Database = {
           },
         ]
       }
-      queries: {
-        Row: {
-          answer_text: string | null
-          id: string
-          paper_id: string | null
-          question_text: string
-          timestamp: string | null
-          user_id: string | null
-        }
-        Insert: {
-          answer_text?: string | null
-          id?: string
-          paper_id?: string | null
-          question_text: string
-          timestamp?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          answer_text?: string | null
-          id?: string
-          paper_id?: string | null
-          question_text?: string
-          timestamp?: string | null
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "queries_paper_id_fkey"
-            columns: ["paper_id"]
-            isOneToOne: false
-            referencedRelation: "papers"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       questions: {
         Row: {
           choices: Json | null
@@ -278,6 +291,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_conversations: {
+        Row: {
+          created_at: string | null
+          id: string
+          title: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          title?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          title?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       users_papers: {
         Row: {
