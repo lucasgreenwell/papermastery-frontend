@@ -10,12 +10,13 @@ interface LearningJourneyProps {
   className?: string;
   onCompleteStep?: (index: number) => void;
   paperTitle?: string;
+  paperId: string;
 }
 
 // Define content types for filtering
 type ContentType = 'all' | 'summary' | 'video' | 'quiz' | 'flashcard' | 'slides';
 
-const LearningJourney = ({ steps, className, onCompleteStep, paperTitle }: LearningJourneyProps) => {
+const LearningJourney = ({ steps, className, onCompleteStep, paperTitle, paperId }: LearningJourneyProps) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [chatMode, setChatMode] = useState(false);
   const [activeFilter, setActiveFilter] = useState<ContentType>('all');
@@ -155,6 +156,7 @@ const LearningJourney = ({ steps, className, onCompleteStep, paperTitle }: Learn
           <ChatInterface
             title="Mastery Bot"
             paperTitle={paperTitle}
+            paperId={paperId}
             className="h-full flex flex-col"
           />
         ) : (
