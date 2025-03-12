@@ -6,6 +6,28 @@ import { api } from './apiClient';
 import { PaperResponse } from './types';
 
 /**
+ * Validates and sanitizes an arXiv URL.
+ * 
+ * @param url - The URL to validate and sanitize
+ * @returns The sanitized URL
+ * @throws Error if the URL is invalid
+ */
+function validateAndSanitizeArxivUrl(url: string): string {
+  // Remove any whitespace
+  const trimmedUrl = url.trim();
+  
+  // Check if it's a valid arXiv URL
+  if (!trimmedUrl.startsWith('https://arxiv.org/abs/')) {
+    throw new Error('Invalid arXiv URL. URL must begin with https://arxiv.org/abs/');
+  }
+  
+  // Remove any query parameters
+  const urlWithoutParams = trimmedUrl.split('?')[0];
+  
+  return urlWithoutParams;
+}
+
+/**
  * Papers API service
  */
 export const papersAPI = {
@@ -17,4 +39,18 @@ export const papersAPI = {
   async listPapers(): Promise<PaperResponse[]> {
     return api.get<PaperResponse[]>('/papers');
   },
+  
+  /**
+   * Submits a paper for processing using an arXiv URL.
+   * 
+   * @param arxivLink - The URL to the arXiv paper
+   * @returns A promise that resolves to the submitted paper object
+   * @throws Error if the URL is invalid
+   */
+  async submitPaper(arxivLink: string): Promise<PaperResponse> {
+    const sanitizedUrl = validateAndSanitizeArxivUrl(arxivLink);
+    return api.post<PaperResponse>('/papers/submit', {
+      arxiv_link: sanitizedUrl
+    });
+  }
 }; 
