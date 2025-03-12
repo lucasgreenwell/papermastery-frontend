@@ -6,6 +6,7 @@ export interface ChatSource {
 
 export interface ChatRequest {
   query: string;
+  conversation_id?: string;
 }
 
 export interface ChatResponse {
@@ -21,4 +22,13 @@ export interface ChatMessage {
   sender: 'user' | 'bot';
   timestamp: Date;
   sources?: ChatSource[];
+  conversation_id?: string;
+}
+
+export interface Conversation {
+  id: string;
+  user_id: string;
+  paper_id: string;
+  created_at: string;
+  updated_at?: string;
 } 

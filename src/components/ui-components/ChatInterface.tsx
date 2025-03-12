@@ -3,8 +3,9 @@ import { cn } from '@/lib/utils';
 import { Send, Bot, User, Loader2, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ChatMessage } from '@/types/chat';
-import { sendChatMessage, getConversationMessages } from '@/lib/api/chat';
+import { ChatMessage, Conversation } from '@/types/chat';
+import { sendChatMessage, getConversationMessages, getPaperConversations } from '@/lib/api/chat';
+import ConversationSidebar from './ConversationSidebar';
 
 interface ChatInterfaceProps {
   title?: string;
@@ -20,14 +21,43 @@ const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceP
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedSources, setExpandedSources] = useState<Record<string, string | null>>({});
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [isLoadingConversations, setIsLoadingConversations] = useState(true);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Load conversation history when component mounts
+  // Load conversations when component mounts
+  useEffect(() => {
+    const loadConversations = async () => {
+      setIsLoadingConversations(true);
+      try {
+        const conversationsData = await getPaperConversations(paperId);
+        setConversations(conversationsData);
+        
+        // Set the current conversation to the most recent one
+        if (conversationsData.length > 0) {
+          setCurrentConversationId(conversationsData[0].id);
+        }
+      } catch (err) {
+        console.error('Error loading conversations:', err);
+      } finally {
+        setIsLoadingConversations(false);
+      }
+    };
+
+    loadConversations();
+  }, [paperId]);
+
+  // Load conversation history when component mounts or conversation changes
   useEffect(() => {
     const loadConversationHistory = async () => {
+      if (!currentConversationId) return;
+      
       setIsLoadingHistory(true);
       try {
-        const conversationMessages = await getConversationMessages(paperId);
+        const conversationMessages = await getConversationMessages(paperId, currentConversationId);
+        
+        // No need to filter messages as we're now fetching only messages for the current conversation
         
         // Create welcome message
         const welcomeMessage = {
@@ -59,7 +89,7 @@ const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceP
     };
 
     loadConversationHistory();
-  }, [paperId, paperTitle]);
+  }, [paperId, paperTitle, currentConversationId]);
 
   useEffect(() => {
     scrollToBottom();
@@ -107,7 +137,8 @@ const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceP
       id: Date.now().toString(),
       text: inputValue,
       sender: 'user',
-      timestamp: new Date()
+      timestamp: new Date(),
+      conversation_id: currentConversationId || undefined
     };
     
     setMessages(prevMessages => [...prevMessages, userMessage]);
@@ -116,23 +147,43 @@ const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceP
     setError(null);
     
     try {
-      const response = await sendChatMessage(paperId, { query: userMessage.text });
+      const response = await sendChatMessage(paperId, { query: userMessage.text }, currentConversationId || undefined);
       
       const botMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         text: response.response,
         sender: 'bot',
         timestamp: new Date(),
-        sources: response.sources
+        sources: response.sources,
+        conversation_id: currentConversationId || undefined
       };
       
       setMessages(prevMessages => [...prevMessages, botMessage]);
+      
+      // Refresh conversations list after sending a message
+      // This ensures we have the latest conversations
+      try {
+        const conversationsData = await getPaperConversations(paperId);
+        setConversations(conversationsData);
+        
+        // Update current conversation ID if it's not set
+        if (!currentConversationId && conversationsData.length > 0) {
+          setCurrentConversationId(conversationsData[0].id);
+        }
+      } catch (err) {
+        console.error('Error refreshing conversations:', err);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred while sending your message');
       console.error('Chat error:', err);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSelectConversation = (conversationId: string) => {
+    setCurrentConversationId(conversationId);
+    // The conversation history will be loaded by the useEffect
   };
 
   const formatTime = (date: Date) => {
@@ -157,6 +208,14 @@ const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceP
           </h3>
         </div>
       )}
+      
+      {/* Conversation Sidebar */}
+      <ConversationSidebar
+        conversations={conversations}
+        isLoading={isLoadingConversations}
+        currentConversationId={currentConversationId}
+        onSelectConversation={handleSelectConversation}
+      />
       
       {/* Scrollable messages container with fixed positioning */}
       <div 
