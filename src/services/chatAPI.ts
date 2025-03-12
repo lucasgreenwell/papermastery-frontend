@@ -3,7 +3,7 @@
  */
 
 import { api } from './apiClient';
-import { ChatRequest, ChatResponse } from '@/types/chat';
+import { ChatRequest, ChatResponse, ChatMessage } from '@/types/chat';
 
 /**
  * Chat API service
@@ -18,5 +18,25 @@ export const chatAPI = {
    */
   async sendMessage(paperId: string, request: ChatRequest): Promise<ChatResponse> {
     return api.post<ChatResponse>(`/papers/${paperId}/chat`, request);
+  },
+
+  /**
+   * Fetches all messages for a paper's conversation.
+   * 
+   * @param paperId - The ID of the paper to fetch messages for
+   * @returns A promise that resolves to an array of chat messages
+   */
+  async getConversationMessages(paperId: string): Promise<ChatMessage[]> {
+    const response = await api.get<any[]>(`/papers/${paperId}/messages`);
+    
+    // Convert the backend message format to the frontend ChatMessage format
+    return response.map(message => ({
+      id: message.id,
+      text: message.text,
+      sender: message.sender as 'user' | 'bot',
+      timestamp: new Date(message.created_at),
+      // Sources will only be available for bot messages that have them
+      ...(message.sender === 'bot' && message.sources ? { sources: message.sources } : {})
+    }));
   }
 }; 

@@ -4,7 +4,7 @@ import { Send, Bot, User, Loader2, AlertCircle, ChevronDown, ChevronUp } from 'l
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ChatMessage } from '@/types/chat';
-import { sendChatMessage } from '@/lib/api/chat';
+import { sendChatMessage, getConversationMessages } from '@/lib/api/chat';
 
 interface ChatInterfaceProps {
   title?: string;
@@ -14,19 +14,52 @@ interface ChatInterfaceProps {
 }
 
 const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceProps) => {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: '1',
-      text: `Hello! I'm your AI research assistant. Ask me any questions about "${paperTitle || 'this research paper'}" and I'll do my best to help you understand it.`,
-      sender: 'bot',
-      timestamp: new Date()
-    }
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedSources, setExpandedSources] = useState<Record<string, string | null>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Load conversation history when component mounts
+  useEffect(() => {
+    const loadConversationHistory = async () => {
+      setIsLoadingHistory(true);
+      try {
+        const conversationMessages = await getConversationMessages(paperId);
+        
+        // Create welcome message
+        const welcomeMessage = {
+          id: 'welcome',
+          text: `Hello! I'm your AI research assistant. Ask me any questions about "${paperTitle || 'this research paper'}" and I'll do my best to help you understand it.`,
+          sender: 'bot' as const,
+          timestamp: new Date()
+        };
+        
+        if (conversationMessages.length > 0) {
+          // Always prepend the welcome message to the conversation history
+          setMessages([welcomeMessage, ...conversationMessages]);
+        } else {
+          // If no messages, just show the welcome message
+          setMessages([welcomeMessage]);
+        }
+      } catch (err) {
+        console.error('Error loading conversation history:', err);
+        // If there's an error, still show the welcome message
+        setMessages([{
+          id: 'welcome',
+          text: `Hello! I'm your AI research assistant. Ask me any questions about "${paperTitle || 'this research paper'}" and I'll do my best to help you understand it.`,
+          sender: 'bot',
+          timestamp: new Date()
+        }]);
+      } finally {
+        setIsLoadingHistory(false);
+      }
+    };
+
+    loadConversationHistory();
+  }, [paperId, paperTitle]);
 
   useEffect(() => {
     scrollToBottom();
@@ -134,103 +167,112 @@ const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceP
         }}
       >
         <div className="p-4 space-y-4">
-          {messages.map((message) => (
-            <div 
-              key={message.id} 
-              className={cn(
-                "flex",
-                message.sender === 'user' ? "justify-end" : "justify-start"
-              )}
-            >
-              <div 
-                className={cn(
-                  "flex items-start gap-2 max-w-[80%]",
-                  message.sender === 'user' ? "flex-row-reverse" : "flex-row"
-                )}
-              >
+          {isLoadingHistory ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 size={24} className="animate-spin text-blue-600" />
+              <span className="ml-2 text-gray-600">Loading conversation history...</span>
+            </div>
+          ) : (
+            <>
+              {messages.map((message) => (
                 <div 
+                  key={message.id} 
                   className={cn(
-                    "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0",
-                    message.sender === 'user' ? "bg-blue-100" : "bg-gray-100"
+                    "flex",
+                    message.sender === 'user' ? "justify-end" : "justify-start"
                   )}
                 >
-                  {message.sender === 'user' ? (
-                    <User size={16} className="text-blue-600" />
-                  ) : (
-                    <Bot size={16} className="text-gray-600" />
-                  )}
-                </div>
-                
-                <div className="flex flex-col gap-2">
                   <div 
                     className={cn(
-                      "py-2 px-3 rounded-lg",
-                      message.sender === 'user' 
-                        ? "bg-blue-600 text-white" 
-                        : "bg-gray-100 text-gray-800"
+                      "flex items-start gap-2 max-w-[80%]",
+                      message.sender === 'user' ? "flex-row-reverse" : "flex-row"
                     )}
                   >
-                    <p className="text-sm whitespace-pre-wrap break-words">{message.text}</p>
-                    <span 
+                    <div 
                       className={cn(
-                        "text-xs block mt-1",
-                        message.sender === 'user' ? "text-blue-100" : "text-gray-500"
+                        "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0",
+                        message.sender === 'user' ? "bg-blue-100" : "bg-gray-100"
                       )}
                     >
-                      {formatTime(message.timestamp)}
-                    </span>
-                  </div>
-
-                  {message.sources && message.sources.length > 0 && (
-                    <div className="text-xs text-gray-500">
-                      <div className="flex flex-wrap gap-1 items-center">
-                        <span className="font-medium">Sources:</span>
-                        {message.sources.map((source, index) => (
-                          <button
-                            key={source.chunk_id}
-                            onClick={() => toggleSource(message.id, source.chunk_id)}
-                            className={cn(
-                              "inline-flex items-center justify-center px-2 py-1 rounded-md transition-colors",
-                              expandedSources[`${message.id}-${source.chunk_id}`]
-                                ? "bg-blue-100 text-blue-700"
-                                : "bg-gray-100 hover:bg-gray-200 text-gray-700"
-                            )}
-                          >
-                            [{index + 1}]
-                          </button>
-                        ))}
-                      </div>
-                      {message.sources.map((source) => (
-                        expandedSources[`${message.id}-${source.chunk_id}`] && (
-                          <div 
-                            key={source.chunk_id}
-                            className="mt-2 p-2 bg-gray-50 rounded-md border border-gray-200"
-                          >
-                            <p className="break-words leading-relaxed">
-                              {source.text}
-                            </p>
-                          </div>
-                        )
-                      ))}
+                      {message.sender === 'user' ? (
+                        <User size={16} className="text-blue-600" />
+                      ) : (
+                        <Bot size={16} className="text-gray-600" />
+                      )}
                     </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-          
-          {isLoading && (
-            <div className="flex items-center gap-2 text-gray-500">
-              <Loader2 size={16} className="animate-spin" />
-              <span className="text-sm">AI is thinking...</span>
-            </div>
-          )}
+                    
+                    <div className="flex flex-col gap-2">
+                      <div 
+                        className={cn(
+                          "py-2 px-3 rounded-lg",
+                          message.sender === 'user' 
+                            ? "bg-blue-600 text-white" 
+                            : "bg-gray-100 text-gray-800"
+                        )}
+                      >
+                        <p className="text-sm whitespace-pre-wrap break-words">{message.text}</p>
+                        <span 
+                          className={cn(
+                            "text-xs block mt-1",
+                            message.sender === 'user' ? "text-blue-100" : "text-gray-500"
+                          )}
+                        >
+                          {formatTime(message.timestamp)}
+                        </span>
+                      </div>
 
-          {error && (
-            <div className="flex items-center gap-2 text-red-500">
-              <AlertCircle size={16} />
-              <span className="text-sm">{error}</span>
-            </div>
+                      {message.sources && message.sources.length > 0 && (
+                        <div className="text-xs text-gray-500">
+                          <div className="flex flex-wrap gap-1 items-center">
+                            <span className="font-medium">Sources:</span>
+                            {message.sources.map((source, index) => (
+                              <button
+                                key={source.chunk_id}
+                                onClick={() => toggleSource(message.id, source.chunk_id)}
+                                className={cn(
+                                  "inline-flex items-center justify-center px-2 py-1 rounded-md transition-colors",
+                                  expandedSources[`${message.id}-${source.chunk_id}`]
+                                    ? "bg-blue-100 text-blue-700"
+                                    : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                                )}
+                              >
+                                [{index + 1}]
+                              </button>
+                            ))}
+                          </div>
+                          {message.sources.map((source) => (
+                            expandedSources[`${message.id}-${source.chunk_id}`] && (
+                              <div 
+                                key={source.chunk_id}
+                                className="mt-2 p-2 bg-gray-50 rounded-md border border-gray-200"
+                              >
+                                <p className="break-words leading-relaxed">
+                                  {source.text}
+                                </p>
+                              </div>
+                            )
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              
+              {isLoading && (
+                <div className="flex items-center gap-2 text-gray-500">
+                  <Loader2 size={16} className="animate-spin" />
+                  <span className="text-sm">AI is thinking...</span>
+                </div>
+              )}
+
+              {error && (
+                <div className="flex items-center gap-2 text-red-500">
+                  <AlertCircle size={16} />
+                  <span className="text-sm">{error}</span>
+                </div>
+              )}
+            </>
           )}
           
           <div ref={messagesEndRef} />
@@ -248,11 +290,11 @@ const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceP
             onChange={handleInputChange}
             placeholder="Ask a question about the paper..."
             className="flex-1"
-            disabled={isLoading}
+            disabled={isLoading || isLoadingHistory}
           />
           <Button 
             type="submit" 
-            disabled={!inputValue.trim() || isLoading}
+            disabled={!inputValue.trim() || isLoading || isLoadingHistory}
             size="icon"
           >
             <Send size={18} />
