@@ -17,18 +17,20 @@ import { PaperResponse } from '@/services/types';
 const Dashboard = () => {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'list' | 'graph'>('list');
   const [papers, setPapers] = useState<PaperResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Fetch papers on component mount
   useEffect(() => {
     const fetchPapers = async () => {
       setIsLoading(true);
       setError(null);
-      
+
       try {
         const fetchedPapers = await papersAPI.listPapers();
         setPapers(fetchedPapers);
@@ -44,85 +46,121 @@ const Dashboard = () => {
         setIsLoading(false);
       }
     };
-    
+
     fetchPapers();
   }, [toast]);
 
   const handlePaperUpload = async (input: string, type: 'url' | 'file') => {
-    // This would connect to your backend to process the paper
-    // For now, we'll just add a mock paper to the list
-    
-    const newPaper = {
-      id: (papers.length + 1).toString(),
-      title: type === 'url' ? 'New Paper from URL' : input,
-      authors: [{ name: 'Author One', affiliations: [] }, { name: 'Author Two', affiliations: [] }],
-      abstract: 'Paper abstract',
-      arxiv_id: 'arxiv.123456',
-      publication_date: new Date().toISOString(),
-    };
-    
-    setPapers([newPaper as PaperResponse, ...papers]);
-    
-    toast({
-      title: "Paper uploaded successfully",
-      description: "Your paper is now being processed.",
-    });
+    if (type !== 'url') {
+      toast({
+        title: "Not supported",
+        description: "File upload is not supported yet.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      // Submit the paper to the API
+      const newPaper = await papersAPI.submitPaper(input);
+
+      // Add the new paper to the list
+      setPapers(prevPapers => [newPaper, ...prevPapers]);
+
+      toast({
+        title: "Paper uploaded successfully",
+        description: "Your paper has been added to your library.",
+      });
+
+      // Navigate to paper details page
+      navigate(`/papers/${newPaper.id}`);
+    } catch (err: any) {
+      console.error('Error uploading paper:', err);
+      toast({
+        title: "Error",
+        description: err.message || 'Failed to upload paper',
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  // Format paper data for display
-  const formattedPapers = papers.map(paper => ({
+  // Filter papers based on search query
+  const filteredPapers = papers.filter(paper => {
+    const searchLower = searchQuery.toLowerCase();
+
+    // Search in title
+    if (paper.title.toLowerCase().includes(searchLower)) {
+      return true;
+    }
+
+    // Search in authors
+    if (paper.authors.some(author => {
+      if (typeof author === 'string') {
+        return author.toLowerCase().includes(searchLower);
+      }
+      return author.name.toLowerCase().includes(searchLower);
+    })) {
+      return true;
+    }
+
+    return false;
+  });
+
+  // Format papers for graph view
+  const formattedPapers = filteredPapers.map(paper => ({
     id: paper.id,
     title: paper.title,
-    authors: paper.authors.map(author => author.name),
-    date: new Date(paper.publication_date).toLocaleDateString(),
-    skillLevel: 0, // This would come from user progress data
+    authors: paper.authors,
+    x: Math.random() * 100, // Placeholder for x coordinate
+    y: Math.random() * 100, // Placeholder for y coordinate
+    size: 10, // Placeholder for size
   }));
-
-  const filteredPapers = formattedPapers.filter(paper => 
-    paper.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    paper.authors.some(author => author.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
-
-  // Get display name - either from user metadata or fallback to email
-  const displayName = user?.user_metadata?.name || user?.email || 'User';
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="w-full px-2 sm:px-4 py-4 flex justify-between items-center">
           <Link to="/" className="flex items-center gap-2">
             <Brain className="text-blue-600" size={24} />
             <span className="font-bold text-xl">Paper Mastery</span>
           </Link>
-          
-          <div className="flex items-center gap-4">
-            <div className="text-sm text-gray-600">
-              Welcome, {displayName}
-            </div>
-            <Button variant="outline" size="sm" onClick={() => signOut()}>
-              <LogOut size={16} className="mr-2" />
-              Sign Out
-            </Button>
+
+          <div className="flex items-center space-x-4">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon" onClick={signOut}>
+                    <LogOut className="h-5 w-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Sign Out</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
       </header>
-      
+
       <main className="w-full px-2 sm:px-4 py-8">
         <div className="mb-8">
           <h1 className="text-2xl font-bold mb-6">My Research Papers</h1>
-          
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-1">
               <PaperUploadForm onSubmit={handlePaperUpload} />
             </div>
-            
+
             <div className="lg:col-span-2 space-y-6">
               {/* View Toggle */}
               <div className="bg-white rounded-xl shadow-md p-4 border border-gray-100 flex justify-between items-center">
                 <p className="text-sm text-gray-500">
-                  {viewMode === 'list' 
-                    ? 'List view shows your papers in a chronological list.' 
+                  {viewMode === 'list'
+                    ? 'List view shows your papers in a chronological list.'
                     : 'Graph view shows the relationship between papers.'}
                 </p>
                 <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as 'list' | 'graph')}>
@@ -136,7 +174,7 @@ const Dashboard = () => {
                   </ToggleGroupItem>
                 </ToggleGroup>
               </div>
-              
+
               {/* Search */}
               <div className="bg-white rounded-xl shadow-md p-4 border border-gray-100">
                 <div className="relative">
@@ -149,7 +187,7 @@ const Dashboard = () => {
                   />
                 </div>
               </div>
-              
+
               {/* Papers: List or Graph View */}
               {isLoading ? (
                 <div className="bg-white rounded-xl shadow-md p-8 text-center border border-gray-100">
@@ -167,6 +205,12 @@ const Dashboard = () => {
                 </div>
               ) : viewMode === 'list' ? (
                 <div className="space-y-4">
+                  {isSubmitting && (
+                    <div className="bg-blue-50 rounded-xl p-4 mb-4 flex items-center justify-center space-x-2">
+                      <Loader2 size={20} className="text-blue-500 animate-spin" />
+                      <span className="text-blue-700">Uploading paper...</span>
+                    </div>
+                  )}
                   {filteredPapers.length > 0 ? (
                     filteredPapers.map(paper => (
                       <PaperCard
@@ -174,8 +218,8 @@ const Dashboard = () => {
                         id={paper.id}
                         title={paper.title}
                         authors={paper.authors}
-                        date={paper.date}
-                        skillLevel={paper.skillLevel}
+                        publication_date={paper.publication_date}
+                        skillLevel={0} // Placeholder for skill level
                       />
                     ))
                   ) : (

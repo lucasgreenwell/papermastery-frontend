@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, BookOpen, FileText, Video, Brain, Layers, Presentation } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -39,13 +38,17 @@ const LearningJourney = ({ steps, className, onCompleteStep, paperTitle }: Learn
       const map: Record<number, number> = {};
       
       steps.forEach((step, index) => {
-        const stepString = JSON.stringify(step);
+        // Extract the props from the React element to check for title
+        const stepElement = step as React.ReactElement;
+        const stepProps = stepElement?.props;
+        const stepTitle = stepProps?.title || '';
+        
         if (
-          (activeFilter === 'summary' && stepString.includes('Paper Summary')) ||
-          (activeFilter === 'video' && stepString.includes('Video Explanation')) ||
-          (activeFilter === 'quiz' && stepString.includes('Comprehension Quiz')) ||
-          (activeFilter === 'flashcard' && stepString.includes('Flashcards')) ||
-          (activeFilter === 'slides' && stepString.includes('Visual Presentation'))
+          (activeFilter === 'summary' && stepTitle.includes('Paper Summary')) ||
+          (activeFilter === 'video' && stepTitle.includes('Video Explanation')) ||
+          (activeFilter === 'quiz' && stepTitle.includes('Comprehension Quiz')) ||
+          (activeFilter === 'flashcard' && stepTitle.includes('Flashcards')) ||
+          (activeFilter === 'slides' && stepTitle.includes('Visual Presentation'))
         ) {
           map[filtered.length] = index;
           filtered.push(step);

@@ -134,7 +134,9 @@ export type Database = {
           abstract: string
           arxiv_id: string
           authors: Json
+          chunk_count: number | null
           embedding_id: string | null
+          error_message: string | null
           full_text: string | null
           id: string
           publication_date: string
@@ -147,7 +149,9 @@ export type Database = {
           abstract: string
           arxiv_id: string
           authors: Json
+          chunk_count?: number | null
           embedding_id?: string | null
+          error_message?: string | null
           full_text?: string | null
           id?: string
           publication_date: string
@@ -160,7 +164,9 @@ export type Database = {
           abstract?: string
           arxiv_id?: string
           authors?: Json
+          chunk_count?: number | null
           embedding_id?: string | null
+          error_message?: string | null
           full_text?: string | null
           id?: string
           publication_date?: string

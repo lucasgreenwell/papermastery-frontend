@@ -1,18 +1,44 @@
-
 import React from 'react';
 import { FileText, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import SkillProgressBar from './SkillProgressBar';
+import { format } from 'date-fns';
+
+interface Author {
+  name: string;
+  affiliations: string[];
+}
 
 interface PaperCardProps {
   id: string;
   title: string;
-  authors: string[];
-  date: string;
-  skillLevel: number;
+  authors: Author[] | string[];
+  date?: string;
+  publication_date?: string;
+  skillLevel?: number;
 }
 
-const PaperCard = ({ id, title, authors, date, skillLevel }: PaperCardProps) => {
+const PaperCard = ({ 
+  id, 
+  title, 
+  authors, 
+  date, 
+  publication_date, 
+  skillLevel = 0 
+}: PaperCardProps) => {
+  // Format the date
+  const formattedDate = date || (publication_date ? 
+    format(new Date(publication_date), 'MMM d, yyyy') : 
+    'Date unknown');
+  
+  // Format the authors
+  const formattedAuthors = authors.map(author => {
+    if (typeof author === 'string') {
+      return author;
+    }
+    return author.name;
+  }).join(', ');
+
   return (
     <Link to={`/papers/${id}`} className="paper-card group">
       <div className="p-6 flex-1">
@@ -25,10 +51,10 @@ const PaperCard = ({ id, title, authors, date, skillLevel }: PaperCardProps) => 
               {title}
             </h3>
             <p className="text-sm text-gray-500 mt-1">
-              {authors.join(', ')}
+              {formattedAuthors}
             </p>
             <p className="text-xs text-gray-400 mt-1">
-              {date}
+              {formattedDate}
             </p>
           </div>
         </div>
