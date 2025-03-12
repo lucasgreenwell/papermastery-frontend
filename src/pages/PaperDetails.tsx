@@ -439,6 +439,7 @@ const PaperDetails = () => {
                 steps={learningJourneySteps}
                 onCompleteStep={handleStepComplete}
                 paperTitle={paper?.title}
+                paperId={id || ''}
                 className="h-full"
               />
             </div>

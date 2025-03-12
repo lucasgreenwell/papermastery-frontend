@@ -1,25 +1,20 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { Send, Bot, User, Loader2 } from 'lucide-react';
+import { Send, Bot, User, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-
-interface Message {
-  id: string;
-  text: string;
-  sender: 'user' | 'bot';
-  timestamp: Date;
-}
+import { ChatMessage } from '@/types/chat';
+import { sendChatMessage } from '@/lib/api/chat';
 
 interface ChatInterfaceProps {
   title?: string;
   className?: string;
   paperTitle?: string;
+  paperId: string;
 }
 
-const ChatInterface = ({ title, className, paperTitle }: ChatInterfaceProps) => {
-  const [messages, setMessages] = useState<Message[]>([
+const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceProps) => {
+  const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
       text: `Hello! I'm your AI research assistant. Ask me any questions about "${paperTitle || 'this research paper'}" and I'll do my best to help you understand it.`,
@@ -29,6 +24,7 @@ const ChatInterface = ({ title, className, paperTitle }: ChatInterfaceProps) => 
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -41,6 +37,7 @@ const ChatInterface = ({ title, className, paperTitle }: ChatInterfaceProps) => 
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(e.target.value);
+    setError(null); // Clear any errors when user starts typing
   };
 
   const handleSendMessage = async (e?: React.FormEvent) => {
@@ -49,7 +46,7 @@ const ChatInterface = ({ title, className, paperTitle }: ChatInterfaceProps) => 
     if (!inputValue.trim()) return;
     
     // Add user message
-    const userMessage: Message = {
+    const userMessage: ChatMessage = {
       id: Date.now().toString(),
       text: inputValue,
       sender: 'user',
@@ -59,27 +56,26 @@ const ChatInterface = ({ title, className, paperTitle }: ChatInterfaceProps) => 
     setMessages(prevMessages => [...prevMessages, userMessage]);
     setInputValue('');
     setIsLoading(true);
+    setError(null);
     
-    // Simulate AI response (replace with actual API call in production)
-    setTimeout(() => {
-      const botResponses = [
-        "The transformer architecture uses self-attention mechanisms to process input sequences in parallel, which is more efficient than recurrent models.",
-        "The paper introduces multi-head attention, which allows the model to focus on different parts of the input sequence simultaneously.",
-        "The key innovation is replacing recurrence entirely with attention mechanisms, which allows for much better parallelization.",
-        "Layer normalization is applied after each sub-layer, and residual connections are used around each sub-layer to facilitate training deep models.",
-        "The positional encoding is added to the input embeddings to give the model information about the order of tokens in the sequence."
-      ];
+    try {
+      const response = await sendChatMessage(paperId, { query: userMessage.text });
       
-      const botMessage: Message = {
-        id: Date.now().toString(),
-        text: botResponses[Math.floor(Math.random() * botResponses.length)],
+      const botMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        text: response.response,
         sender: 'bot',
-        timestamp: new Date()
+        timestamp: new Date(),
+        sources: response.sources
       };
       
       setMessages(prevMessages => [...prevMessages, botMessage]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred while sending your message');
+      console.error('Chat error:', err);
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   const formatTime = (date: Date) => {
@@ -143,6 +139,17 @@ const ChatInterface = ({ title, className, paperTitle }: ChatInterfaceProps) => 
                   {formatTime(message.timestamp)}
                 </span>
               </div>
+
+              {message.sources && message.sources.length > 0 && (
+                <div className="mt-2 text-xs text-gray-500">
+                  <p className="font-medium">Sources:</p>
+                  {message.sources.map((source, index) => (
+                    <p key={source.chunk_id} className="mt-1">
+                      {source.text.substring(0, 150)}...
+                    </p>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         ))}
@@ -151,6 +158,13 @@ const ChatInterface = ({ title, className, paperTitle }: ChatInterfaceProps) => 
           <div className="flex items-center gap-2 text-gray-500 mb-4">
             <Loader2 size={16} className="animate-spin" />
             <span className="text-sm">AI is thinking...</span>
+          </div>
+        )}
+
+        {error && (
+          <div className="flex items-center gap-2 text-red-500 mb-4">
+            <AlertCircle size={16} />
+            <span className="text-sm">{error}</span>
           </div>
         )}
         
