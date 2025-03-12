@@ -41,6 +41,16 @@ export const papersAPI = {
   },
   
   /**
+   * Retrieves a specific paper by ID.
+   * 
+   * @param paperId - The ID of the paper to retrieve
+   * @returns A promise that resolves to the paper object
+   */
+  async getPaper(paperId: string): Promise<PaperResponse> {
+    return api.get<PaperResponse>(`/papers/${paperId}`);
+  },
+  
+  /**
    * Submits a paper for processing using an arXiv URL.
    * 
    * @param arxivLink - The URL to the arXiv paper

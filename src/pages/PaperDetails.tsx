@@ -13,12 +13,14 @@ import Flashcard from '@/components/ui-components/Flashcard';
 import { FlashcardData } from '@/components/ui-components/Flashcard';
 import GoogleSlidesEmbed from '@/components/ui-components/GoogleSlidesEmbed';
 import { useToast } from '@/hooks/use-toast';
+import { papersAPI } from '@/services/papersAPI';
 
 const PaperDetails = () => {
   const { id } = useParams<{ id: string }>();
   const [skillLevel, setSkillLevel] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [paper, setPaper] = useState<any>(null);
+  const [selectedSummaryType, setSelectedSummaryType] = useState<'beginner' | 'intermediate' | 'advanced' | 'abstract'>('intermediate');
   const { toast } = useToast();
   
   const [showPdf, setShowPdf] = useState(true);
@@ -46,95 +48,94 @@ const PaperDetails = () => {
       setIsLoading(true);
       
       try {
+        const paperData = await papersAPI.getPaper(id!);
+        setPaper({
+          ...paperData,
+          pdfUrl: `https://arxiv.org/pdf/${paperData.arxiv_id}`,
+          // Keep the learning journey content as is for now
+          quiz: [
+            { 
+              id: 'q1',
+              question: 'What is the main innovation in the Transformer architecture?',
+              options: [
+                'Using only attention mechanisms and no recurrence or convolutions',
+                'Adding more layers to existing RNN models',
+                'Combining CNNs with RNNs',
+                'Using transformations to convert text to images'
+              ],
+              correctAnswer: 0,
+              explanation: 'The Transformer architecture relies entirely on attention mechanisms and does not use recurrence or convolution, making it more parallelizable and efficient for certain tasks.'
+            },
+            {
+              id: 'q2',
+              question: 'What is "multi-head attention" in the Transformer model?',
+              options: [
+                'An attention mechanism that spans multiple documents',
+                'Having multiple models attend to the same input',
+                'Running attention in parallel with different linear projections',
+                'Applying attention to multiple words simultaneously'
+              ],
+              correctAnswer: 2,
+              explanation: 'Multi-head attention allows the model to jointly attend to information from different representation subspaces, using different linear projections of queries, keys, and values.'
+            },
+            {
+              id: 'q3',
+              question: 'How does the Transformer model handle the lack of sequence information?',
+              options: [
+                'It doesn\'t need sequence information',
+                'It uses positional encodings added to the input embeddings',
+                'It adds recurrent connections to capture sequence',
+                'It processes tokens in sequential order'
+              ],
+              correctAnswer: 1,
+              explanation: 'Since the Transformer has no recurrence or convolution, it adds positional encodings to the input embeddings to give the model information about the sequence positions.'
+            }
+          ],
+          flashcards: [
+            {
+              id: 'f1',
+              front: 'What is self-attention?',
+              back: 'Self-attention is a mechanism that allows a model to weigh the importance of different positions in a sequence when encoding a specific position. It helps the model capture dependencies between different positions regardless of their distance.'
+            },
+            {
+              id: 'f2',
+              front: 'What is the advantage of the Transformer over RNNs?',
+              back: 'Transformers can process all input tokens in parallel, while RNNs process tokens sequentially. This makes Transformers more efficient for training on large datasets and capable of capturing long-range dependencies more effectively.'
+            },
+            {
+              id: 'f3',
+              front: 'What is layer normalization?',
+              back: 'Layer normalization is a technique used to stabilize and accelerate neural network training by normalizing the inputs across the features. In Transformers, it\'s applied after each sub-layer to maintain stable gradients.'
+            }
+          ]
+        });
+        
+        setIsLoading(false);
+        
+        setSkillLevel(0);
+        
         setTimeout(() => {
-          setPaper({
-            id,
-            title: 'Attention Is All You Need',
-            authors: ['Ashish Vaswani', 'Noam Shazeer', 'Niki Parmar'],
-            date: 'June 12, 2017',
-            abstract: 'The dominant sequence transduction models are based on complex recurrent or convolutional neural networks that include an encoder and a decoder. The best performing models also connect the encoder and decoder through an attention mechanism. We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely...',
-            pdfUrl: 'https://arxiv.org/pdf/1706.03762.pdf',
-            relatedPapers: [
-              { id: '101', title: 'BERT: Pre-training of Deep Bidirectional Transformers' },
-              { id: '102', title: 'GPT-3: Language Models are Few-Shot Learners' }
-            ],
-            quiz: [
-              { 
-                id: 'q1',
-                question: 'What is the main innovation in the Transformer architecture?',
-                options: [
-                  'Using only attention mechanisms and no recurrence or convolutions',
-                  'Adding more layers to existing RNN models',
-                  'Combining CNNs with RNNs',
-                  'Using transformations to convert text to images'
-                ],
-                correctAnswer: 0,
-                explanation: 'The Transformer architecture relies entirely on attention mechanisms and does not use recurrence or convolution, making it more parallelizable and efficient for certain tasks.'
-              },
-              {
-                id: 'q2',
-                question: 'What is "multi-head attention" in the Transformer model?',
-                options: [
-                  'An attention mechanism that spans multiple documents',
-                  'Having multiple models attend to the same input',
-                  'Running attention in parallel with different linear projections',
-                  'Applying attention to multiple words simultaneously'
-                ],
-                correctAnswer: 2,
-                explanation: 'Multi-head attention allows the model to jointly attend to information from different representation subspaces, using different linear projections of queries, keys, and values.'
-              },
-              {
-                id: 'q3',
-                question: 'How does the Transformer model handle the lack of sequence information?',
-                options: [
-                  'It doesn\'t need sequence information',
-                  'It uses positional encodings added to the input embeddings',
-                  'It adds recurrent connections to capture sequence',
-                  'It processes tokens in sequential order'
-                ],
-                correctAnswer: 1,
-                explanation: 'Since the Transformer has no recurrence or convolution, it adds positional encodings to the input embeddings to give the model information about the sequence positions.'
-              }
-            ],
-            flashcards: [
-              {
-                id: 'f1',
-                front: 'What is self-attention?',
-                back: 'Self-attention is a mechanism that allows a model to weigh the importance of different positions in a sequence when encoding a specific position. It helps the model capture dependencies between different positions regardless of their distance.'
-              },
-              {
-                id: 'f2',
-                front: 'What is the advantage of the Transformer over RNNs?',
-                back: 'Transformers can process all input tokens in parallel, while RNNs process tokens sequentially. This makes Transformers more efficient for training on large datasets and capable of capturing long-range dependencies more effectively.'
-              },
-              {
-                id: 'f3',
-                front: 'What is layer normalization?',
-                back: 'Layer normalization is a technique used to stabilize and accelerate neural network training by normalizing the inputs across the features. In Transformers, it\'s applied after each sub-layer to maintain stable gradients.'
-              }
-            ]
+          setSkillLevel(20);
+          
+          toast({
+            title: "Skill level increased!",
+            description: "You've reached Beginner level by reading the summary."
           });
-          
-          setIsLoading(false);
-          
-          setSkillLevel(0);
-          
-          setTimeout(() => {
-            setSkillLevel(20);
-            
-            toast({
-              title: "Skill level increased!",
-              description: "You've reached Beginner level by reading the summary."
-            });
-          }, 3000);
-        }, 1500);
+        }, 3000);
       } catch (error) {
         console.error('Error fetching paper:', error);
         setIsLoading(false);
+        toast({
+          title: "Error",
+          description: "Failed to load paper details. Please try again later.",
+          variant: "destructive"
+        });
       }
     };
     
-    fetchPaper();
+    if (id) {
+      fetchPaper();
+    }
   }, [id, toast]);
   
   const togglePdfView = () => {
@@ -159,12 +160,46 @@ const PaperDetails = () => {
       title="Paper Summary" 
       icon={<FileText size={20} />}
     >
-      <p className="text-gray-700 mb-4">
-        {paper?.abstract}
-      </p>
-      <p className="text-gray-700 mb-4">
-        The paper introduces the Transformer, a novel architecture for sequence transduction that relies entirely on attention mechanisms, without using recurrence or convolution. The Transformer achieves state-of-the-art results on translation tasks while being more parallelizable and requiring less training time than previous models.
-      </p>
+      <div className="space-y-6">
+        <div className="flex flex-wrap gap-2 mb-6">
+          <Button
+            variant={selectedSummaryType === 'beginner' ? 'default' : 'outline'}
+            onClick={() => setSelectedSummaryType('beginner')}
+            size="sm"
+          >
+            Beginner
+          </Button>
+          <Button
+            variant={selectedSummaryType === 'intermediate' ? 'default' : 'outline'}
+            onClick={() => setSelectedSummaryType('intermediate')}
+            size="sm"
+          >
+            Intermediate
+          </Button>
+          <Button
+            variant={selectedSummaryType === 'advanced' ? 'default' : 'outline'}
+            onClick={() => setSelectedSummaryType('advanced')}
+            size="sm"
+          >
+            Advanced
+          </Button>
+          <Button
+            variant={selectedSummaryType === 'abstract' ? 'default' : 'outline'}
+            onClick={() => setSelectedSummaryType('abstract')}
+            size="sm"
+          >
+            Abstract
+          </Button>
+        </div>
+
+        <div>
+          <p className="text-gray-700 mb-4 whitespace-pre-wrap">
+            {selectedSummaryType === 'abstract' 
+              ? (paper?.abstract || 'Abstract not available')
+              : (paper?.summaries?.[selectedSummaryType] || `${selectedSummaryType} summary not available`)}
+          </p>
+        </div>
+      </div>
       <Button onClick={() => handleStepComplete(0)}>
         I've read the summary
       </Button>
