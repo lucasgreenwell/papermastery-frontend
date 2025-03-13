@@ -58,10 +58,9 @@ export type LearningItemType = 'text' | 'video' | 'flashcard' | 'quiz';
 export interface VideoItem {
   video_id: string;
   title: string;
-  description: string;
-  thumbnail: string;
   channel: string;
-  duration: string;
+  duration?: string;
+  thumbnail?: string;
 }
 
 /**
@@ -80,11 +79,11 @@ export interface QuizQuestion {
 export interface LearningItem {
   id: string;
   paper_id: string;
-  type: LearningItemType;
-  title: string;
+  type: 'video' | 'quiz' | 'flashcard' | 'summary' | 'slides';
   content: string;
-  metadata: Record<string, any>;
-  difficulty_level: number;
+  metadata: any;
+  created_at: string;
+  updated_at: string;
 }
 
 /**
@@ -128,16 +127,26 @@ export interface AnswerResult {
  * Flashcard item from the API
  */
 export interface CardItem {
+  id: string;
+  paper_id: string;
   front: string;
   back: string;
+  difficulty?: 'beginner' | 'intermediate' | 'advanced';
+  created_at?: string;
+  updated_at?: string;
 }
 
 /**
  * Quiz question item from the API
  */
 export interface QuestionItem {
+  id: string;
+  paper_id: string;
   question: string;
   options: string[];
-  correct_answer: number;
+  correct_answer: string;
   explanation: string;
+  difficulty?: 'beginner' | 'intermediate' | 'advanced';
+  created_at?: string;
+  updated_at?: string;
 } 

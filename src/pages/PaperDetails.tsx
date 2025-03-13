@@ -29,6 +29,8 @@ const PaperDetails = () => {
   const [showPdf, setShowPdf] = useState(true);
   const [learningItems, setLearningItems] = useState<LearningItem[]>([]);
   const [videoItems, setVideoItems] = useState<LearningItem[]>([]);
+  const [quizItems, setQuizItems] = useState<LearningItem[]>([]);
+  const [flashcardItems, setFlashcardItems] = useState<LearningItem[]>([]);
   const [isLoadingLearningItems, setIsLoadingLearningItems] = useState(true);
   
   useEffect(() => {
@@ -88,11 +90,19 @@ const PaperDetails = () => {
       const materials = await learningAPI.getLearningMaterials(paperId);
       setLearningItems(materials);
       
-      // Filter video items
+      // Filter items by type
       const videos = materials.filter(item => item.type === 'video');
-      setVideoItems(videos);
+      const quizzes = materials.filter(item => item.type === 'quiz');
+      const cards = materials.filter(item => item.type === 'flashcard');
       
-      console.log(`Retrieved ${materials.length} learning items, including ${videos.length} video items`);
+      setVideoItems(videos);
+      setQuizItems(quizzes);
+      setFlashcardItems(cards);
+      
+      console.log(`Retrieved ${materials.length} learning items:
+        - ${videos.length} video items
+        - ${quizzes.length} quiz items
+        - ${cards.length} flashcard items`);
     } catch (error) {
       console.error('Error fetching learning items:', error);
       toast({
@@ -275,17 +285,89 @@ const PaperDetails = () => {
     );
   };
   
-  const renderQuizStep = () => (
-    <LearningStepCard 
-      title="Comprehension Quiz" 
-      icon={<Brain size={20} />}
-    >
-      <p className="text-gray-700 mb-4">
-        Test your understanding of the Transformer architecture:
-      </p>
-      {paper?.quiz && paper.quiz.length > 0 ? (
+  const renderQuizStep = () => {
+    if (isLoadingLearningItems) {
+      return (
+        <LearningStepCard 
+          title="Comprehension Quiz" 
+          icon={<Brain size={20} />}
+        >
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-pulse flex flex-col items-center">
+              <Brain size={32} className="text-blue-200 mb-4" />
+              <p className="text-gray-400">Loading quiz questions...</p>
+            </div>
+          </div>
+        </LearningStepCard>
+      );
+    }
+    
+    if (quizItems.length === 0) {
+      return (
+        <LearningStepCard 
+          title="Comprehension Quiz" 
+          icon={<Brain size={20} />}
+        >
+          <p className="text-gray-700 mb-4">
+            No quiz questions available for this paper.
+          </p>
+        </LearningStepCard>
+      );
+    }
+    
+    // Create quiz questions from the quiz items directly
+    // Each quiz item is a question itself
+    const formattedQuestions: QuizQuestion[] = quizItems.map((item, index) => {
+      // Extract options from metadata
+      const options = item.metadata?.options || [];
+      
+      // Extract correct answer from metadata
+      let correctAnswer = 0; // Default to first option
+      if (item.metadata?.correct_answer !== undefined) {
+        correctAnswer = typeof item.metadata.correct_answer === 'string' 
+          ? parseInt(item.metadata.correct_answer, 10) 
+          : item.metadata.correct_answer;
+      } else if (item.metadata?.correctAnswer !== undefined) {
+        correctAnswer = typeof item.metadata.correctAnswer === 'string'
+          ? parseInt(item.metadata.correctAnswer, 10)
+          : item.metadata.correctAnswer;
+      }
+      
+      return {
+        id: item.id || `q${index + 1}`,
+        question: item.content || (item.metadata?.title as string) || 'Question not available',
+        options: options,
+        correctAnswer: correctAnswer,
+        explanation: item.metadata?.explanation || ''
+      };
+    });
+    
+    // Filter out questions with no options
+    const validQuestions = formattedQuestions.filter(q => q.options && q.options.length > 0);
+    
+    if (validQuestions.length === 0) {
+      return (
+        <LearningStepCard 
+          title="Comprehension Quiz" 
+          icon={<Brain size={20} />}
+        >
+          <p className="text-gray-700 mb-4">
+            No valid quiz questions available for this paper.
+          </p>
+        </LearningStepCard>
+      );
+    }
+    
+    return (
+      <LearningStepCard 
+        title="Comprehension Quiz" 
+        icon={<Brain size={20} />}
+      >
+        <p className="text-gray-700 mb-4">
+          Test your understanding of the paper:
+        </p>
         <MultipleChoiceQuiz
-          questions={paper.quiz as QuizQuestion[]}
+          questions={validQuestions}
           onComplete={(score, total) => {
             if (score / total >= 0.7) {
               handleStepComplete(3);
@@ -293,31 +375,81 @@ const PaperDetails = () => {
           }}
           className="mb-4"
         />
-      ) : (
-        <p className="text-gray-500 italic">Quiz loading...</p>
-      )}
-    </LearningStepCard>
-  );
+      </LearningStepCard>
+    );
+  };
   
-  const renderFlashcardsStep = () => (
-    <LearningStepCard 
-      title="Flashcards" 
-      icon={<Layers size={20} />}
-    >
-      <p className="text-gray-700 mb-4">
-        Solidify your understanding with these key concept flashcards:
-      </p>
-      {paper?.flashcards && paper.flashcards.length > 0 ? (
+  const renderFlashcardsStep = () => {
+    if (isLoadingLearningItems) {
+      return (
+        <LearningStepCard 
+          title="Flashcards" 
+          icon={<Layers size={20} />}
+        >
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-pulse flex flex-col items-center">
+              <Layers size={32} className="text-blue-200 mb-4" />
+              <p className="text-gray-400">Loading flashcards...</p>
+            </div>
+          </div>
+        </LearningStepCard>
+      );
+    }
+    
+    if (flashcardItems.length === 0) {
+      return (
+        <LearningStepCard 
+          title="Flashcards" 
+          icon={<Layers size={20} />}
+        >
+          <p className="text-gray-700 mb-4">
+            No flashcards available for this paper.
+          </p>
+        </LearningStepCard>
+      );
+    }
+    
+    // Extract flashcards from the items
+    const extractedCards: FlashcardData[] = [];
+    
+    flashcardItems.forEach((item, itemIndex) => {
+      // For individual flashcard items, the content is the front and metadata.back is the back
+      extractedCards.push({
+        id: `f${itemIndex + 1}`,
+        front: item.content,
+        back: item.metadata.back || ''
+      });
+    });
+    
+    if (extractedCards.length === 0) {
+      return (
+        <LearningStepCard 
+          title="Flashcards" 
+          icon={<Layers size={20} />}
+        >
+          <p className="text-gray-700 mb-4">
+            No flashcards available for this paper.
+          </p>
+        </LearningStepCard>
+      );
+    }
+    
+    return (
+      <LearningStepCard 
+        title="Flashcards" 
+        icon={<Layers size={20} />}
+      >
+        <p className="text-gray-700 mb-4">
+          Solidify your understanding with these key concept flashcards:
+        </p>
         <Flashcard
-          cards={paper.flashcards as FlashcardData[]}
+          cards={extractedCards}
           onComplete={() => handleStepComplete(4)}
           className="mb-4"
         />
-      ) : (
-        <p className="text-gray-500 italic">Flashcards loading...</p>
-      )}
-    </LearningStepCard>
-  );
+      </LearningStepCard>
+    );
+  };
   
   const renderSlidesStep = () => (
     <LearningStepCard 
