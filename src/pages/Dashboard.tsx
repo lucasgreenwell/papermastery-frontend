@@ -158,26 +158,7 @@ const Dashboard = () => {
             <div className="lg:col-span-2 space-y-6">
               {/* View Toggle */}
               <div className="bg-white rounded-xl shadow-md p-4 border border-gray-100 flex justify-between items-center">
-                <p className="text-sm text-gray-500">
-                  {viewMode === 'list'
-                    ? 'List view shows your papers in a chronological list.'
-                    : 'Graph view shows the relationship between papers.'}
-                </p>
-                <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as 'list' | 'graph')}>
-                  <ToggleGroupItem value="list" aria-label="List view">
-                    <ListFilter size={18} className="mr-2" />
-                    List
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="graph" aria-label="Graph view">
-                    <Network size={18} className="mr-2" />
-                    Graph
-                  </ToggleGroupItem>
-                </ToggleGroup>
-              </div>
-
-              {/* Search */}
-              <div className="bg-white rounded-xl shadow-md p-4 border border-gray-100">
-                <div className="relative">
+                <div className="relative flex-1 mr-4">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
                   <Input
                     placeholder="Search papers by title or author..."
@@ -185,6 +166,18 @@ const Dashboard = () => {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
+                </div>
+                <div className="flex items-center">
+                  <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as 'list' | 'graph')}>
+                    <ToggleGroupItem value="list" aria-label="List view">
+                      <ListFilter size={18} className="mr-2" />
+                      List
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="graph" aria-label="Graph view">
+                      <Network size={18} className="mr-2" />
+                      Graph
+                    </ToggleGroupItem>
+                  </ToggleGroup>
                 </div>
               </div>
 
