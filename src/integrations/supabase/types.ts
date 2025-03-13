@@ -169,7 +169,7 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "queries_paper_id_fkey"
+            foreignKeyName: "messages_paper_id_fkey"
             columns: ["paper_id"]
             isOneToOne: false
             referencedRelation: "papers"
@@ -296,22 +296,33 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          paper_id: string | null
           updated_at: string | null
           user_id: string
         }
         Insert: {
           created_at?: string | null
           id?: string
+          paper_id?: string | null
           updated_at?: string | null
           user_id: string
         }
         Update: {
           created_at?: string | null
           id?: string
+          paper_id?: string | null
           updated_at?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_conversations_paper_id_fkey"
+            columns: ["paper_id"]
+            isOneToOne: false
+            referencedRelation: "papers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       users_papers: {
         Row: {

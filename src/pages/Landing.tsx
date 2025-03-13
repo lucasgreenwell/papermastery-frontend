@@ -1,6 +1,5 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Link } from 'react-router-dom';
 import { Brain, FileText, Lightbulb, GraduationCap, ChevronRight, ArrowRight } from 'lucide-react';
 
 const Landing = () => {
@@ -13,11 +12,8 @@ const Landing = () => {
           <span className="font-bold text-xl bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Paper Mastery</span>
         </div>
         <div className="space-x-4">
-          <Button variant="ghost" className="hover:bg-blue-50" asChild>
-            <Link to="/auth">Sign In</Link>
-          </Button>
-          <Button className="bg-blue-600 hover:bg-blue-700" asChild>
-            <Link to="/auth">Get Started</Link>
+          <Button className="bg-blue-600 hover:bg-blue-700">
+            Join Waiting List
           </Button>
         </div>
       </header>
@@ -31,15 +27,10 @@ const Landing = () => {
         <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-10 animate-fade-in" style={{ animationDelay: "0.1s" }}>
           Upload any arXiv paper and we'll guide you through it step by step, from fundamentals to mastery, with an AI-powered learning journey tailored just for you.
         </p>
-        <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in" style={{ animationDelay: "0.2s" }}>
-          <Button size="lg" className="bg-blue-600 hover:bg-blue-700" asChild>
-            <Link to="/auth">
-              Begin Your Journey
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </Link>
-          </Button>
-          <Button size="lg" variant="outline" className="border-blue-200 hover:bg-blue-50">
-            Learn More
+        <div className="flex justify-center animate-fade-in" style={{ animationDelay: "0.2s" }}>
+          <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
+            Join Waiting List
+            <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
         </div>
         
@@ -90,11 +81,9 @@ const Landing = () => {
           </div>
           
           <div className="text-center mt-12">
-            <Button size="lg" className="bg-blue-600 hover:bg-blue-700" asChild>
-              <Link to="/auth">
-                Start Learning Now
-                <ChevronRight className="ml-1 h-4 w-4" />
-              </Link>
+            <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
+              Join Waiting List
+              <ChevronRight className="ml-1 h-4 w-4" />
             </Button>
           </div>
         </div>
