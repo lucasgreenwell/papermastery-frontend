@@ -12,6 +12,7 @@ import { QuizQuestion } from '@/components/ui-components/MultipleChoiceQuiz';
 import Flashcard from '@/components/ui-components/Flashcard';
 import { FlashcardData } from '@/components/ui-components/Flashcard';
 import GoogleSlidesEmbed from '@/components/ui-components/GoogleSlidesEmbed';
+import MarkdownRenderer from '@/components/ui-components/MarkdownRenderer';
 import { useToast } from '@/hooks/use-toast';
 import { papersAPI } from '@/services/papersAPI';
 
@@ -193,11 +194,17 @@ const PaperDetails = () => {
         </div>
 
         <div>
-          <p className="text-gray-700 mb-4 whitespace-pre-wrap">
-            {selectedSummaryType === 'abstract' 
-              ? (paper?.abstract || 'Abstract not available')
-              : (paper?.summaries?.[selectedSummaryType] || `${selectedSummaryType} summary not available`)}
-          </p>
+          {selectedSummaryType === 'abstract' ? (
+            <MarkdownRenderer 
+              content={paper?.abstract || 'Abstract not available'} 
+              className="text-gray-700"
+            />
+          ) : (
+            <MarkdownRenderer 
+              content={paper?.summaries?.[selectedSummaryType] || `${selectedSummaryType} summary not available`} 
+              className="text-gray-700"
+            />
+          )}
         </div>
       </div>
       <Button onClick={() => handleStepComplete(0)}>
