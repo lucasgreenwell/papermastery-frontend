@@ -133,8 +133,9 @@ const Dashboard = () => {
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon" onClick={signOut}>
+                  <Button variant="ghost" onClick={signOut} className="flex items-center gap-2">
                     <LogOut className="h-5 w-5" />
+                    <span className="hidden sm:inline">Sign Out</span>
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
