@@ -193,23 +193,27 @@ const PaperDetails = () => {
           </Button>
         </div>
 
-        <div>
+        <div className="mb-8">
           {selectedSummaryType === 'abstract' ? (
             <MarkdownRenderer 
-              content={paper?.abstract || 'Abstract not available'} 
+              content={`## Abstract\n\n${paper?.abstract || 'Abstract not available'}`} 
               className="text-gray-700"
+              maxHeight="300px"
             />
           ) : (
             <MarkdownRenderer 
               content={paper?.summaries?.[selectedSummaryType] || `${selectedSummaryType} summary not available`} 
               className="text-gray-700"
+              maxHeight="300px"
             />
           )}
         </div>
       </div>
-      <Button onClick={() => handleStepComplete(0)}>
-        I've read the summary
-      </Button>
+      <div className="mt-8">
+        <Button onClick={() => handleStepComplete(0)}>
+          I've read the summary
+        </Button>
+      </div>
     </LearningStepCard>
   );
   
