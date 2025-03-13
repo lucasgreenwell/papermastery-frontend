@@ -12,6 +12,7 @@ import { QuizQuestion } from '@/components/ui-components/MultipleChoiceQuiz';
 import Flashcard from '@/components/ui-components/Flashcard';
 import { FlashcardData } from '@/components/ui-components/Flashcard';
 import GoogleSlidesEmbed from '@/components/ui-components/GoogleSlidesEmbed';
+import MarkdownRenderer from '@/components/ui-components/MarkdownRenderer';
 import { useToast } from '@/hooks/use-toast';
 import { papersAPI } from '@/services/papersAPI';
 
@@ -192,17 +193,27 @@ const PaperDetails = () => {
           </Button>
         </div>
 
-        <div>
-          <p className="text-gray-700 mb-4 whitespace-pre-wrap">
-            {selectedSummaryType === 'abstract' 
-              ? (paper?.abstract || 'Abstract not available')
-              : (paper?.summaries?.[selectedSummaryType] || `${selectedSummaryType} summary not available`)}
-          </p>
+        <div className="mb-8">
+          {selectedSummaryType === 'abstract' ? (
+            <MarkdownRenderer 
+              content={`## Abstract\n\n${paper?.abstract || 'Abstract not available'}`} 
+              className="text-gray-700"
+              maxHeight="300px"
+            />
+          ) : (
+            <MarkdownRenderer 
+              content={paper?.summaries?.[selectedSummaryType] || `${selectedSummaryType} summary not available`} 
+              className="text-gray-700"
+              maxHeight="300px"
+            />
+          )}
         </div>
       </div>
-      <Button onClick={() => handleStepComplete(0)}>
-        I've read the summary
-      </Button>
+      <div className="mt-8">
+        <Button onClick={() => handleStepComplete(0)}>
+          I've read the summary
+        </Button>
+      </div>
     </LearningStepCard>
   );
   
@@ -389,7 +400,7 @@ const PaperDetails = () => {
     <div className="min-h-screen bg-gray-50 w-full no-horizontal-overflow">
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="px-2 sm:px-4 py-3 sm:py-4 flex justify-between items-center">
-          <div className="flex items-center overflow-hidden">
+          <div className="flex items-center overflow-hidden flex-shrink-0">
             <Button variant="ghost" size="icon" asChild className="mr-1 sm:mr-2 flex-shrink-0">
               <Link to="/dashboard">
                 <ArrowLeft size={18} />
@@ -399,13 +410,13 @@ const PaperDetails = () => {
               <Brain className="text-blue-600 mr-1 sm:mr-2" size={20} />
               <span className="font-bold hidden sm:inline">Paper Mastery</span>
             </Link>
-            <span className="mx-1 sm:mx-2 text-gray-300 flex-shrink-0">|</span>
-            <h1 className="text-sm sm:text-lg font-bold truncate">
-              {paper?.title}
-            </h1>
           </div>
           
-          <div className="md:hidden">
+          <h1 className="text-sm sm:text-lg font-bold truncate text-center flex-1 mx-2">
+            {paper?.title}
+          </h1>
+          
+          <div className="md:hidden flex-shrink-0">
             <Button 
               variant="outline" 
               size="sm"
