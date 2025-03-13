@@ -15,6 +15,8 @@ import GoogleSlidesEmbed from '@/components/ui-components/GoogleSlidesEmbed';
 import MarkdownRenderer from '@/components/ui-components/MarkdownRenderer';
 import { useToast } from '@/hooks/use-toast';
 import { papersAPI } from '@/services/papersAPI';
+import { learningAPI } from '@/services/learningAPI';
+import { LearningItem, VideoItem } from '@/services/types';
 
 const PaperDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -25,6 +27,9 @@ const PaperDetails = () => {
   const { toast } = useToast();
   
   const [showPdf, setShowPdf] = useState(true);
+  const [learningItems, setLearningItems] = useState<LearningItem[]>([]);
+  const [videoItems, setVideoItems] = useState<LearningItem[]>([]);
+  const [isLoadingLearningItems, setIsLoadingLearningItems] = useState(true);
   
   useEffect(() => {
     const handleResize = () => {
@@ -49,95 +54,56 @@ const PaperDetails = () => {
       setIsLoading(true);
       
       try {
-        const paperData = await papersAPI.getPaper(id!);
-        setPaper({
-          ...paperData,
-          pdfUrl: `https://arxiv.org/pdf/${paperData.arxiv_id}`,
-          // Keep the learning journey content as is for now
-          quiz: [
-            { 
-              id: 'q1',
-              question: 'What is the main innovation in the Transformer architecture?',
-              options: [
-                'Using only attention mechanisms and no recurrence or convolutions',
-                'Adding more layers to existing RNN models',
-                'Combining CNNs with RNNs',
-                'Using transformations to convert text to images'
-              ],
-              correctAnswer: 0,
-              explanation: 'The Transformer architecture relies entirely on attention mechanisms and does not use recurrence or convolution, making it more parallelizable and efficient for certain tasks.'
-            },
-            {
-              id: 'q2',
-              question: 'What is "multi-head attention" in the Transformer model?',
-              options: [
-                'An attention mechanism that spans multiple documents',
-                'Having multiple models attend to the same input',
-                'Running attention in parallel with different linear projections',
-                'Applying attention to multiple words simultaneously'
-              ],
-              correctAnswer: 2,
-              explanation: 'Multi-head attention allows the model to jointly attend to information from different representation subspaces, using different linear projections of queries, keys, and values.'
-            },
-            {
-              id: 'q3',
-              question: 'How does the Transformer model handle the lack of sequence information?',
-              options: [
-                'It doesn\'t need sequence information',
-                'It uses positional encodings added to the input embeddings',
-                'It adds recurrent connections to capture sequence',
-                'It processes tokens in sequential order'
-              ],
-              correctAnswer: 1,
-              explanation: 'Since the Transformer has no recurrence or convolution, it adds positional encodings to the input embeddings to give the model information about the sequence positions.'
-            }
-          ],
-          flashcards: [
-            {
-              id: 'f1',
-              front: 'What is self-attention?',
-              back: 'Self-attention is a mechanism that allows a model to weigh the importance of different positions in a sequence when encoding a specific position. It helps the model capture dependencies between different positions regardless of their distance.'
-            },
-            {
-              id: 'f2',
-              front: 'What is the advantage of the Transformer over RNNs?',
-              back: 'Transformers can process all input tokens in parallel, while RNNs process tokens sequentially. This makes Transformers more efficient for training on large datasets and capable of capturing long-range dependencies more effectively.'
-            },
-            {
-              id: 'f3',
-              front: 'What is layer normalization?',
-              back: 'Layer normalization is a technique used to stabilize and accelerate neural network training by normalizing the inputs across the features. In Transformers, it\'s applied after each sub-layer to maintain stable gradients.'
-            }
-          ]
-        });
-        
-        setIsLoading(false);
-        
-        setSkillLevel(0);
-        
-        setTimeout(() => {
-          setSkillLevel(20);
-          
-          toast({
-            title: "Skill level increased!",
-            description: "You've reached Beginner level by reading the summary."
+        if (id) {
+          const paperData = await papersAPI.getPaper(id);
+          // Ensure pdfUrl is set for the PDF viewer
+          setPaper({
+            ...paperData,
+            pdfUrl: `https://arxiv.org/pdf/${paperData.arxiv_id}`
           });
-        }, 3000);
+          
+          // Fetch learning items
+          await fetchLearningItems(id);
+        }
       } catch (error) {
         console.error('Error fetching paper:', error);
-        setIsLoading(false);
         toast({
-          title: "Error",
-          description: "Failed to load paper details. Please try again later.",
-          variant: "destructive"
+          title: 'Error',
+          description: 'Failed to load paper details. Please try again.',
+          variant: 'destructive',
         });
+      } finally {
+        setIsLoading(false);
       }
     };
     
-    if (id) {
-      fetchPaper();
-    }
+    fetchPaper();
   }, [id, toast]);
+  
+  const fetchLearningItems = async (paperId: string) => {
+    setIsLoadingLearningItems(true);
+    
+    try {
+      // Fetch all learning materials for the paper
+      const materials = await learningAPI.getLearningMaterials(paperId);
+      setLearningItems(materials);
+      
+      // Filter video items
+      const videos = materials.filter(item => item.type === 'video');
+      setVideoItems(videos);
+      
+      console.log(`Retrieved ${materials.length} learning items, including ${videos.length} video items`);
+    } catch (error) {
+      console.error('Error fetching learning items:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load learning materials. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoadingLearningItems(false);
+    }
+  };
   
   const togglePdfView = () => {
     setShowPdf(!showPdf);
@@ -242,24 +208,72 @@ const PaperDetails = () => {
     </LearningStepCard>
   );
   
-  const renderVideoExplanationStep = () => (
-    <LearningStepCard 
-      title="Video Explanation" 
-      icon={<Video size={20} />}
-    >
-      <p className="text-gray-700 mb-4">
-        Watch this video for a visual explanation of the Transformer architecture:
-      </p>
-      <VideoEmbed 
-        videoUrl="https://youtu.be/iDulhoQ2pro?si=BOKgJgIb6xPwVGXO"
-        title="Understanding the Transformer Architecture"
-        className="mb-4"
-      />
-      <Button onClick={() => handleStepComplete(2)}>
-        I've watched the video
-      </Button>
-    </LearningStepCard>
-  );
+  const renderVideoExplanationStep = () => {
+    if (isLoadingLearningItems) {
+      return (
+        <LearningStepCard 
+          title="Video Explanation" 
+          icon={<Video size={20} />}
+        >
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-pulse flex flex-col items-center">
+              <Video size={32} className="text-blue-200 mb-4" />
+              <p className="text-gray-400">Loading videos...</p>
+            </div>
+          </div>
+        </LearningStepCard>
+      );
+    }
+    
+    if (videoItems.length === 0) {
+      return (
+        <LearningStepCard 
+          title="Video Explanation" 
+          icon={<Video size={20} />}
+        >
+          <p className="text-gray-700 mb-4">
+            No videos available for this paper.
+          </p>
+        </LearningStepCard>
+      );
+    }
+    
+    // Get the first video item
+    const videoItem = videoItems[0];
+    const videos = videoItem.metadata.videos || [];
+    
+    return (
+      <LearningStepCard 
+        title="Video Explanation" 
+        icon={<Video size={20} />}
+      >
+        <p className="text-gray-700 mb-4">
+          Watch these videos to enhance your understanding:
+        </p>
+        
+        {videos.length > 0 ? (
+          <div className="space-y-6">
+            {videos.map((video: VideoItem, index: number) => (
+              <div key={index} className="mb-4">
+                <VideoEmbed 
+                  videoUrl={`https://www.youtube.com/watch?v=${video.video_id}`}
+                  title={video.title}
+                  className="mb-2"
+                />
+                <p className="text-sm text-gray-600">{video.channel}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-500">No videos available in this item.</p>
+        )}
+        
+        <Button onClick={() => handleStepComplete(2)} className="mt-4">
+          I've watched the videos
+        </Button>
+      </LearningStepCard>
+    );
+  };
   
   const renderQuizStep = () => (
     <LearningStepCard 
