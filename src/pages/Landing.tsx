@@ -1,8 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Brain, FileText, Lightbulb, GraduationCap, ChevronRight, ArrowRight } from 'lucide-react';
+import WaitingListModal from '@/components/WaitingListModal';
 
 const Landing = () => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const openModal = () => {
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-white">
       {/* Header */}
@@ -12,7 +23,7 @@ const Landing = () => {
           <span className="font-bold text-xl bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Paper Mastery</span>
         </div>
         <div className="space-x-4">
-          <Button className="bg-blue-600 hover:bg-blue-700">
+          <Button className="bg-blue-600 hover:bg-blue-700" onClick={openModal}>
             Join Waiting List
           </Button>
         </div>
@@ -28,7 +39,7 @@ const Landing = () => {
           Upload any arXiv paper and we'll guide you through it step by step, from fundamentals to mastery, with an AI-powered learning journey tailored just for you.
         </p>
         <div className="flex justify-center animate-fade-in" style={{ animationDelay: "0.2s" }}>
-          <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
+          <Button size="lg" className="bg-blue-600 hover:bg-blue-700" onClick={openModal}>
             Join Waiting List
             <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
@@ -81,7 +92,7 @@ const Landing = () => {
           </div>
           
           <div className="text-center mt-12">
-            <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
+            <Button size="lg" className="bg-blue-600 hover:bg-blue-700" onClick={openModal}>
               Join Waiting List
               <ChevronRight className="ml-1 h-4 w-4" />
             </Button>
@@ -103,6 +114,9 @@ const Landing = () => {
           </div>
         </div>
       </footer>
+
+      {/* Waiting List Modal */}
+      <WaitingListModal isOpen={isModalOpen} onClose={closeModal} />
     </div>
   );
 };
