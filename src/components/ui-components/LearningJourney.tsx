@@ -39,17 +39,55 @@ const LearningJourney = ({ steps, className, onCompleteStep, paperTitle, paperId
       const map: Record<number, number> = {};
       
       steps.forEach((step, index) => {
-        // Extract the props from the React element to check for title
+        // Extract the step element and look for title in children
         const stepElement = step as React.ReactElement;
-        const stepProps = stepElement?.props;
-        const stepTitle = stepProps?.title || '';
+        // Try to find the LearningStepCard's title by looking at the component's children
+        let stepTitle = '';
+        
+        try {
+          // Check if this is a React element with props
+          if (stepElement && stepElement.props) {
+            // Try to find title directly on the element (for newly added pattern)
+            if (stepElement.props.title) {
+              stepTitle = stepElement.props.title;
+            } 
+            // If not found, try to look for LearningStepCard in children
+            else if (stepElement.props.children) {
+              const findLearningStepCard = (children: React.ReactNode): string => {
+                if (!children) return '';
+                
+                // Handle array of children
+                if (Array.isArray(children)) {
+                  for (const child of children) {
+                    const result = findLearningStepCard(child);
+                    if (result) return result;
+                  }
+                }
+                // Check if this is a LearningStepCard component
+                else if (
+                  React.isValidElement(children) && 
+                  children.props && 
+                  children.props.title
+                ) {
+                  return children.props.title;
+                }
+                
+                return '';
+              };
+              
+              stepTitle = findLearningStepCard(stepElement.props.children);
+            }
+          }
+        } catch (error) {
+          console.error('Error extracting title from step:', error);
+        }
         
         if (
-          (activeFilter === 'summary' && stepTitle.includes('Paper Summary')) ||
-          (activeFilter === 'video' && stepTitle.includes('Video Explanation')) ||
-          (activeFilter === 'quiz' && stepTitle.includes('Comprehension Quiz')) ||
-          (activeFilter === 'flashcard' && stepTitle.includes('Flashcards')) ||
-          (activeFilter === 'slides' && stepTitle.includes('Visual Presentation'))
+          (activeFilter === 'summary' && (stepTitle.includes('Paper Summary') || stepElement.type.name === 'SummaryStep')) ||
+          (activeFilter === 'video' && (stepTitle.includes('Video Explanation') || stepElement.type.name === 'VideoExplanationStep')) ||
+          (activeFilter === 'quiz' && (stepTitle.includes('Comprehension Quiz') || stepElement.type.name === 'QuizStep')) ||
+          (activeFilter === 'flashcard' && (stepTitle.includes('Flashcards') || stepElement.type.name === 'FlashcardsStep')) ||
+          (activeFilter === 'slides' && (stepTitle.includes('Visual Presentation') || stepElement.type.name === 'SlidesStep'))
         ) {
           map[filtered.length] = index;
           filtered.push(step);
