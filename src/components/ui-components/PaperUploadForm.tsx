@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -20,7 +19,17 @@ const PaperUploadForm = ({ onSubmit }: PaperUploadFormProps) => {
     if (!inputValue.trim()) {
       toast({
         title: "Invalid URL",
-        description: "Please enter a valid arXiv URL",
+        description: "Please enter a valid URL",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Basic URL validation
+    if (!inputValue.trim().startsWith('http://') && !inputValue.trim().startsWith('https://')) {
+      toast({
+        title: "Invalid URL",
+        description: "URL must begin with http:// or https://",
         variant: "destructive"
       });
       return;
@@ -31,10 +40,10 @@ const PaperUploadForm = ({ onSubmit }: PaperUploadFormProps) => {
     try {
       await onSubmit(inputValue, 'url');
       setInputValue('');
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to upload paper. Please try again.",
+        description: error.message || "Failed to upload paper. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -50,12 +59,20 @@ const PaperUploadForm = ({ onSubmit }: PaperUploadFormProps) => {
         <div className="flex items-center space-x-2">
           <Link2 size={20} className="text-gray-400" />
           <Input
-            placeholder="Paste arXiv URL here (e.g., https://arxiv.org/abs/2104.08672)"
+            placeholder="Paste paper URL here (arXiv or PDF URL)"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             disabled={isLoading}
             className="flex-1"
           />
+        </div>
+        
+        <div className="text-sm text-gray-500">
+          Supported formats:
+          <ul className="list-disc list-inside ml-2">
+            <li>arXiv links (e.g., https://arxiv.org/abs/2104.08672)</li>
+            <li>Direct PDF URLs (must end with .pdf or have PDF content type)</li>
+          </ul>
         </div>
         
         <Button
