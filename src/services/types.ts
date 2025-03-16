@@ -153,4 +153,47 @@ export interface QuestionItem {
   difficulty?: 'beginner' | 'intermediate' | 'advanced';
   created_at?: string;
   updated_at?: string;
+}
+
+// Researcher Collection Types
+export interface ResearcherCollectionRequest {
+  name: string;
+  affiliation?: string;
+  paper_title?: string;
+  position?: string;
+  email?: string;
+  researcher_id?: string;
+  run_in_background?: boolean;
+}
+
+export interface ResearcherPublication {
+  title: string;
+  details: string;
+}
+
+export interface ResearcherCollectionResponse {
+  success: boolean;
+  message: string;
+  data: {
+    status: string;
+    researcher_id?: string;
+    name: string;
+    email?: string;
+    additional_emails?: string[];
+    affiliation?: string | { 
+      institution?: string;
+      department?: string;
+    };
+    position?: string;
+    expertise?: string[];
+    achievements?: string[];
+    bio?: string;
+    publications?: string[] | Array<{ 
+      title: string; 
+      venue?: string; 
+      year?: number;
+    }>;
+    collection_sources?: string[];
+    collected_at?: string;
+  }
 } 

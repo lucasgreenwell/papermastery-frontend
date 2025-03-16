@@ -6,6 +6,7 @@
 import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { env, getApiUrl } from '@/config/env';
 import { supabase } from '@/integrations/supabase/client';
+import { ResearcherCollectionRequest, ResearcherCollectionResponse } from './types';
 
 // Create axios instance with default config
 const apiClient: AxiosInstance = axios.create({
@@ -127,6 +128,22 @@ export const api = {
     const response = await apiClient.delete<T>(getApiUrl(path), config);
     return response.data;
   },
+};
+
+// Researcher data collection API
+export const collectResearcherData = async (data: ResearcherCollectionRequest): Promise<ResearcherCollectionResponse> => {
+  try {
+    // API endpoint is always background processing now
+    const response = await apiClient.post('/api/v1/consulting/researchers/collect', data, {
+      timeout: 30000 // We only need a 30-second timeout now since the API returns immediately
+    });
+    
+    console.log('Researcher data collection initiated:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error initiating researcher data collection:', error);
+    throw error;
+  }
 };
 
 export default apiClient; 
