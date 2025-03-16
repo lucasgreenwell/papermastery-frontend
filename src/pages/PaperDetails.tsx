@@ -153,7 +153,7 @@ const PaperDetails = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 h-[calc(100vh-12rem)]">
           {(showPdf || window.innerWidth >= 768) && (
             <div className={`h-full ${!showPdf ? 'hidden md:block' : ''}`}>
-              <PdfViewer pdfUrl={paper?.pdf_url} className="h-full" />
+              <PdfViewer pdfUrl={paper?.pdf_url || paper?.source_url} className="h-full" />
             </div>
           )}
           
