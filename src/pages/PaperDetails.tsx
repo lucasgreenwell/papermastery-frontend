@@ -8,6 +8,8 @@ import LearningJourney from '@/components/ui-components/LearningJourney';
 import {
   SummaryStep,
   KeyConceptsStep,
+  MethodologyStep,
+  ResultsStep,
   VideoExplanationStep,
   QuizStep,
   FlashcardsStep,
@@ -27,6 +29,8 @@ const PaperDetails = () => {
     quizItems, 
     flashcardItems, 
     keyConceptsItems,
+    methodologyItems,
+    resultsItems,
     isLoadingLearningItems 
   } = usePaperDetails(id || '');
   
@@ -66,32 +70,44 @@ const PaperDetails = () => {
       isLoading={isLoadingLearningItems}
       onComplete={() => handleStepComplete(1)} 
     />,
+    <MethodologyStep 
+      key="methodology-step"
+      data={methodologyItems.length > 0 ? methodologyItems[0] : undefined}
+      isLoading={isLoadingLearningItems}
+      onComplete={() => handleStepComplete(2)} 
+    />,
+    <ResultsStep 
+      key="results-step"
+      data={resultsItems.length > 0 ? resultsItems[0] : undefined}
+      isLoading={isLoadingLearningItems}
+      onComplete={() => handleStepComplete(3)} 
+    />,
     <VideoExplanationStep 
       key="video-explanation-step"
       videoItems={videoItems} 
       isLoading={isLoadingLearningItems} 
-      onComplete={() => handleStepComplete(2)} 
+      onComplete={() => handleStepComplete(4)} 
     />,
     <QuizStep 
       key="quiz-step"
       quizItems={quizItems} 
       isLoading={isLoadingLearningItems} 
-      onComplete={() => handleStepComplete(3)} 
+      onComplete={() => handleStepComplete(5)} 
     />,
     <FlashcardsStep 
       key="flashcards-step"
       flashcardItems={flashcardItems} 
       isLoading={isLoadingLearningItems} 
-      onComplete={() => handleStepComplete(4)} 
+      onComplete={() => handleStepComplete(6)} 
     />,
     <RelatedPapersStep 
       key="related-papers-step"
       paper={paper} 
-      onComplete={() => handleStepComplete(5)} 
+      onComplete={() => handleStepComplete(7)} 
     />,
     <MasteryStep 
       key="mastery-step"
-      onComplete={() => handleStepComplete(6)} 
+      onComplete={() => handleStepComplete(8)} 
     />,
   ];
 

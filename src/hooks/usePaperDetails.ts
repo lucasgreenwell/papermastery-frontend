@@ -12,6 +12,8 @@ interface UsePaperDetailsReturn {
   quizItems: LearningItem[];
   flashcardItems: LearningItem[];
   keyConceptsItems: LearningItem[];
+  methodologyItems: LearningItem[];
+  resultsItems: LearningItem[];
   isLoadingLearningItems: boolean;
 }
 
@@ -23,6 +25,8 @@ export const usePaperDetails = (paperId: string): UsePaperDetailsReturn => {
   const [quizItems, setQuizItems] = useState<LearningItem[]>([]);
   const [flashcardItems, setFlashcardItems] = useState<LearningItem[]>([]);
   const [keyConceptsItems, setKeyConceptsItems] = useState<LearningItem[]>([]);
+  const [methodologyItems, setMethodologyItems] = useState<LearningItem[]>([]);
+  const [resultsItems, setResultsItems] = useState<LearningItem[]>([]);
   const [isLoadingLearningItems, setIsLoadingLearningItems] = useState(true);
   const { toast } = useToast();
 
@@ -80,11 +84,15 @@ export const usePaperDetails = (paperId: string): UsePaperDetailsReturn => {
       const quizzes = materials.filter(item => item.type === 'quiz');
       const cards = materials.filter(item => item.type === 'flashcard');
       const concepts = materials.filter(item => item.type === 'concepts');
+      const methodology = materials.filter(item => item.type === 'methodology');
+      const results = materials.filter(item => item.type === 'results');
 
       setVideoItems(videos);
       setQuizItems(quizzes);
       setFlashcardItems(cards);
       setKeyConceptsItems(concepts);
+      setMethodologyItems(methodology);
+      setResultsItems(results);
     } catch (error) {
       console.error('Error fetching learning items:', error);
       toast({
@@ -105,6 +113,8 @@ export const usePaperDetails = (paperId: string): UsePaperDetailsReturn => {
     quizItems,
     flashcardItems,
     keyConceptsItems,
+    methodologyItems,
+    resultsItems,
     isLoadingLearningItems
   };
 }; 

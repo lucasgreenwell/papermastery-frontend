@@ -1,5 +1,7 @@
 export { default as SummaryStep } from './SummaryStep';
 export { default as KeyConceptsStep } from './KeyConceptsStep';
+export { default as MethodologyStep } from './MethodologyStep';
+export { default as ResultsStep } from './ResultsStep';
 export { default as VideoExplanationStep } from './VideoExplanationStep';
 export { default as QuizStep } from './QuizStep';
 export { default as FlashcardsStep } from './FlashcardsStep';
