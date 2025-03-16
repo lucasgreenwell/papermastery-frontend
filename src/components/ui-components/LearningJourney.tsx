@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, BookOpen, FileText, Video, Brain, Layers, Presentation } from 'lucide-react';
+import { ChevronLeft, ChevronRight, BookOpen, FileText, Video, Brain, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
@@ -14,7 +14,7 @@ interface LearningJourneyProps {
 }
 
 // Define content types for filtering
-type ContentType = 'all' | 'summary' | 'video' | 'quiz' | 'flashcard' | 'slides';
+type ContentType = 'all' | 'summary' | 'video' | 'quiz' | 'flashcard';
 
 const LearningJourney = ({ steps, className, onCompleteStep, paperTitle, paperId }: LearningJourneyProps) => {
   const [currentStep, setCurrentStep] = useState(0);
@@ -83,11 +83,10 @@ const LearningJourney = ({ steps, className, onCompleteStep, paperTitle, paperId
         }
         
         if (
-          (activeFilter === 'summary' && (stepTitle.includes('Paper Summary') || stepElement.type.name === 'SummaryStep')) ||
-          (activeFilter === 'video' && (stepTitle.includes('Video Explanation') || stepElement.type.name === 'VideoExplanationStep')) ||
-          (activeFilter === 'quiz' && (stepTitle.includes('Comprehension Quiz') || stepElement.type.name === 'QuizStep')) ||
-          (activeFilter === 'flashcard' && (stepTitle.includes('Flashcards') || stepElement.type.name === 'FlashcardsStep')) ||
-          (activeFilter === 'slides' && (stepTitle.includes('Visual Presentation') || stepElement.type.name === 'SlidesStep'))
+          (activeFilter === 'summary' && (stepTitle.includes('Paper Summary') || (typeof stepElement.type !== 'string' && stepElement.type.name === 'SummaryStep'))) ||
+          (activeFilter === 'video' && (stepTitle.includes('Video Explanation') || (typeof stepElement.type !== 'string' && stepElement.type.name === 'VideoExplanationStep'))) ||
+          (activeFilter === 'quiz' && (stepTitle.includes('Comprehension Quiz') || (typeof stepElement.type !== 'string' && stepElement.type.name === 'QuizStep'))) ||
+          (activeFilter === 'flashcard' && (stepTitle.includes('Flashcards') || (typeof stepElement.type !== 'string' && stepElement.type.name === 'FlashcardsStep')))
         ) {
           map[filtered.length] = index;
           filtered.push(step);
@@ -160,10 +159,6 @@ const LearningJourney = ({ steps, className, onCompleteStep, paperTitle, paperId
             <ToggleGroupItem value="flashcard" aria-label="Show flashcards">
               <Layers size={16} />
               <span className="hidden sm:inline ml-1">Cards</span>
-            </ToggleGroupItem>
-            <ToggleGroupItem value="slides" aria-label="Show slides">
-              <Presentation size={16} />
-              <span className="hidden sm:inline ml-1">Slides</span>
             </ToggleGroupItem>
           </ToggleGroup>
         )}

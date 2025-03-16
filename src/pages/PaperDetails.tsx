@@ -11,7 +11,6 @@ import {
   VideoExplanationStep,
   QuizStep,
   FlashcardsStep,
-  SlidesStep,
   RelatedPapersStep,
   MasteryStep
 } from '@/components/learning-steps';
@@ -82,18 +81,14 @@ const PaperDetails = () => {
       isLoading={isLoadingLearningItems} 
       onComplete={() => handleStepComplete(4)} 
     />,
-    <SlidesStep 
-      key="slides-step"
-      onComplete={() => handleStepComplete(5)} 
-    />,
     <RelatedPapersStep 
       key="related-papers-step"
       paper={paper} 
-      onComplete={() => handleStepComplete(6)} 
+      onComplete={() => handleStepComplete(5)} 
     />,
     <MasteryStep 
       key="mastery-step"
-      onComplete={() => handleStepComplete(7)} 
+      onComplete={() => handleStepComplete(6)} 
     />,
   ];
 
