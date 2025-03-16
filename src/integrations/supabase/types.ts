@@ -177,10 +177,84 @@ export type Database = {
           },
         ]
       }
+      outreach_requests: {
+        Row: {
+          created_at: string | null
+          id: string
+          paper_id: string | null
+          researcher_email: string
+          status: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          paper_id?: string | null
+          researcher_email: string
+          status: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          paper_id?: string | null
+          researcher_email?: string
+          status?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outreach_requests_paper_id_fkey"
+            columns: ["paper_id"]
+            isOneToOne: false
+            referencedRelation: "papers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      paper_researchers: {
+        Row: {
+          created_at: string | null
+          is_primary: boolean | null
+          paper_id: string
+          researcher_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          is_primary?: boolean | null
+          paper_id: string
+          researcher_id: string
+        }
+        Update: {
+          created_at?: string | null
+          is_primary?: boolean | null
+          paper_id?: string
+          researcher_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "paper_researchers_paper_id_fkey"
+            columns: ["paper_id"]
+            isOneToOne: false
+            referencedRelation: "papers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "paper_researchers_researcher_id_fkey"
+            columns: ["researcher_id"]
+            isOneToOne: false
+            referencedRelation: "researchers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       papers: {
         Row: {
           abstract: string
-          arxiv_id: string
+          arxiv_id: string | null
           authors: Json
           chunk_count: number | null
           embedding_id: string | null
@@ -189,13 +263,15 @@ export type Database = {
           id: string
           publication_date: string
           related_papers: Json | null
+          source_type: string
+          source_url: string | null
           summaries: Json | null
           tags: Json | null
           title: string
         }
         Insert: {
           abstract: string
-          arxiv_id: string
+          arxiv_id?: string | null
           authors: Json
           chunk_count?: number | null
           embedding_id?: string | null
@@ -204,13 +280,15 @@ export type Database = {
           id?: string
           publication_date: string
           related_papers?: Json | null
+          source_type?: string
+          source_url?: string | null
           summaries?: Json | null
           tags?: Json | null
           title: string
         }
         Update: {
           abstract?: string
-          arxiv_id?: string
+          arxiv_id?: string | null
           authors?: Json
           chunk_count?: number | null
           embedding_id?: string | null
@@ -219,11 +297,61 @@ export type Database = {
           id?: string
           publication_date?: string
           related_papers?: Json | null
+          source_type?: string
+          source_url?: string | null
           summaries?: Json | null
           tags?: Json | null
           title?: string
         }
         Relationships: []
+      }
+      payments: {
+        Row: {
+          amount: number
+          created_at: string | null
+          id: string
+          session_id: string | null
+          status: string
+          subscription_id: string | null
+          transaction_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          id?: string
+          session_id?: string | null
+          status: string
+          subscription_id?: string | null
+          transaction_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          id?: string
+          session_id?: string | null
+          status?: string
+          subscription_id?: string | null
+          transaction_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       progress: {
         Row: {
@@ -292,6 +420,174 @@ export type Database = {
           },
         ]
       }
+      researchers: {
+        Row: {
+          availability: Json | null
+          bio: string | null
+          created_at: string | null
+          email: string
+          expertise: Json | null
+          id: string
+          name: string
+          rate: number | null
+          updated_at: string | null
+          user_id: string | null
+          verified: boolean | null
+        }
+        Insert: {
+          availability?: Json | null
+          bio?: string | null
+          created_at?: string | null
+          email: string
+          expertise?: Json | null
+          id?: string
+          name: string
+          rate?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+          verified?: boolean | null
+        }
+        Update: {
+          availability?: Json | null
+          bio?: string | null
+          created_at?: string | null
+          email?: string
+          expertise?: Json | null
+          id?: string
+          name?: string
+          rate?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+          verified?: boolean | null
+        }
+        Relationships: []
+      }
+      reviews: {
+        Row: {
+          comment: string | null
+          created_at: string | null
+          id: string
+          rating: number
+          researcher_id: string | null
+          session_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string | null
+          id?: string
+          rating: number
+          researcher_id?: string | null
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string | null
+          id?: string
+          rating?: number
+          researcher_id?: string | null
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_researcher_id_fkey"
+            columns: ["researcher_id"]
+            isOneToOne: false
+            referencedRelation: "researchers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sessions: {
+        Row: {
+          created_at: string | null
+          end_time: string
+          id: string
+          paper_id: string | null
+          researcher_id: string | null
+          start_time: string
+          status: string
+          updated_at: string | null
+          user_id: string | null
+          zoom_link: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          end_time: string
+          id?: string
+          paper_id?: string | null
+          researcher_id?: string | null
+          start_time: string
+          status: string
+          updated_at?: string | null
+          user_id?: string | null
+          zoom_link?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          end_time?: string
+          id?: string
+          paper_id?: string | null
+          researcher_id?: string | null
+          start_time?: string
+          status?: string
+          updated_at?: string | null
+          user_id?: string | null
+          zoom_link?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sessions_paper_id_fkey"
+            columns: ["paper_id"]
+            isOneToOne: false
+            referencedRelation: "papers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sessions_researcher_id_fkey"
+            columns: ["researcher_id"]
+            isOneToOne: false
+            referencedRelation: "researchers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscriptions: {
+        Row: {
+          created_at: string | null
+          end_date: string | null
+          id: string
+          start_date: string
+          status: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          end_date?: string | null
+          id?: string
+          start_date: string
+          status: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          end_date?: string | null
+          id?: string
+          start_date?: string
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       user_conversations: {
         Row: {
           created_at: string | null
@@ -347,12 +643,52 @@ export type Database = {
           },
         ]
       }
+      waiting_list: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_paper_by_source: {
+        Args: {
+          p_source_url: string
+          p_source_type: string
+        }
+        Returns: {
+          abstract: string
+          arxiv_id: string | null
+          authors: Json
+          chunk_count: number | null
+          embedding_id: string | null
+          error_message: string | null
+          full_text: string | null
+          id: string
+          publication_date: string
+          related_papers: Json | null
+          source_type: string
+          source_url: string | null
+          summaries: Json | null
+          tags: Json | null
+          title: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

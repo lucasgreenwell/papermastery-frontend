@@ -30,10 +30,20 @@ export const usePaperDetails = (paperId: string): UsePaperDetailsReturn => {
       
       try {
         const paperData = await papersAPI.getPaper(paperId);
-        // Ensure pdfUrl is set for the PDF viewer
+        // Set pdf_url based on source_type
+        let pdfUrl = paperData.pdf_url;
+        
+        if (!pdfUrl) {
+          if (paperData.source_type === 'arxiv' && paperData.arxiv_id) {
+            pdfUrl = `https://arxiv.org/pdf/${paperData.arxiv_id}`;
+          } else if (paperData.source_type === 'pdf') {
+            pdfUrl = paperData.source_url;
+          }
+        }
+        
         setPaper({
           ...paperData,
-          pdf_url: `https://arxiv.org/pdf/${paperData.arxiv_id}`
+          pdf_url: pdfUrl
         });
         
         // Fetch learning items

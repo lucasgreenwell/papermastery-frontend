@@ -17,6 +17,8 @@ export interface RelatedPaper {
   id: string;
   title: string;
   arxiv_id?: string;
+  source_url?: string;
+  source_type?: 'arxiv' | 'pdf' | 'other';
 }
 
 /**
@@ -24,7 +26,9 @@ export interface RelatedPaper {
  */
 export interface PaperResponse {
   id: string;
-  arxiv_id: string;
+  arxiv_id?: string;
+  source_url: string;
+  source_type: 'arxiv' | 'pdf' | 'other';
   title: string;
   authors: Author[];
   abstract: string;

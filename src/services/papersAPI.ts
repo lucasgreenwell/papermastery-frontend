@@ -6,25 +6,37 @@ import { api } from './apiClient';
 import { PaperResponse } from './types';
 
 /**
- * Validates and sanitizes an arXiv URL.
+ * Validates and sanitizes a paper URL.
  * 
  * @param url - The URL to validate and sanitize
  * @returns The sanitized URL
  * @throws Error if the URL is invalid
  */
-function validateAndSanitizeArxivUrl(url: string): string {
+function validateAndSanitizeUrl(url: string): string {
   // Remove any whitespace
   const trimmedUrl = url.trim();
   
-  // Check if it's a valid arXiv URL
-  if (!trimmedUrl.startsWith('https://arxiv.org/abs/')) {
-    throw new Error('Invalid arXiv URL. URL must begin with https://arxiv.org/abs/');
+  // Basic URL validation
+  if (!trimmedUrl.startsWith('http://') && !trimmedUrl.startsWith('https://')) {
+    throw new Error('Invalid URL. URL must begin with http:// or https://');
   }
   
-  // Remove any query parameters
-  const urlWithoutParams = trimmedUrl.split('?')[0];
+  // Remove any query parameters for arXiv URLs (keep them for other URLs)
+  if (trimmedUrl.startsWith('https://arxiv.org/abs/')) {
+    return trimmedUrl.split('?')[0];
+  }
   
-  return urlWithoutParams;
+  return trimmedUrl;
+}
+
+/**
+ * Determines if a URL is an arXiv URL.
+ * 
+ * @param url - The URL to check
+ * @returns True if the URL is an arXiv URL, false otherwise
+ */
+function isArxivUrl(url: string): boolean {
+  return url.startsWith('https://arxiv.org/abs/') || url.startsWith('https://arxiv.org/pdf/');
 }
 
 /**
@@ -51,16 +63,51 @@ export const papersAPI = {
   },
   
   /**
-   * Submits a paper for processing using an arXiv URL.
+   * Submits a paper for processing using a URL.
    * 
-   * @param arxivLink - The URL to the arXiv paper
+   * @param url - The URL to the paper (arXiv or PDF)
    * @returns A promise that resolves to the submitted paper object
    * @throws Error if the URL is invalid
    */
-  async submitPaper(arxivLink: string): Promise<PaperResponse> {
-    const sanitizedUrl = validateAndSanitizeArxivUrl(arxivLink);
+  async submitPaper(url: string): Promise<PaperResponse> {
+    const sanitizedUrl = validateAndSanitizeUrl(url);
+    
+    // Determine source type (optional, will be auto-detected by backend)
+    const sourceType = isArxivUrl(sanitizedUrl) ? 'arxiv' : 'pdf';
+    
     return api.post<PaperResponse>('/papers/submit', {
-      arxiv_link: sanitizedUrl
+      source_url: sanitizedUrl,
+      source_type: sourceType
+    }, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+  },
+
+  /**
+   * Submits a paper for processing using a file upload.
+   * 
+   * @param file - The PDF file to upload
+   * @returns A promise that resolves to the submitted paper object
+   * @throws Error if the file is invalid
+   */
+  async submitPaperFile(file: File): Promise<PaperResponse> {
+    // Validate file type
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      throw new Error('Invalid file type. Only PDF files are supported.');
+    }
+    
+    // Create form data for file upload
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('source_type', 'file');
+    
+    // Use axios directly for multipart/form-data
+    return api.post<PaperResponse>('/papers/submit', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
     });
   }
 }; 

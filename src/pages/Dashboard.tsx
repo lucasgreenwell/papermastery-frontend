@@ -50,21 +50,21 @@ const Dashboard = () => {
     fetchPapers();
   }, [toast]);
 
-  const handlePaperUpload = async (input: string, type: 'url' | 'file') => {
-    if (type !== 'url') {
-      toast({
-        title: "Not supported",
-        description: "File upload is not supported yet.",
-        variant: "destructive",
-      });
-      return;
-    }
-
+  const handlePaperUpload = async (input: string | File, type: 'url' | 'file') => {
     setIsSubmitting(true);
 
     try {
-      // Submit the paper to the API
-      const newPaper = await papersAPI.submitPaper(input);
+      let newPaper;
+      
+      if (type === 'url') {
+        // Submit the paper URL to the API
+        newPaper = await papersAPI.submitPaper(input as string);
+      } else if (type === 'file') {
+        // Submit the paper file to the API
+        newPaper = await papersAPI.submitPaperFile(input as File);
+      } else {
+        throw new Error("Unsupported upload type");
+      }
 
       // Add the new paper to the list
       setPapers(prevPapers => [newPaper, ...prevPapers]);
