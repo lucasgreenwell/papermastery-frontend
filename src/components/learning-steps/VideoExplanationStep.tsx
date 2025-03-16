@@ -78,7 +78,7 @@ const VideoExplanationStep: React.FC<VideoExplanationStepProps> = ({
   
   // Get the first video item
   const videoItem = videoItems[0];
-  const videos = videoItem.metadata.videos || [];
+  const videos = videoItem?.metadata?.videos || [];
   
   return (
     <LearningStepCard 

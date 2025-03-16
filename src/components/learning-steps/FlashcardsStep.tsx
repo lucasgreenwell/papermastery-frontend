@@ -82,8 +82,8 @@ const FlashcardsStep: React.FC<FlashcardsStepProps> = ({
     // For individual flashcard items, the content is the front and metadata.back is the back
     extractedCards.push({
       id: `f${itemIndex + 1}`,
-      front: item.content,
-      back: item.metadata.back || ''
+      front: item.content || '',
+      back: item.metadata?.back || ''
     });
   });
   
