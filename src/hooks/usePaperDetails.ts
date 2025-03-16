@@ -11,6 +11,7 @@ interface UsePaperDetailsReturn {
   videoItems: LearningItem[];
   quizItems: LearningItem[];
   flashcardItems: LearningItem[];
+  keyConceptsItems: LearningItem[];
   isLoadingLearningItems: boolean;
 }
 
@@ -21,6 +22,7 @@ export const usePaperDetails = (paperId: string): UsePaperDetailsReturn => {
   const [videoItems, setVideoItems] = useState<LearningItem[]>([]);
   const [quizItems, setQuizItems] = useState<LearningItem[]>([]);
   const [flashcardItems, setFlashcardItems] = useState<LearningItem[]>([]);
+  const [keyConceptsItems, setKeyConceptsItems] = useState<LearningItem[]>([]);
   const [isLoadingLearningItems, setIsLoadingLearningItems] = useState(true);
   const { toast } = useToast();
 
@@ -77,15 +79,12 @@ export const usePaperDetails = (paperId: string): UsePaperDetailsReturn => {
       const videos = materials.filter(item => item.type === 'video');
       const quizzes = materials.filter(item => item.type === 'quiz');
       const cards = materials.filter(item => item.type === 'flashcard');
-      
+      const concepts = materials.filter(item => item.type === 'concepts');
+
       setVideoItems(videos);
       setQuizItems(quizzes);
       setFlashcardItems(cards);
-      
-      console.log(`Retrieved ${materials.length} learning items:
-        - ${videos.length} video items
-        - ${quizzes.length} quiz items
-        - ${cards.length} flashcard items`);
+      setKeyConceptsItems(concepts);
     } catch (error) {
       console.error('Error fetching learning items:', error);
       toast({
@@ -105,6 +104,7 @@ export const usePaperDetails = (paperId: string): UsePaperDetailsReturn => {
     videoItems,
     quizItems,
     flashcardItems,
+    keyConceptsItems,
     isLoadingLearningItems
   };
 }; 

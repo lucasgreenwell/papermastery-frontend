@@ -26,6 +26,7 @@ const PaperDetails = () => {
     videoItems, 
     quizItems, 
     flashcardItems, 
+    keyConceptsItems,
     isLoadingLearningItems 
   } = usePaperDetails(id || '');
   
@@ -61,6 +62,8 @@ const PaperDetails = () => {
     />,
     <KeyConceptsStep 
       key="key-concepts-step"
+      data={keyConceptsItems.length > 0 ? keyConceptsItems[0] : undefined}
+      isLoading={isLoadingLearningItems}
       onComplete={() => handleStepComplete(1)} 
     />,
     <VideoExplanationStep 
