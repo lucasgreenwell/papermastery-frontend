@@ -64,24 +64,15 @@ export const learningAPI = {
    * Records a user's progress on a learning item.
    * 
    * @param itemId - The ID of the learning item
-   * @param status - Status of the progress (e.g., "in_progress", "completed")
-   * @param timeSpentSeconds - Time spent on the item in seconds
-   * @param sprtLogLikelihoodRatio - Optional SPRT log likelihood ratio
-   * @param decision - Optional decision status (default: "in_progress")
+   * @param completed - Whether the item is completed
    * @returns A promise that resolves when the progress is recorded
    */
   async recordProgress(
     itemId: string, 
-    status: string, 
-    timeSpentSeconds: number,
-    sprtLogLikelihoodRatio: number = 0.0,
-    decision: string = "in_progress"
+    completed: boolean
   ): Promise<void> {
     return api.post<void>(`/learning/learning-items/${itemId}/progress`, {
-      status,
-      time_spent_seconds: timeSpentSeconds,
-      sprt_log_likelihood_ratio: sprtLogLikelihoodRatio,
-      decision
+      completed
     });
   },
   

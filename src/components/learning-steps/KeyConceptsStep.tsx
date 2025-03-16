@@ -45,8 +45,7 @@ const KeyConceptsStep: React.FC<KeyConceptsStepProps> = ({
 
     setIsSubmitting(true);
     try {
-      const timeSpentSeconds = Math.floor((Date.now() - startTime.current) / 1000);
-      await learningAPI.recordProgress(data.id, "completed", timeSpentSeconds);
+      await learningAPI.recordProgress(data.id, true);
       onComplete();
     } catch (error) {
       console.error('Error recording progress:', error);

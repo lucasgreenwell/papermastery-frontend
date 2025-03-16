@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { LineChart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import LearningStepCard from '@/components/ui-components/LearningStepCard';
 import { LearningItem } from '@/services/types';
+import { learningAPI } from '@/services/learningAPI';
+import { toast } from '@/components/ui/use-toast';
 
 interface ResultsStepProps {
   onComplete: () => void;
@@ -15,6 +17,34 @@ const ResultsStep: React.FC<ResultsStepProps> = ({
   data,
   isLoading = false 
 }) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleComplete = async () => {
+    if (!data?.id) {
+      toast({
+        title: "Error",
+        description: "Item ID is missing. Cannot record progress.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await learningAPI.recordProgress(data.id, true);
+      onComplete();
+    } catch (error) {
+      console.error('Error recording progress:', error);
+      toast({
+        title: "Error",
+        description: "Failed to record progress. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <LearningStepCard 
@@ -40,8 +70,11 @@ const ResultsStep: React.FC<ResultsStepProps> = ({
       ) : (
         <div className="text-gray-500 mb-6">No results information available for this paper.</div>
       )}
-      <Button onClick={onComplete}>
-        I understand the results
+      <Button 
+        onClick={handleComplete}
+        disabled={isSubmitting}
+      >
+        {isSubmitting ? 'Recording progress...' : 'I understand the results'}
       </Button>
     </LearningStepCard>
   );

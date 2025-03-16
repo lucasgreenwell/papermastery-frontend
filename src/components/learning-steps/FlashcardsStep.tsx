@@ -29,12 +29,8 @@ const FlashcardsStep: React.FC<FlashcardsStepProps> = ({
     setIsSubmitting(true);
     try {
       // Record progress for each flashcard item
-      const timeSpentSeconds = Math.floor((Date.now() - startTime.current) / 1000);
-      const timePerItem = Math.max(1, Math.floor(timeSpentSeconds / flashcardItems.length));
-      
-      // We'll record progress for each item sequentially
       for (const item of flashcardItems) {
-        await learningAPI.recordProgress(item.id, "completed", timePerItem);
+        await learningAPI.recordProgress(item.id, true);
       }
       
       onComplete();

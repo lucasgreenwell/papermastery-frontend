@@ -29,12 +29,9 @@ const VideoExplanationStep: React.FC<VideoExplanationStepProps> = ({
 
     setIsSubmitting(true);
     try {
-      // Record progress for the video item
-      const timeSpentSeconds = Math.floor((Date.now() - startTime.current) / 1000);
-      
       // Record progress for each video item
       for (const item of videoItems) {
-        await learningAPI.recordProgress(item.id, "completed", timeSpentSeconds);
+        await learningAPI.recordProgress(item.id, true);
       }
       
       onComplete();

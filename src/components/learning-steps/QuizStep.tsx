@@ -30,12 +30,8 @@ const QuizStep: React.FC<QuizStepProps> = ({ quizItems, isLoading, onComplete })
     setIsSubmitting(true);
     try {
       // Record progress for each quiz item
-      const timeSpentSeconds = Math.floor((Date.now() - startTime.current) / 1000);
-      const timePerItem = Math.max(1, Math.floor(timeSpentSeconds / quizItems.length));
-      
-      // We'll record progress for each item sequentially
       for (const item of quizItems) {
-        await learningAPI.recordProgress(item.id, "completed", timePerItem);
+        await learningAPI.recordProgress(item.id, true);
       }
       
       onComplete();
