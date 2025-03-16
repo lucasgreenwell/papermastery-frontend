@@ -78,6 +78,36 @@ export const papersAPI = {
     return api.post<PaperResponse>('/papers/submit', {
       source_url: sanitizedUrl,
       source_type: sourceType
+    }, {
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+  },
+
+  /**
+   * Submits a paper for processing using a file upload.
+   * 
+   * @param file - The PDF file to upload
+   * @returns A promise that resolves to the submitted paper object
+   * @throws Error if the file is invalid
+   */
+  async submitPaperFile(file: File): Promise<PaperResponse> {
+    // Validate file type
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      throw new Error('Invalid file type. Only PDF files are supported.');
+    }
+    
+    // Create form data for file upload
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('source_type', 'file');
+    
+    // Use axios directly for multipart/form-data
+    return api.post<PaperResponse>('/papers/submit', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
     });
   }
 }; 
