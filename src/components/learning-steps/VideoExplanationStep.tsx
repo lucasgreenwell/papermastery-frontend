@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import LearningStepCard from '@/components/ui-components/LearningStepCard';
 import VideoEmbed from '@/components/ui-components/VideoEmbed';
 import { LearningItem, VideoItem } from '@/services/types';
+import { learningAPI } from '@/services/learningAPI';
+import { toast } from '@/components/ui/use-toast';
 
 interface VideoExplanationStepProps {
   videoItems: LearningItem[];
@@ -16,6 +18,38 @@ const VideoExplanationStep: React.FC<VideoExplanationStepProps> = ({
   isLoading, 
   onComplete 
 }) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const startTime = React.useRef(Date.now());
+
+  const handleComplete = async () => {
+    if (videoItems.length === 0) {
+      onComplete();
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // Record progress for the video item
+      const timeSpentSeconds = Math.floor((Date.now() - startTime.current) / 1000);
+      
+      // Record progress for each video item
+      for (const item of videoItems) {
+        await learningAPI.recordProgress(item.id, "completed", timeSpentSeconds);
+      }
+      
+      onComplete();
+    } catch (error) {
+      console.error('Error recording video progress:', error);
+      toast({
+        title: "Error",
+        description: "Failed to record progress. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <LearningStepCard 
@@ -75,8 +109,12 @@ const VideoExplanationStep: React.FC<VideoExplanationStepProps> = ({
         <p className="text-gray-500">No videos available in this item.</p>
       )}
       
-      <Button onClick={onComplete} className="mt-4">
-        I've watched the videos
+      <Button 
+        onClick={handleComplete}
+        disabled={isSubmitting}
+        className="mt-4"
+      >
+        {isSubmitting ? 'Recording progress...' : 'I\'ve watched the videos'}
       </Button>
     </LearningStepCard>
   );

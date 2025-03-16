@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Layers } from 'lucide-react';
 import LearningStepCard from '@/components/ui-components/LearningStepCard';
 import Flashcard, { FlashcardData } from '@/components/ui-components/Flashcard';
 import { LearningItem } from '@/services/types';
+import { learningAPI } from '@/services/learningAPI';
+import { toast } from '@/components/ui/use-toast';
 
 interface FlashcardsStepProps {
   flashcardItems: LearningItem[];
@@ -15,6 +17,39 @@ const FlashcardsStep: React.FC<FlashcardsStepProps> = ({
   isLoading, 
   onComplete 
 }) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const startTime = React.useRef(Date.now());
+
+  const handleComplete = async () => {
+    if (flashcardItems.length === 0) {
+      onComplete();
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // Record progress for each flashcard item
+      const timeSpentSeconds = Math.floor((Date.now() - startTime.current) / 1000);
+      const timePerItem = Math.max(1, Math.floor(timeSpentSeconds / flashcardItems.length));
+      
+      // We'll record progress for each item sequentially
+      for (const item of flashcardItems) {
+        await learningAPI.recordProgress(item.id, "completed", timePerItem);
+      }
+      
+      onComplete();
+    } catch (error) {
+      console.error('Error recording flashcard progress:', error);
+      toast({
+        title: "Error",
+        description: "Failed to record progress. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <LearningStepCard 
@@ -79,7 +114,7 @@ const FlashcardsStep: React.FC<FlashcardsStepProps> = ({
       </p>
       <Flashcard
         cards={extractedCards}
-        onComplete={onComplete}
+        onComplete={handleComplete}
         className="mb-4"
       />
     </LearningStepCard>

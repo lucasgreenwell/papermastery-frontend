@@ -90,7 +90,7 @@ export type Database = {
       }
       items: {
         Row: {
-          category: string
+          category: string | null
           data: Json
           id: string
           level: string
@@ -100,7 +100,7 @@ export type Database = {
           videos: Json | null
         }
         Insert: {
-          category: string
+          category?: string | null
           data: Json
           id?: string
           level: string
@@ -110,7 +110,7 @@ export type Database = {
           videos?: Json | null
         }
         Update: {
-          category?: string
+          category?: string | null
           data?: Json
           id?: string
           level?: string
@@ -253,7 +253,7 @@ export type Database = {
       }
       papers: {
         Row: {
-          abstract: string
+          abstract: string | null
           arxiv_id: string | null
           authors: Json
           chunk_count: number | null
@@ -263,14 +263,16 @@ export type Database = {
           id: string
           publication_date: string
           related_papers: Json | null
+          related_papers_completed: boolean | null
           source_type: string
           source_url: string | null
           summaries: Json | null
+          summary_completed: boolean | null
           tags: Json | null
           title: string
         }
         Insert: {
-          abstract: string
+          abstract?: string | null
           arxiv_id?: string | null
           authors: Json
           chunk_count?: number | null
@@ -280,14 +282,16 @@ export type Database = {
           id?: string
           publication_date: string
           related_papers?: Json | null
+          related_papers_completed?: boolean | null
           source_type?: string
           source_url?: string | null
           summaries?: Json | null
+          summary_completed?: boolean | null
           tags?: Json | null
           title: string
         }
         Update: {
-          abstract?: string
+          abstract?: string | null
           arxiv_id?: string | null
           authors?: Json
           chunk_count?: number | null
@@ -297,9 +301,11 @@ export type Database = {
           id?: string
           publication_date?: string
           related_papers?: Json | null
+          related_papers_completed?: boolean | null
           source_type?: string
           source_url?: string | null
           summaries?: Json | null
+          summary_completed?: boolean | null
           tags?: Json | null
           title?: string
         }
@@ -355,24 +361,18 @@ export type Database = {
       }
       progress: {
         Row: {
-          decision: string | null
-          item_id: string
-          sprt_log_likelihood_ratio: number | null
-          status: string | null
+          completed: boolean
+          item_id: string | null
           user_id: string
         }
         Insert: {
-          decision?: string | null
-          item_id: string
-          sprt_log_likelihood_ratio?: number | null
-          status?: string | null
+          completed?: boolean
+          item_id?: string | null
           user_id: string
         }
         Update: {
-          decision?: string | null
-          item_id?: string
-          sprt_log_likelihood_ratio?: number | null
-          status?: string | null
+          completed?: boolean
+          item_id?: string | null
           user_id?: string
         }
         Relationships: [
@@ -422,6 +422,8 @@ export type Database = {
       }
       researchers: {
         Row: {
+          achievements: Json | null
+          additional_emails: Json | null
           availability: Json | null
           bio: string | null
           created_at: string | null
@@ -435,6 +437,8 @@ export type Database = {
           verified: boolean | null
         }
         Insert: {
+          achievements?: Json | null
+          additional_emails?: Json | null
           availability?: Json | null
           bio?: string | null
           created_at?: string | null
@@ -448,6 +452,8 @@ export type Database = {
           verified?: boolean | null
         }
         Update: {
+          achievements?: Json | null
+          additional_emails?: Json | null
           availability?: Json | null
           bio?: string | null
           created_at?: string | null
@@ -672,7 +678,7 @@ export type Database = {
           p_source_type: string
         }
         Returns: {
-          abstract: string
+          abstract: string | null
           arxiv_id: string | null
           authors: Json
           chunk_count: number | null
@@ -682,9 +688,11 @@ export type Database = {
           id: string
           publication_date: string
           related_papers: Json | null
+          related_papers_completed: boolean | null
           source_type: string
           source_url: string | null
           summaries: Json | null
+          summary_completed: boolean | null
           tags: Json | null
           title: string
         }[]

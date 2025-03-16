@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Lightbulb } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import LearningStepCard from '@/components/ui-components/LearningStepCard';
 import { PaperResponse, RelatedPaper } from '@/services/types';
+import { learningAPI } from '@/services/learningAPI';
+import { toast } from '@/components/ui/use-toast';
 
 interface RelatedPapersStepProps {
   paper: PaperResponse | null;
@@ -10,6 +12,34 @@ interface RelatedPapersStepProps {
 }
 
 const RelatedPapersStep: React.FC<RelatedPapersStepProps> = ({ paper, onComplete }) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleComplete = async () => {
+    if (!paper?.id) {
+      toast({
+        title: "Error",
+        description: "Paper ID is missing. Cannot record progress.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await learningAPI.recordPaperProgress(paper.id, 'related_papers');
+      onComplete();
+    } catch (error) {
+      console.error('Error recording related papers progress:', error);
+      toast({
+        title: "Error",
+        description: "Failed to record progress. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <LearningStepCard 
       title="Related Papers" 
@@ -31,8 +61,11 @@ const RelatedPapersStep: React.FC<RelatedPapersStepProps> = ({ paper, onComplete
           </div>
         ))}
       </div>
-      <Button onClick={onComplete}>
-        I've explored related papers
+      <Button 
+        onClick={handleComplete}
+        disabled={isSubmitting}
+      >
+        {isSubmitting ? 'Recording progress...' : 'I\'ve explored related papers'}
       </Button>
     </LearningStepCard>
   );

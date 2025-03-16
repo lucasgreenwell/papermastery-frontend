@@ -86,6 +86,22 @@ export const learningAPI = {
   },
   
   /**
+   * Records a user's progress on a paper's summary or related papers.
+   * 
+   * @param paperId - The ID of the paper
+   * @param progressType - The type of progress ('summary' or 'related_papers')
+   * @returns A promise that resolves when the progress is recorded
+   */
+  async recordPaperProgress(
+    paperId: string,
+    progressType: 'summary' | 'related_papers'
+  ): Promise<void> {
+    return api.post<void>(`/learning/papers/${paperId}/progress`, {
+      progress_type: progressType
+    });
+  },
+  
+  /**
    * Submits an answer to a quiz question and gets feedback.
    * 
    * @param questionId - The ID of the quiz question

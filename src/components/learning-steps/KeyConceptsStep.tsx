@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import LearningStepCard from '@/components/ui-components/LearningStepCard';
+import { learningAPI } from '@/services/learningAPI';
+import { toast } from '@/components/ui/use-toast';
 
 interface Concept {
   key_concept: string;
@@ -14,6 +16,7 @@ interface KeyConceptsData {
   metadata: {
     concepts: Concept[];
   };
+  id: string;
 }
 
 interface KeyConceptsStepProps {
@@ -27,6 +30,36 @@ const KeyConceptsStep: React.FC<KeyConceptsStepProps> = ({
   data,
   isLoading = false 
 }) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const startTime = React.useRef(Date.now());
+
+  const handleComplete = async () => {
+    if (!data?.id) {
+      toast({
+        title: "Error",
+        description: "Item ID is missing. Cannot record progress.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const timeSpentSeconds = Math.floor((Date.now() - startTime.current) / 1000);
+      await learningAPI.recordProgress(data.id, "completed", timeSpentSeconds);
+      onComplete();
+    } catch (error) {
+      console.error('Error recording progress:', error);
+      toast({
+        title: "Error",
+        description: "Failed to record progress. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <LearningStepCard 
@@ -58,8 +91,11 @@ const KeyConceptsStep: React.FC<KeyConceptsStepProps> = ({
       ) : (
         <div className="text-gray-500 mb-6">No key concepts available for this paper.</div>
       )}
-      <Button onClick={onComplete}>
-        I understand these concepts
+      <Button 
+        onClick={handleComplete}
+        disabled={isSubmitting}
+      >
+        {isSubmitting ? 'Recording progress...' : 'I understand these concepts'}
       </Button>
     </LearningStepCard>
   );

@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Brain } from 'lucide-react';
 import LearningStepCard from '@/components/ui-components/LearningStepCard';
 import MultipleChoiceQuiz, { QuizQuestion } from '@/components/ui-components/MultipleChoiceQuiz';
 import { LearningItem } from '@/services/types';
+import { learningAPI } from '@/services/learningAPI';
+import { toast } from '@/components/ui/use-toast';
 
 interface QuizStepProps {
   quizItems: LearningItem[];
@@ -11,6 +13,44 @@ interface QuizStepProps {
 }
 
 const QuizStep: React.FC<QuizStepProps> = ({ quizItems, isLoading, onComplete }) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const startTime = React.useRef(Date.now());
+
+  const handleComplete = async (score: number, total: number) => {
+    if (quizItems.length === 0) {
+      onComplete();
+      return;
+    }
+
+    // Only proceed if the user passed the quiz (70% or higher)
+    if (score / total < 0.7) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // Record progress for each quiz item
+      const timeSpentSeconds = Math.floor((Date.now() - startTime.current) / 1000);
+      const timePerItem = Math.max(1, Math.floor(timeSpentSeconds / quizItems.length));
+      
+      // We'll record progress for each item sequentially
+      for (const item of quizItems) {
+        await learningAPI.recordProgress(item.id, "completed", timePerItem);
+      }
+      
+      onComplete();
+    } catch (error) {
+      console.error('Error recording quiz progress:', error);
+      toast({
+        title: "Error",
+        description: "Failed to record progress. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <LearningStepCard 
@@ -93,11 +133,7 @@ const QuizStep: React.FC<QuizStepProps> = ({ quizItems, isLoading, onComplete })
       </p>
       <MultipleChoiceQuiz
         questions={validQuestions}
-        onComplete={(score, total) => {
-          if (score / total >= 0.7) {
-            onComplete();
-          }
-        }}
+        onComplete={handleComplete}
         className="mb-4"
       />
     </LearningStepCard>
