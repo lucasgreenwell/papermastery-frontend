@@ -14,12 +14,12 @@ interface LearningJourneyProps {
 }
 
 // Define content types for filtering
-type ContentType = 'all' | 'summary' | 'video' | 'quiz' | 'flashcard';
+type ContentType = 'all' | 'reading' | 'video' | 'quiz' | 'flashcard';
 
 const LearningJourney = ({ steps, className, onCompleteStep, paperTitle, paperId }: LearningJourneyProps) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [chatMode, setChatMode] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<ContentType>('all');
+  const [activeFilter, setActiveFilter] = useState<ContentType>('reading');
   const [filteredSteps, setFilteredSteps] = useState(steps);
   const [stepMap, setStepMap] = useState<Record<number, number>>({});
   
@@ -38,60 +38,140 @@ const LearningJourney = ({ steps, className, onCompleteStep, paperTitle, paperId
       const filtered: React.ReactNode[] = [];
       const map: Record<number, number> = {};
       
-      steps.forEach((step, index) => {
-        // Extract the step element and look for title in children
-        const stepElement = step as React.ReactElement;
-        // Try to find the LearningStepCard's title by looking at the component's children
-        let stepTitle = '';
+      // For reading filter, we need to sort the steps in a specific order
+      if (activeFilter === 'reading') {
+        // First, collect all reading-related steps
+        const readingSteps: Array<{step: React.ReactNode, index: number, type: string, order: number}> = [];
         
-        try {
-          // Check if this is a React element with props
-          if (stepElement && stepElement.props) {
-            // Try to find title directly on the element (for newly added pattern)
-            if (stepElement.props.title) {
-              stepTitle = stepElement.props.title;
-            } 
-            // If not found, try to look for LearningStepCard in children
-            else if (stepElement.props.children) {
-              const findLearningStepCard = (children: React.ReactNode): string => {
-                if (!children) return '';
-                
-                // Handle array of children
-                if (Array.isArray(children)) {
-                  for (const child of children) {
-                    const result = findLearningStepCard(child);
-                    if (result) return result;
+        steps.forEach((step, index) => {
+          // Extract the step element and look for title in children
+          const stepElement = step as React.ReactElement;
+          let stepTitle = '';
+          let stepType = '';
+          let order = 999; // Default high order for unknown types
+          
+          try {
+            // Check if this is a React element with props
+            if (stepElement && stepElement.props) {
+              // Try to find title directly on the element
+              if (stepElement.props.title) {
+                stepTitle = stepElement.props.title;
+              } 
+              // If not found, try to look for LearningStepCard in children
+              else if (stepElement.props.children) {
+                const findLearningStepCard = (children: React.ReactNode): string => {
+                  if (!children) return '';
+                  
+                  // Handle array of children
+                  if (Array.isArray(children)) {
+                    for (const child of children) {
+                      const result = findLearningStepCard(child);
+                      if (result) return result;
+                    }
                   }
-                }
-                // Check if this is a LearningStepCard component
-                else if (
-                  React.isValidElement(children) && 
-                  children.props && 
-                  children.props.title
-                ) {
-                  return children.props.title;
-                }
+                  // Check if this is a LearningStepCard component
+                  else if (
+                    React.isValidElement(children) && 
+                    children.props && 
+                    children.props.title
+                  ) {
+                    return children.props.title;
+                  }
+                  
+                  return '';
+                };
                 
-                return '';
-              };
-              
-              stepTitle = findLearningStepCard(stepElement.props.children);
+                stepTitle = findLearningStepCard(stepElement.props.children);
+              }
             }
+            
+            // Determine step type and order based on title or component name
+            if (stepTitle.includes('Paper Summary') || (typeof stepElement.type !== 'string' && stepElement.type.name === 'SummaryStep')) {
+              stepType = 'summary';
+              order = 1;
+            } else if (stepTitle.includes('Key Concepts') || (typeof stepElement.type !== 'string' && stepElement.type.name === 'KeyConceptsStep')) {
+              stepType = 'concepts';
+              order = 2;
+            } else if (stepTitle.includes('Methodology') || (typeof stepElement.type !== 'string' && stepElement.type.name === 'MethodologyStep')) {
+              stepType = 'methodology';
+              order = 3;
+            } else if (stepTitle.includes('Results') || (typeof stepElement.type !== 'string' && stepElement.type.name === 'ResultsStep')) {
+              stepType = 'results';
+              order = 4;
+            }
+            
+            // Add to reading steps if it's a reading-related step
+            if (['summary', 'concepts', 'methodology', 'results'].includes(stepType)) {
+              readingSteps.push({ step, index, type: stepType, order });
+            }
+          } catch (error) {
+            console.error('Error extracting title from step:', error);
           }
-        } catch (error) {
-          console.error('Error extracting title from step:', error);
-        }
+        });
         
-        if (
-          (activeFilter === 'summary' && (stepTitle.includes('Paper Summary') || (typeof stepElement.type !== 'string' && stepElement.type.name === 'SummaryStep'))) ||
-          (activeFilter === 'video' && (stepTitle.includes('Video Explanation') || (typeof stepElement.type !== 'string' && stepElement.type.name === 'VideoExplanationStep'))) ||
-          (activeFilter === 'quiz' && (stepTitle.includes('Comprehension Quiz') || (typeof stepElement.type !== 'string' && stepElement.type.name === 'QuizStep'))) ||
-          (activeFilter === 'flashcard' && (stepTitle.includes('Flashcards') || (typeof stepElement.type !== 'string' && stepElement.type.name === 'FlashcardsStep')))
-        ) {
-          map[filtered.length] = index;
-          filtered.push(step);
-        }
-      });
+        // Sort reading steps by order
+        readingSteps.sort((a, b) => a.order - b.order);
+        
+        // Add sorted reading steps to filtered steps
+        readingSteps.forEach(item => {
+          map[filtered.length] = item.index;
+          filtered.push(item.step);
+        });
+      } else {
+        // For other filters, use the existing logic
+        steps.forEach((step, index) => {
+          // Extract the step element and look for title in children
+          const stepElement = step as React.ReactElement;
+          let stepTitle = '';
+          
+          try {
+            // Check if this is a React element with props
+            if (stepElement && stepElement.props) {
+              // Try to find title directly on the element
+              if (stepElement.props.title) {
+                stepTitle = stepElement.props.title;
+              } 
+              // If not found, try to look for LearningStepCard in children
+              else if (stepElement.props.children) {
+                const findLearningStepCard = (children: React.ReactNode): string => {
+                  if (!children) return '';
+                  
+                  // Handle array of children
+                  if (Array.isArray(children)) {
+                    for (const child of children) {
+                      const result = findLearningStepCard(child);
+                      if (result) return result;
+                    }
+                  }
+                  // Check if this is a LearningStepCard component
+                  else if (
+                    React.isValidElement(children) && 
+                    children.props && 
+                    children.props.title
+                  ) {
+                    return children.props.title;
+                  }
+                  
+                  return '';
+                };
+                
+                stepTitle = findLearningStepCard(stepElement.props.children);
+              }
+            }
+          } catch (error) {
+            console.error('Error extracting title from step:', error);
+          }
+          
+          if (
+            (activeFilter === 'video' && (stepTitle.includes('Video Explanation') || (typeof stepElement.type !== 'string' && stepElement.type.name === 'VideoExplanationStep'))) ||
+            (activeFilter === 'quiz' && (stepTitle.includes('Comprehension Quiz') || (typeof stepElement.type !== 'string' && stepElement.type.name === 'QuizStep'))) ||
+            (activeFilter === 'flashcard' && (stepTitle.includes('Flashcards') || (typeof stepElement.type !== 'string' && stepElement.type.name === 'FlashcardsStep')))
+          ) {
+            map[filtered.length] = index;
+            filtered.push(step);
+          }
+        });
+      }
       
       setFilteredSteps(filtered);
       setStepMap(map);
@@ -144,9 +224,9 @@ const LearningJourney = ({ steps, className, onCompleteStep, paperTitle, paperId
               <FileText size={16} />
               <span className="hidden xs:inline ml-1">All</span>
             </ToggleGroupItem>
-            <ToggleGroupItem value="summary" aria-label="Show summaries">
-              <FileText size={16} />
-              <span className="hidden sm:inline ml-1">Summary</span>
+            <ToggleGroupItem value="reading" aria-label="Show reading materials">
+              <BookOpen size={16} />
+              <span className="hidden sm:inline ml-1">Reading</span>
             </ToggleGroupItem>
             <ToggleGroupItem value="video" aria-label="Show videos">
               <Video size={16} />
