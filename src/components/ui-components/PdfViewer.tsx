@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { cn } from '@/lib/utils';
 
 interface PdfViewerProps {
@@ -7,23 +7,6 @@ interface PdfViewerProps {
 }
 
 const PdfViewer = ({ pdfUrl, className }: PdfViewerProps) => {
-  const [viewerUrl, setViewerUrl] = useState<string>('');
-  
-  useEffect(() => {
-    if (!pdfUrl) return;
-    
-    // Check if this is a Supabase storage URL
-    const isSupabaseUrl = pdfUrl.includes('supabase.co/storage/v1/object/public');
-    
-    if (isSupabaseUrl) {
-      // For Supabase URLs, use Google PDF Viewer as a proxy to avoid CORS issues
-      setViewerUrl(`https://docs.google.com/viewer?url=${encodeURIComponent(pdfUrl)}&embedded=true`);
-    } else {
-      // For other URLs (arXiv, direct PDFs), use direct embedding
-      setViewerUrl(pdfUrl);
-    }
-  }, [pdfUrl]);
-
   if (!pdfUrl) {
     return (
       <div className={cn("flex flex-col h-full bg-white rounded-xl shadow-md border border-gray-100", className)}>
@@ -40,22 +23,11 @@ const PdfViewer = ({ pdfUrl, className }: PdfViewerProps) => {
         <div 
           className="w-full h-full flex items-center justify-center"
         >
-          {viewerUrl && (
-            viewerUrl.includes('docs.google.com') ? (
-              <iframe 
-                src={viewerUrl} 
-                className="w-full h-full rounded border border-gray-200"
-                title="PDF Viewer"
-                sandbox="allow-scripts allow-same-origin allow-forms"
-              />
-            ) : (
-              <iframe 
-                src={viewerUrl} 
-                className="w-full h-full rounded border border-gray-200"
-                title="PDF Viewer"
-              />
-            )
-          )}
+          <iframe 
+            src={pdfUrl} 
+            className="w-full h-full rounded border border-gray-200"
+            title="PDF Viewer"
+          />
         </div>
       </div>
     </div>
