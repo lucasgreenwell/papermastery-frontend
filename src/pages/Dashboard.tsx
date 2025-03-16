@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Brain, LogOut, Search, Upload, Network, ListFilter, Loader2 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import PaperCard from '@/components/ui-components/PaperCard';
 import PaperUploadForm from '@/components/ui-components/PaperUploadForm';
 import { useToast } from '@/hooks/use-toast';
@@ -13,11 +13,13 @@ import { ScatterChart, Scatter, XAxis, YAxis, ZAxis, Tooltip as RechartsTooltip,
 import PaperGraphView from '@/components/ui-components/PaperGraphView';
 import { papersAPI } from '@/services/papersAPI';
 import { PaperResponse } from '@/services/types';
+import { isArxivUrl } from '@/utils/urlUtils';
 
 const Dashboard = () => {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'list' | 'graph'>('list');
   const [papers, setPapers] = useState<PaperResponse[]>([]);
@@ -54,28 +56,56 @@ const Dashboard = () => {
     setIsSubmitting(true);
 
     try {
-      let newPaper;
+      let response;
+      let cachedContent = null;
       
       if (type === 'url') {
+        // Store URL in local state for caching
+        cachedContent = input;
         // Submit the paper URL to the API
-        newPaper = await papersAPI.submitPaper(input as string);
+        response = await papersAPI.submitPaper(input as string);
       } else if (type === 'file') {
+        // Store file in local state for caching
+        cachedContent = input;
         // Submit the paper file to the API
-        newPaper = await papersAPI.submitPaperFile(input as File);
+        response = await papersAPI.submitPaperFile(input as File);
       } else {
         throw new Error("Unsupported upload type");
       }
 
-      // Add the new paper to the list
+      // Cache the content and ID in local storage for recovery
+      localStorage.setItem(`paper_${response.id}_content_type`, type);
+      if (type === 'url') {
+        localStorage.setItem(`paper_${response.id}_content`, cachedContent as string);
+      }
+      
+      // Create a paper object with minimal information
+      const newPaper = {
+        id: response.id,
+        title: "Processing...",
+        authors: [],
+        abstract: "",
+        publication_date: new Date().toISOString(),
+        source_url: type === 'url' ? input as string : "",
+        source_type: type === 'url' ? (isArxivUrl(input as string) ? 'arxiv' : 'pdf') : 'file',
+        tags: { status: "processing" }
+      };
+
+      // Add to paper list and navigate to details page
       setPapers(prevPapers => [newPaper, ...prevPapers]);
 
       toast({
-        title: "Paper uploaded successfully",
-        description: "Your paper has been added to your library.",
+        title: "Paper submitted successfully",
+        description: "Your paper is now being processed.",
       });
 
-      // Navigate to paper details page
-      navigate(`/papers/${newPaper.id}`);
+      // Navigate to paper details page with cached content
+      navigate(`/papers/${response.id}`, { 
+        state: { 
+          cachedContent, 
+          contentType: type 
+        } 
+      });
     } catch (err: any) {
       console.error('Error uploading paper:', err);
       toast({

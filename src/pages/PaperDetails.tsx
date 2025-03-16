@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useParams, Link, useLocation } from 'react-router-dom';
 import { ArrowLeft, Brain } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import PdfViewer from '@/components/ui-components/PdfViewer';
@@ -35,6 +35,61 @@ const PaperDetails = () => {
   } = usePaperDetails(id || '');
   
   const [showPdf, setShowPdf] = useState(true);
+  
+  // Add state for cached content
+  const [cachedContent, setCachedContent] = useState<string | File | null>(null);
+  const [contentType, setContentType] = useState<'url' | 'file' | null>(null);
+  const location = useLocation();
+
+  useEffect(() => {
+    // Check if we have cached content from navigation state
+    if (location.state?.cachedContent) {
+      setCachedContent(location.state.cachedContent);
+      setContentType(location.state.contentType);
+    } else {
+      // Try to restore from localStorage
+      const storedType = localStorage.getItem(`paper_${id}_content_type`);
+      if (storedType === 'url') {
+        const storedUrl = localStorage.getItem(`paper_${id}_content`);
+        if (storedUrl) {
+          setCachedContent(storedUrl);
+          setContentType('url');
+        }
+      }
+    }
+  }, [id, location]);
+
+  // Create memoized PDF source that prioritizes cached content
+  const pdfSource = useMemo(() => {
+    if (paper?.pdf_url || paper?.source_url) {
+      // Paper is processed, use the actual PDF URL from Supabase
+      // Clear localStorage once we have the actual paper data
+      if (id) {
+        localStorage.removeItem(`paper_${id}_content`);
+        localStorage.removeItem(`paper_${id}_content_type`);
+      }
+      return paper.pdf_url || paper.source_url;
+    } else if (cachedContent) {
+      // Paper is still processing, use cached content
+      if (contentType === 'url') {
+        return cachedContent as string;
+      } else if (contentType === 'file') {
+        // Create temporary URL for the file
+        return URL.createObjectURL(cachedContent as File);
+      }
+    }
+    return null;
+  }, [paper, cachedContent, contentType, id]);
+
+  // Clean up object URLs when they're no longer needed
+  useEffect(() => {
+    return () => {
+      // Clean up any created object URLs when component unmounts
+      if (contentType === 'file' && pdfSource && pdfSource.startsWith('blob:')) {
+        URL.revokeObjectURL(pdfSource);
+      }
+    };
+  }, [contentType, pdfSource]);
   
   useEffect(() => {
     const handleResize = () => {
@@ -111,7 +166,7 @@ const PaperDetails = () => {
     />,
   ];
 
-  if (isLoading) {
+  if (isLoading && !cachedContent) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
         <div className="animate-pulse flex flex-col items-center">
@@ -140,7 +195,7 @@ const PaperDetails = () => {
           </div>
           
           <h1 className="text-sm sm:text-lg font-bold truncate text-center flex-1 mx-2">
-            {paper?.title}
+            {paper?.title || "Processing..."}
           </h1>
           
           <div className="md:hidden flex-shrink-0">
@@ -167,7 +222,7 @@ const PaperDetails = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 h-[calc(100vh-12rem)]">
           {(showPdf || window.innerWidth >= 768) && (
             <div className={`h-full ${!showPdf ? 'hidden md:block' : ''}`}>
-              <PdfViewer pdfUrl={paper?.pdf_url || paper?.source_url} className="h-full" />
+              <PdfViewer pdfUrl={pdfSource} className="h-full" />
             </div>
           )}
           
@@ -176,7 +231,7 @@ const PaperDetails = () => {
               <LearningJourney
                 steps={learningJourneySteps}
                 onCompleteStep={handleStepComplete}
-                paperTitle={paper?.title}
+                paperTitle={paper?.title || "Processing..."}
                 paperId={id || ''}
                 className="h-full"
               />

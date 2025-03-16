@@ -3,79 +3,46 @@
  */
 
 import { api } from './apiClient';
-import { PaperResponse } from './types';
-
-/**
- * Validates and sanitizes a paper URL.
- * 
- * @param url - The URL to validate and sanitize
- * @returns The sanitized URL
- * @throws Error if the URL is invalid
- */
-function validateAndSanitizeUrl(url: string): string {
-  // Remove any whitespace
-  const trimmedUrl = url.trim();
-  
-  // Basic URL validation
-  if (!trimmedUrl.startsWith('http://') && !trimmedUrl.startsWith('https://')) {
-    throw new Error('Invalid URL. URL must begin with http:// or https://');
-  }
-  
-  // Remove any query parameters for arXiv URLs (keep them for other URLs)
-  if (trimmedUrl.startsWith('https://arxiv.org/abs/')) {
-    return trimmedUrl.split('?')[0];
-  }
-  
-  return trimmedUrl;
-}
-
-/**
- * Determines if a URL is an arXiv URL.
- * 
- * @param url - The URL to check
- * @returns True if the URL is an arXiv URL, false otherwise
- */
-function isArxivUrl(url: string): boolean {
-  return url.startsWith('https://arxiv.org/abs/') || url.startsWith('https://arxiv.org/pdf/');
-}
+import { PaperResponse, PaperSubmitResponse } from './types';
+import { isArxivUrl, validateAndSanitizeUrl } from '@/utils/urlUtils';
 
 /**
  * Papers API service
  */
 export const papersAPI = {
   /**
-   * Retrieves a list of all papers for the authenticated user.
+   * Lists all papers for the current user.
    * 
    * @returns A promise that resolves to an array of paper objects
    */
   async listPapers(): Promise<PaperResponse[]> {
-    return api.get<PaperResponse[]>('/papers');
+    return api.get<PaperResponse[]>('/papers/');
   },
   
   /**
-   * Retrieves a specific paper by ID.
+   * Retrieves a paper by its ID.
    * 
-   * @param paperId - The ID of the paper to retrieve
-   * @returns A promise that resolves to the paper object
+   * @param id - The ID of the paper
+   * @returns A promise that resolves to a paper object
    */
-  async getPaper(paperId: string): Promise<PaperResponse> {
-    return api.get<PaperResponse>(`/papers/${paperId}`);
+  async getPaper(id: string): Promise<PaperResponse> {
+    return api.get<PaperResponse>(`/papers/${id}`);
   },
   
   /**
    * Submits a paper for processing using a URL.
    * 
    * @param url - The URL to the paper (arXiv or PDF)
-   * @returns A promise that resolves to the submitted paper object
+   * @returns A promise that resolves to the submitted paper's UUID
    * @throws Error if the URL is invalid
    */
-  async submitPaper(url: string): Promise<PaperResponse> {
+  async submitPaper(url: string): Promise<PaperSubmitResponse> {
     const sanitizedUrl = validateAndSanitizeUrl(url);
     
     // Determine source type (optional, will be auto-detected by backend)
     const sourceType = isArxivUrl(sanitizedUrl) ? 'arxiv' : 'pdf';
     
-    return api.post<PaperResponse>('/papers/submit', {
+    return api.post<PaperSubmitResponse>('/papers/submit', {
       source_url: sanitizedUrl,
       source_type: sourceType
     }, {
@@ -89,10 +56,10 @@ export const papersAPI = {
    * Submits a paper for processing using a file upload.
    * 
    * @param file - The PDF file to upload
-   * @returns A promise that resolves to the submitted paper object
+   * @returns A promise that resolves to the submitted paper's UUID
    * @throws Error if the file is invalid
    */
-  async submitPaperFile(file: File): Promise<PaperResponse> {
+  async submitPaperFile(file: File): Promise<PaperSubmitResponse> {
     // Validate file type
     if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
       throw new Error('Invalid file type. Only PDF files are supported.');
@@ -104,7 +71,7 @@ export const papersAPI = {
     formData.append('source_type', 'file');
     
     // Use axios directly for multipart/form-data
-    return api.post<PaperResponse>('/papers/submit', formData, {
+    return api.post<PaperSubmitResponse>('/papers/submit', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },

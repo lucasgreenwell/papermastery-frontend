@@ -44,6 +44,13 @@ export interface PaperResponse {
 }
 
 /**
+ * Paper submission response from the API (UUID only)
+ */
+export interface PaperSubmitResponse {
+  id: string;
+}
+
+/**
  * API error response
  */
 export interface ApiError {
