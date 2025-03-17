@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Video } from 'lucide-react';
+import { Video, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import LearningStepCard from '@/components/ui-components/LearningStepCard';
 import VideoEmbed from '@/components/ui-components/VideoEmbed';
 import { LearningItem, VideoItem } from '@/services/types';
 import { learningAPI } from '@/services/learningAPI';
 import { toast } from '@/components/ui/use-toast';
+import { cn } from '@/lib/utils';
 
 interface VideoExplanationStepProps {
   videoItems: LearningItem[];
@@ -19,22 +20,78 @@ const VideoExplanationStep: React.FC<VideoExplanationStepProps> = ({
   onComplete 
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
+  const [allVideos, setAllVideos] = useState<any[]>([]);
+  const [currentVideoCompleted, setCurrentVideoCompleted] = useState(false);
   const startTime = React.useRef(Date.now());
 
+  // Extract all videos from video items
+  useEffect(() => {
+    if (videoItems.length === 0) return;
+    
+    const extractedVideos: any[] = [];
+    
+    videoItems.forEach(videoItem => {
+      // Try to find videos in different possible locations
+      let videos: any[] = [];
+      
+      if (videoItem.metadata?.video) {
+        // Single video in metadata.video
+        videos = [videoItem.metadata.video];
+      } else if (videoItem.data?.video) {
+        // Single video in data.video
+        videos = [videoItem.data.video];
+      } else if (Array.isArray(videoItem.metadata?.videos)) {
+        // Array of videos in metadata.videos
+        videos = videoItem.metadata.videos;
+      } else if (videoItem.videos) {
+        // Videos directly attached to item
+        videos = Array.isArray(videoItem.videos) ? videoItem.videos : [videoItem.videos];
+      } else if (videoItem.data?.videos) {
+        // Videos in data.videos
+        videos = videoItem.data.videos;
+      } else if (videoItem.data && videoItem.data.video_id) {
+        // If video_id is directly in data object
+        videos = [videoItem.data];
+      } else if (videoItem.metadata && videoItem.metadata.video_id) {
+        // If video_id is directly in metadata
+        videos = [videoItem.metadata];
+      }
+      
+      // Add item ID to each video for progress tracking
+      videos.forEach(video => {
+        extractedVideos.push({
+          ...video,
+          itemId: videoItem.id
+        });
+      });
+    });
+    
+    setAllVideos(extractedVideos);
+  }, [videoItems]);
+
   const handleComplete = async () => {
-    if (videoItems.length === 0) {
+    if (allVideos.length === 0) {
       onComplete();
       return;
     }
 
     setIsSubmitting(true);
     try {
-      // Record progress for each video item
-      for (const item of videoItems) {
-        await learningAPI.recordProgress(item.id, true);
+      // Only record progress for the current video's item
+      const currentVideo = allVideos[currentVideoIndex];
+      if (currentVideo && currentVideo.itemId) {
+        await learningAPI.recordProgress(currentVideo.itemId, true);
+        setCurrentVideoCompleted(true);
+        
+        // If this is the last video, call onComplete to move to the next step
+        if (currentVideoIndex === allVideos.length - 1) {
+          onComplete();
+        } else {
+          // Otherwise, move to the next video
+          goToNextVideo();
+        }
       }
-      
-      onComplete();
     } catch (error) {
       console.error('Error recording video progress:', error);
       toast({
@@ -44,6 +101,20 @@ const VideoExplanationStep: React.FC<VideoExplanationStepProps> = ({
       });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const goToNextVideo = () => {
+    if (currentVideoIndex < allVideos.length - 1) {
+      setCurrentVideoIndex(prevIndex => prevIndex + 1);
+      setCurrentVideoCompleted(false);
+    }
+  };
+
+  const goToPrevVideo = () => {
+    if (currentVideoIndex > 0) {
+      setCurrentVideoIndex(prevIndex => prevIndex - 1);
+      setCurrentVideoCompleted(false);
     }
   };
 
@@ -63,7 +134,7 @@ const VideoExplanationStep: React.FC<VideoExplanationStepProps> = ({
     );
   }
   
-  if (videoItems.length === 0) {
+  if (videoItems.length === 0 || allVideos.length === 0) {
     return (
       <LearningStepCard 
         title="Video Explanation" 
@@ -76,35 +147,13 @@ const VideoExplanationStep: React.FC<VideoExplanationStepProps> = ({
     );
   }
   
-  // Get the first video item
-  const videoItem = videoItems[0];
+  // Get the current video
+  const currentVideo = allVideos[currentVideoIndex];
   
-  // Check different possible locations for video data
-  let videos = [];
-  
-  // Try to find videos in different possible locations
-  if (videoItem.metadata?.video) {
-    // Single video in metadata.video
-    videos = [videoItem.metadata.video];
-  } else if (videoItem.data?.video) {
-    // Single video in data.video
-    videos = [videoItem.data.video];
-  } else if (Array.isArray(videoItem.metadata?.videos)) {
-    // Array of videos in metadata.videos
-    videos = videoItem.metadata.videos;
-  } else if (videoItem.videos) {
-    // Videos directly attached to item
-    videos = Array.isArray(videoItem.videos) ? videoItem.videos : [videoItem.videos];
-  } else if (videoItem.data?.videos) {
-    // Videos in data.videos
-    videos = videoItem.data.videos;
-  } else if (videoItem.data && videoItem.data.video_id) {
-    // If video_id is directly in data object
-    videos = [videoItem.data];
-  } else if (videoItem.metadata && videoItem.metadata.video_id) {
-    // If video_id is directly in metadata
-    videos = [videoItem.metadata];
-  }
+  // Create a safe video object handling different structures
+  const videoId = currentVideo?.video_id || '';
+  const videoTitle = currentVideo?.title || 'Learning Video';
+  const videoChannel = currentVideo?.channel || 'Educational Channel';
   
   return (
     <LearningStepCard 
@@ -115,38 +164,58 @@ const VideoExplanationStep: React.FC<VideoExplanationStepProps> = ({
         Watch these videos to enhance your understanding:
       </p>
       
-      {videos.length > 0 ? (
+      {videoId ? (
         <div className="space-y-6">
-          {videos.map((video: any, index: number) => {
-            // Create a safe video object handling different structures
-            const videoId = video.video_id || '';
-            const videoTitle = video.title || 'Learning Video';
-            const videoChannel = video.channel || 'Educational Channel';
+          <div className="mb-4">
+            <VideoEmbed 
+              videoUrl={`https://www.youtube.com/watch?v=${videoId}`}
+              title={videoTitle}
+              className="mb-2"
+            />
+            <p className="text-sm text-gray-600">{videoChannel}</p>
+          </div>
+          
+          {/* Video navigation controls */}
+          <div className="flex justify-between items-center">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goToPrevVideo}
+              disabled={currentVideoIndex === 0}
+              className="flex items-center gap-1"
+            >
+              <ChevronLeft size={16} />
+              Previous
+            </Button>
             
-            if (!videoId) return null;
+            <span className="text-sm text-gray-500">
+              Video {currentVideoIndex + 1} of {allVideos.length}
+            </span>
             
-            return (
-              <div key={index} className="mb-4">
-                <VideoEmbed 
-                  videoUrl={`https://www.youtube.com/watch?v=${videoId}`}
-                  title={videoTitle}
-                  className="mb-2"
-                />
-                <p className="text-sm text-gray-600">{videoChannel}</p>
-              </div>
-            );
-          })}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goToNextVideo}
+              disabled={currentVideoIndex === allVideos.length - 1}
+              className="flex items-center gap-1"
+            >
+              Next
+              <ChevronRight size={16} />
+            </Button>
+          </div>
         </div>
       ) : (
-        <p className="text-gray-500">No videos available in this item.</p>
+        <p className="text-gray-500">No video content available.</p>
       )}
       
       <Button 
         onClick={handleComplete}
-        disabled={isSubmitting}
-        className="mt-4"
+        disabled={isSubmitting || currentVideoCompleted}
+        className={cn("mt-4", currentVideoCompleted && "bg-green-600 hover:bg-green-700")}
       >
-        {isSubmitting ? 'Recording progress...' : 'I\'ve watched the videos'}
+        {isSubmitting ? 'Recording progress...' : 
+         currentVideoCompleted ? 'Watched ✓' : 
+         `I've watched this video`}
       </Button>
     </LearningStepCard>
   );
