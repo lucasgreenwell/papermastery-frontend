@@ -34,25 +34,26 @@ const VideoExplanationStep: React.FC<VideoExplanationStepProps> = ({
     videoItems.forEach(videoItem => {
       // Try to find videos in different possible locations
       let videos: any[] = [];
+      const itemAny = videoItem as any; // Type assertion to handle dynamic properties
       
       if (videoItem.metadata?.video) {
         // Single video in metadata.video
         videos = [videoItem.metadata.video];
-      } else if (videoItem.data?.video) {
+      } else if (itemAny.data?.video) {
         // Single video in data.video
-        videos = [videoItem.data.video];
+        videos = [itemAny.data.video];
       } else if (Array.isArray(videoItem.metadata?.videos)) {
         // Array of videos in metadata.videos
         videos = videoItem.metadata.videos;
-      } else if (videoItem.videos) {
+      } else if (itemAny.videos) {
         // Videos directly attached to item
-        videos = Array.isArray(videoItem.videos) ? videoItem.videos : [videoItem.videos];
-      } else if (videoItem.data?.videos) {
+        videos = Array.isArray(itemAny.videos) ? itemAny.videos : [itemAny.videos];
+      } else if (itemAny.data?.videos) {
         // Videos in data.videos
-        videos = videoItem.data.videos;
-      } else if (videoItem.data && videoItem.data.video_id) {
+        videos = itemAny.data.videos;
+      } else if (itemAny.data && itemAny.data.video_id) {
         // If video_id is directly in data object
-        videos = [videoItem.data];
+        videos = [itemAny.data];
       } else if (videoItem.metadata && videoItem.metadata.video_id) {
         // If video_id is directly in metadata
         videos = [videoItem.metadata];

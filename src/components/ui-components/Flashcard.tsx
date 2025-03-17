@@ -1,7 +1,6 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export interface FlashcardData {
@@ -20,7 +19,23 @@ interface FlashcardProps {
 const Flashcard = ({ cards, title, className, onComplete }: FlashcardProps) => {
   const [currentCard, setCurrentCard] = useState(0);
   const [flipped, setFlipped] = useState(false);
-  const [completedCards, setCompletedCards] = useState<string[]>([]);
+  const [viewedCards, setViewedCards] = useState<string[]>([]);
+  const [allCardsViewed, setAllCardsViewed] = useState(false);
+  const [completed, setCompleted] = useState(false);
+
+  // Mark current card as viewed when flipped
+  useEffect(() => {
+    if (flipped && cards[currentCard] && !viewedCards.includes(cards[currentCard].id)) {
+      setViewedCards(prev => [...prev, cards[currentCard].id]);
+    }
+  }, [flipped, currentCard, cards, viewedCards]);
+
+  // Check if all cards have been viewed
+  useEffect(() => {
+    if (viewedCards.length === cards.length && viewedCards.length > 0) {
+      setAllCardsViewed(true);
+    }
+  }, [viewedCards, cards]);
 
   const handleFlip = () => {
     setFlipped(!flipped);
@@ -30,10 +45,6 @@ const Flashcard = ({ cards, title, className, onComplete }: FlashcardProps) => {
     if (currentCard < cards.length - 1) {
       setCurrentCard(currentCard + 1);
       setFlipped(false);
-    } else if (completedCards.length < cards.length) {
-      // Mark all cards as completed
-      setCompletedCards(cards.map(card => card.id));
-      if (onComplete) onComplete();
     }
   };
 
@@ -44,16 +55,16 @@ const Flashcard = ({ cards, title, className, onComplete }: FlashcardProps) => {
     }
   };
 
-  const markCardCompleted = () => {
-    if (!completedCards.includes(cards[currentCard].id)) {
-      setCompletedCards([...completedCards, cards[currentCard].id]);
+  const handleComplete = () => {
+    if (allCardsViewed) {
+      setCompleted(true);
+      if (onComplete) onComplete();
     }
-    handleNextCard();
   };
 
   const totalCards = cards.length;
-  const completedCount = completedCards.length;
-  const progress = totalCards > 0 ? (completedCount / totalCards) * 100 : 0;
+  const viewedCount = viewedCards.length;
+  const progress = totalCards > 0 ? (viewedCount / totalCards) * 100 : 0;
 
   return (
     <div className={cn("p-4 bg-white rounded-lg border border-gray-200", className)}>
@@ -68,11 +79,11 @@ const Flashcard = ({ cards, title, className, onComplete }: FlashcardProps) => {
         <div className="flex items-center">
           <div className="h-2 w-24 bg-gray-200 rounded-full mr-2">
             <div 
-              className="h-full bg-green-500 rounded-full transition-all duration-300"
+              className="h-full bg-blue-500 rounded-full transition-all duration-300"
               style={{ width: `${progress}%` }}
             ></div>
           </div>
-          <span className="text-sm text-gray-500">{completedCount}/{totalCards}</span>
+          <span className="text-sm text-gray-500">{viewedCount}/{totalCards} viewed</span>
         </div>
       </div>
       
@@ -108,25 +119,50 @@ const Flashcard = ({ cards, title, className, onComplete }: FlashcardProps) => {
         </div>
       </div>
       
-      <div className="flex justify-between mt-6">
+      {/* Navigation controls */}
+      <div className="flex justify-between items-center mb-6">
         <Button 
           variant="outline" 
+          size="sm"
           onClick={handlePrevCard}
           disabled={currentCard === 0}
+          className="flex items-center gap-1"
         >
-          <ArrowLeft size={16} className="mr-1" /> Previous
+          <ChevronLeft size={16} />
+          Previous
         </Button>
         
+        <span className="text-sm text-gray-500">
+          Card {currentCard + 1} of {totalCards}
+        </span>
+        
         <Button 
-          variant={completedCards.includes(cards[currentCard].id) ? "outline" : "default"}
-          onClick={markCardCompleted}
+          variant="outline"
+          size="sm"
+          onClick={handleNextCard}
+          disabled={currentCard === cards.length - 1}
+          className="flex items-center gap-1"
         >
-          {completedCards.includes(cards[currentCard].id) 
-            ? "Next" 
-            : currentCard === cards.length - 1 
-              ? "Complete Flashcards" 
-              : "Mark Completed & Next"}
-          <ArrowRight size={16} className="ml-1" />
+          Next
+          <ChevronRight size={16} />
+        </Button>
+      </div>
+      
+      {/* Completion button - only enabled after viewing all cards */}
+      <div className="flex justify-center">
+        <Button 
+          onClick={handleComplete}
+          disabled={!allCardsViewed || completed}
+          className={cn(
+            "w-full",
+            completed && "bg-green-600 hover:bg-green-700"
+          )}
+        >
+          {completed 
+            ? "Completed ✓" 
+            : allCardsViewed 
+              ? "Mark All Flashcards as Completed" 
+              : `View All Flashcards to Complete (${viewedCount}/${totalCards})`}
         </Button>
       </div>
     </div>

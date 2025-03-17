@@ -5,6 +5,7 @@ import Flashcard, { FlashcardData } from '@/components/ui-components/Flashcard';
 import { LearningItem } from '@/services/types';
 import { learningAPI } from '@/services/learningAPI';
 import { toast } from '@/components/ui/use-toast';
+import { cn } from '@/lib/utils';
 
 interface FlashcardsStepProps {
   flashcardItems: LearningItem[];
@@ -18,7 +19,61 @@ const FlashcardsStep: React.FC<FlashcardsStepProps> = ({
   onComplete 
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [extractedCards, setExtractedCards] = useState<FlashcardData[]>([]);
+  const [allCardsCompleted, setAllCardsCompleted] = useState(false);
   const startTime = React.useRef(Date.now());
+
+  // Extract flashcards from the items when they change
+  useEffect(() => {
+    if (flashcardItems.length === 0) return;
+    
+    const cards: FlashcardData[] = [];
+    
+    flashcardItems.forEach((item, itemIndex) => {
+      // Check multiple possible structures for flashcards
+      
+      // Case 1: If there's a cards array in data.cards or metadata.cards
+      const itemAny = item as any; // Type assertion to handle dynamic properties
+      const cardsArray = itemAny.metadata?.cards || itemAny.data?.cards;
+      if (Array.isArray(cardsArray) && cardsArray.length > 0) {
+        cardsArray.forEach((card, cardIndex) => {
+          if (card.front && card.back) {
+            cards.push({
+              id: `f${itemIndex}-${cardIndex}`,
+              front: card.front,
+              back: card.back
+            });
+          }
+        });
+      } 
+      // Case 2: For individual flashcard items with front/back in content/metadata
+      else if (item.content || item.metadata?.back) {
+        cards.push({
+          id: `f${itemIndex}`,
+          front: item.content || '',
+          back: item.metadata?.back || ''
+        });
+      }
+      // Case 3: If there's a structured data object
+      else if (itemAny.data) {
+        if (typeof itemAny.data === 'object') {
+          // Try to find cards structure in data
+          const data = itemAny.data;
+          
+          // Direct front/back
+          if (data.front && data.back) {
+            cards.push({
+              id: `f${itemIndex}-direct`,
+              front: data.front,
+              back: data.back
+            });
+          }
+        }
+      }
+    });
+    
+    setExtractedCards(cards);
+  }, [flashcardItems]);
 
   const handleComplete = async () => {
     if (flashcardItems.length === 0) {
@@ -33,6 +88,7 @@ const FlashcardsStep: React.FC<FlashcardsStepProps> = ({
         await learningAPI.recordProgress(item.id, true);
       }
       
+      setAllCardsCompleted(true);
       onComplete();
     } catch (error) {
       console.error('Error recording flashcard progress:', error);
@@ -74,51 +130,6 @@ const FlashcardsStep: React.FC<FlashcardsStepProps> = ({
       </LearningStepCard>
     );
   }
-  
-  // Extract flashcards from the items
-  const extractedCards: FlashcardData[] = [];
-  
-  flashcardItems.forEach((item, itemIndex) => {
-    // Check multiple possible structures for flashcards
-    
-    // Case 1: If there's a cards array in data.cards or metadata.cards
-    const cardsArray = item.data?.cards || item.metadata?.cards;
-    if (Array.isArray(cardsArray) && cardsArray.length > 0) {
-      cardsArray.forEach((card, cardIndex) => {
-        if (card.front && card.back) {
-          extractedCards.push({
-            id: `f${itemIndex}-${cardIndex}`,
-            front: card.front,
-            back: card.back
-          });
-        }
-      });
-    } 
-    // Case 2: For individual flashcard items with front/back in content/metadata
-    else if (item.content || item.metadata?.back) {
-      extractedCards.push({
-        id: `f${itemIndex}`,
-        front: item.content || '',
-        back: item.metadata?.back || ''
-      });
-    }
-    // Case 3: If there's a structured data object
-    else if (item.data) {
-      if (typeof item.data === 'object') {
-        // Try to find cards structure in data
-        const data = item.data as any;
-        
-        // Direct front/back
-        if (data.front && data.back) {
-          extractedCards.push({
-            id: `f${itemIndex}-direct`,
-            front: data.front,
-            back: data.back
-          });
-        }
-      }
-    }
-  });
   
   if (extractedCards.length === 0) {
     return (
