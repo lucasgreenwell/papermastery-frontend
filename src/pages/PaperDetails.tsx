@@ -11,6 +11,7 @@ import {
   VideoExplanationStep,
   QuizStep,
   FlashcardsStep,
+  SlidesStep,
   RelatedPapersStep,
   MasteryStep,
   ConsultingStep
@@ -82,19 +83,23 @@ const PaperDetails = () => {
       isLoading={isLoadingLearningItems} 
       onComplete={() => handleStepComplete(4)} 
     />,
+    <SlidesStep 
+      key="slides-step"
+      onComplete={() => handleStepComplete(5)} 
+    />,
     <RelatedPapersStep 
       key="related-papers-step"
       paper={paper} 
-      onComplete={() => handleStepComplete(5)} 
+      onComplete={() => handleStepComplete(6)} 
     />,
     <MasteryStep 
       key="mastery-step"
-      onComplete={() => handleStepComplete(6)} 
+      onComplete={() => handleStepComplete(7)} 
     />,
     <ConsultingStep
       key="consulting-step"
       paperId={id || ''}
-      onComplete={() => handleStepComplete(7)}
+      onComplete={() => handleStepComplete(8)}
     />,
   ];
 
