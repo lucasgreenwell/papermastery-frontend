@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, BookOpen, FileText, Video, Brain, Layers, Presentation, MessageSquare } from 'lucide-react';
+import { ChevronLeft, ChevronRight, BookOpen, FileText, Video, Brain, Layers, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
@@ -14,7 +14,7 @@ interface LearningJourneyProps {
 }
 
 // Define content types for filtering
-type ContentType = 'all' | 'summary' | 'video' | 'quiz' | 'flashcard' | 'slides' | 'consulting';
+type ContentType = 'all' | 'summary' | 'video' | 'quiz' | 'flashcard' | 'consulting';
 
 const LearningJourney = ({ steps, className, onCompleteStep, paperTitle, paperId }: LearningJourneyProps) => {
   const [currentStep, setCurrentStep] = useState(0);
@@ -95,7 +95,6 @@ const LearningJourney = ({ steps, className, onCompleteStep, paperTitle, paperId
           (activeFilter === 'video' && (stepTitle.includes('Video Explanation') || getComponentName(stepElement) === 'VideoExplanationStep')) ||
           (activeFilter === 'quiz' && (stepTitle.includes('Comprehension Quiz') || getComponentName(stepElement) === 'QuizStep')) ||
           (activeFilter === 'flashcard' && (stepTitle.includes('Flashcards') || getComponentName(stepElement) === 'FlashcardsStep')) ||
-          (activeFilter === 'slides' && (stepTitle.includes('Visual Presentation') || getComponentName(stepElement) === 'SlidesStep')) ||
           (activeFilter === 'consulting' && (stepTitle.includes('Expert Consulting') || getComponentName(stepElement) === 'ConsultingStep'))
         ) {
           map[filtered.length] = index;
@@ -169,10 +168,6 @@ const LearningJourney = ({ steps, className, onCompleteStep, paperTitle, paperId
             <ToggleGroupItem value="flashcard" aria-label="Show flashcards">
               <Layers size={16} />
               <span className="hidden sm:inline ml-1">Cards</span>
-            </ToggleGroupItem>
-            <ToggleGroupItem value="slides" aria-label="Show slides">
-              <Presentation size={16} />
-              <span className="hidden sm:inline ml-1">Slides</span>
             </ToggleGroupItem>
             <ToggleGroupItem value="consulting" aria-label="Show consulting">
               <MessageSquare size={16} />
