@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Brain, LogOut, Search, Upload, Network, ListFilter, Loader2 } from 'lucide-react';
+import { Brain, LogOut, Search, Upload, Network, ListFilter, Loader2, ArrowDown } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import PaperCard from '@/components/ui-components/PaperCard';
 import PaperUploadForm from '@/components/ui-components/PaperUploadForm';
@@ -14,6 +14,15 @@ import PaperGraphView from '@/components/ui-components/PaperGraphView';
 import { papersAPI } from '@/services/papersAPI';
 import { PaperResponse } from '@/services/types';
 
+// Sample arXiv URLs for quick testing
+const SAMPLE_ARXIV_URLS = [
+  "https://arxiv.org/abs/2303.08774", // GPT-4 Technical Report
+  "https://arxiv.org/abs/2405.09033", // Claude 3.5 Sonnet Technical Report
+  "https://arxiv.org/abs/2106.09685", // Codex Paper
+  "https://arxiv.org/abs/1706.03762", // Attention Is All You Need
+  "https://arxiv.org/abs/1810.04805", // BERT
+];
+
 const Dashboard = () => {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
@@ -24,6 +33,7 @@ const Dashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sampleUrl, setSampleUrl] = useState<string | null>(null);
 
   // Fetch papers on component mount
   useEffect(() => {
@@ -120,6 +130,17 @@ const Dashboard = () => {
     size: 10, // Placeholder for size
   }));
 
+  // Function to set a random sample arXiv URL
+  const setSampleArxivUrl = () => {
+    const randomIndex = Math.floor(Math.random() * SAMPLE_ARXIV_URLS.length);
+    const url = SAMPLE_ARXIV_URLS[randomIndex];
+    setSampleUrl(url);
+    toast({
+      title: "Sample URL added",
+      description: `Added ${url} to the form`,
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
@@ -153,7 +174,30 @@ const Dashboard = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-1">
-              <PaperUploadForm onSubmit={handlePaperUpload} />
+              <div className="bg-white rounded-xl shadow-md p-4 border border-gray-100">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold">Upload a Paper</h2>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={setSampleArxivUrl}
+                          className="flex items-center"
+                        >
+                          <ArrowDown className="h-4 w-4 mr-1" />
+                          Test URL
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Insert a sample arXiv URL for testing</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <PaperUploadForm onSubmit={handlePaperUpload} sampleUrl={sampleUrl} />
+              </div>
             </div>
 
             <div className="lg:col-span-2 space-y-6">
