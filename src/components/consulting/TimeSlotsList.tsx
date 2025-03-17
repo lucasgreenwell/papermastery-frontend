@@ -31,6 +31,10 @@ import {
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Researcher } from './ResearcherSidebar';
+import { consultingApi } from '@/api/consulting-api';
+import { createSessionRequestFromTimeSlot, formatTimeForDisplay } from '@/api/adapters';
+import { TimeSlot as TimeSlotType } from '@/api/models';
+import { toast } from '@/components/ui/use-toast';
 
 export interface TimeSlot {
   id: string;
@@ -50,6 +54,7 @@ interface TimeSlotsListProps {
   hasSubscription?: boolean;
   onTimeSlotSelect: (timeSlot: TimeSlot | null) => void;
   selectedTimeSlot: TimeSlot | null;
+  paperId?: string;
 }
 
 const TimeSlotsList = ({
@@ -61,7 +66,8 @@ const TimeSlotsList = ({
   onBookingConfirmed,
   hasSubscription = true, // Default to true since we're assuming all users are subscribed
   onTimeSlotSelect,
-  selectedTimeSlot: externalSelectedTimeSlot
+  selectedTimeSlot: externalSelectedTimeSlot,
+  paperId
 }: TimeSlotsListProps) => {
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlot | null>(externalSelectedTimeSlot);
   const [bookingQuestions, setBookingQuestions] = useState('');
@@ -72,17 +78,6 @@ const TimeSlotsList = ({
   useEffect(() => {
     setSelectedTimeSlot(externalSelectedTimeSlot);
   }, [externalSelectedTimeSlot]);
-  
-  // Format time string (e.g., "2023-01-01T09:00:00.000Z" -> "9:00 AM")
-  const formatTimeString = (timeStr: string) => {
-    try {
-      const date = new Date(timeStr);
-      return format(date, 'h:mm a');
-    } catch (error) {
-      console.error('Error formatting time:', error);
-      return 'Invalid time';
-    }
-  };
   
   // Handler for slot selection
   const handleSelectTimeSlot = (timeSlot: TimeSlot) => {
@@ -97,17 +92,46 @@ const TimeSlotsList = ({
   
   // Handler for booking confirmation
   const handleConfirmBooking = async () => {
-    if (!selectedTimeSlot || !selectedDate) return;
+    if (!selectedTimeSlot || !selectedDate || !selectedResearcher) return;
     
     setIsConfirming(true);
     
     try {
+      // Create a session request from time slot
+      const sessionRequest = createSessionRequestFromTimeSlot(
+        selectedTimeSlot as TimeSlotType,
+        paperId,
+        bookingQuestions || undefined
+      );
+      
+      // Create the session
+      const session = await consultingApi.createSession(sessionRequest);
+      
+      // If successful, create a payment intent
+      const paymentIntent = await consultingApi.createPaymentIntent({
+        type: 'session',
+        session_id: session.id
+      });
+      
+      // TODO: Implement Stripe payment flow with the client_secret
+      // For now, just simulate successful payment
+      toast({
+        title: "Booking Confirmed",
+        description: `Your session with ${selectedResearcher.name} has been booked.`,
+      });
+      
+      // Notify parent component
       await onBookingConfirmed(selectedTimeSlot.id, selectedDate, bookingQuestions);
+      
       setDialogOpen(false);
-      // Don't reset selectedTimeSlot here since we want to show it as selected
       setBookingQuestions('');
     } catch (error) {
       console.error('Error confirming booking:', error);
+      toast({
+        title: "Booking Failed",
+        description: "There was a problem booking your session. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setIsConfirming(false);
     }
@@ -255,7 +279,7 @@ const TimeSlotsList = ({
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 flex-shrink-0" />
                 <span className="font-medium">
-                  {formatTimeString(slot.start_time)} - {formatTimeString(slot.end_time)}
+                  {formatTimeForDisplay(slot.start_time)} - {formatTimeForDisplay(slot.end_time)}
                 </span>
               </div>
             </Button>
@@ -310,7 +334,9 @@ const TimeSlotsList = ({
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600">Time:</span>
-                  <span className="font-medium text-gray-900">{selectedTimeSlot && formatTimeString(selectedTimeSlot.start_time)} - {selectedTimeSlot && formatTimeString(selectedTimeSlot.end_time)}</span>
+                  <span className="font-medium text-gray-900">
+                    {selectedTimeSlot && formatTimeForDisplay(selectedTimeSlot.start_time)} - {selectedTimeSlot && formatTimeForDisplay(selectedTimeSlot.end_time)}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center pt-2 border-t border-blue-200 mt-1">
                   <span className="text-sm text-gray-600">Session Fee:</span>
