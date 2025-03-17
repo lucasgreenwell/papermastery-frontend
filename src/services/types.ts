@@ -83,7 +83,7 @@ export interface QuizQuestion {
 export interface LearningItem {
   id: string;
   paper_id: string;
-  type: 'video' | 'quiz' | 'flashcard' | 'summary';
+  type: 'video' | 'quiz' | 'flashcard' | 'summary' | 'slides';
   content: string;
   metadata: any;
   created_at: string;
