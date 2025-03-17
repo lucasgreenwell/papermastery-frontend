@@ -88,9 +88,114 @@ export type Database = {
         }
         Relationships: []
       }
+      edges: {
+        Row: {
+          created_at: string | null
+          edge_type: string
+          graph_id: string
+          id: string
+          label: string | null
+          metadata: Json | null
+          source: string
+          style: Json | null
+          target: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          edge_type?: string
+          graph_id: string
+          id?: string
+          label?: string | null
+          metadata?: Json | null
+          source: string
+          style?: Json | null
+          target: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          edge_type?: string
+          graph_id?: string
+          id?: string
+          label?: string | null
+          metadata?: Json | null
+          source?: string
+          style?: Json | null
+          target?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "edges_graph_id_fkey"
+            columns: ["graph_id"]
+            isOneToOne: false
+            referencedRelation: "graphs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "edges_source_fkey"
+            columns: ["source"]
+            isOneToOne: false
+            referencedRelation: "nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "edges_target_fkey"
+            columns: ["target"]
+            isOneToOne: false
+            referencedRelation: "nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      graphs: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          paper_id: string
+          settings: Json | null
+          status: string
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          paper_id: string
+          settings?: Json | null
+          status?: string
+          title: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          paper_id?: string
+          settings?: Json | null
+          status?: string
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "graphs_paper_id_fkey"
+            columns: ["paper_id"]
+            isOneToOne: false
+            referencedRelation: "papers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       items: {
         Row: {
-          category: string
+          category: string | null
           data: Json
           id: string
           level: string
@@ -100,7 +205,7 @@ export type Database = {
           videos: Json | null
         }
         Insert: {
-          category: string
+          category?: string | null
           data: Json
           id?: string
           level: string
@@ -110,7 +215,7 @@ export type Database = {
           videos?: Json | null
         }
         Update: {
-          category?: string
+          category?: string | null
           data?: Json
           id?: string
           level?: string
@@ -173,6 +278,56 @@ export type Database = {
             columns: ["paper_id"]
             isOneToOne: false
             referencedRelation: "papers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nodes: {
+        Row: {
+          content: Json | null
+          created_at: string | null
+          description: string | null
+          graph_id: string
+          id: string
+          label: string
+          metadata: Json | null
+          node_type: string
+          position: Json
+          style: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          content?: Json | null
+          created_at?: string | null
+          description?: string | null
+          graph_id: string
+          id?: string
+          label: string
+          metadata?: Json | null
+          node_type?: string
+          position?: Json
+          style?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          content?: Json | null
+          created_at?: string | null
+          description?: string | null
+          graph_id?: string
+          id?: string
+          label?: string
+          metadata?: Json | null
+          node_type?: string
+          position?: Json
+          style?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nodes_graph_id_fkey"
+            columns: ["graph_id"]
+            isOneToOne: false
+            referencedRelation: "graphs"
             referencedColumns: ["id"]
           },
         ]
@@ -253,7 +408,7 @@ export type Database = {
       }
       papers: {
         Row: {
-          abstract: string
+          abstract: string | null
           arxiv_id: string | null
           authors: Json
           chunk_count: number | null
@@ -261,16 +416,18 @@ export type Database = {
           error_message: string | null
           full_text: string | null
           id: string
-          publication_date: string
+          publication_date: string | null
           related_papers: Json | null
+          related_papers_completed: boolean | null
           source_type: string
           source_url: string | null
           summaries: Json | null
+          summary_completed: boolean | null
           tags: Json | null
           title: string
         }
         Insert: {
-          abstract: string
+          abstract?: string | null
           arxiv_id?: string | null
           authors: Json
           chunk_count?: number | null
@@ -278,16 +435,18 @@ export type Database = {
           error_message?: string | null
           full_text?: string | null
           id?: string
-          publication_date: string
+          publication_date?: string | null
           related_papers?: Json | null
+          related_papers_completed?: boolean | null
           source_type?: string
           source_url?: string | null
           summaries?: Json | null
+          summary_completed?: boolean | null
           tags?: Json | null
           title: string
         }
         Update: {
-          abstract?: string
+          abstract?: string | null
           arxiv_id?: string | null
           authors?: Json
           chunk_count?: number | null
@@ -295,11 +454,13 @@ export type Database = {
           error_message?: string | null
           full_text?: string | null
           id?: string
-          publication_date?: string
+          publication_date?: string | null
           related_papers?: Json | null
+          related_papers_completed?: boolean | null
           source_type?: string
           source_url?: string | null
           summaries?: Json | null
+          summary_completed?: boolean | null
           tags?: Json | null
           title?: string
         }
@@ -355,29 +516,26 @@ export type Database = {
       }
       progress: {
         Row: {
-          decision: string | null
+          completed: boolean
+          id: string
           item_id: string
-          sprt_log_likelihood_ratio: number | null
-          status: string | null
           user_id: string
         }
         Insert: {
-          decision?: string | null
+          completed?: boolean
+          id?: string
           item_id: string
-          sprt_log_likelihood_ratio?: number | null
-          status?: string | null
           user_id: string
         }
         Update: {
-          decision?: string | null
+          completed?: boolean
+          id?: string
           item_id?: string
-          sprt_log_likelihood_ratio?: number | null
-          status?: string | null
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "progress_item_id_fkey"
+            foreignKeyName: "fk_progress_item"
             columns: ["item_id"]
             isOneToOne: false
             referencedRelation: "items"
@@ -422,6 +580,8 @@ export type Database = {
       }
       researchers: {
         Row: {
+          achievements: Json | null
+          additional_emails: Json | null
           availability: Json | null
           bio: string | null
           created_at: string | null
@@ -435,6 +595,8 @@ export type Database = {
           verified: boolean | null
         }
         Insert: {
+          achievements?: Json | null
+          additional_emails?: Json | null
           availability?: Json | null
           bio?: string | null
           created_at?: string | null
@@ -448,6 +610,8 @@ export type Database = {
           verified?: boolean | null
         }
         Update: {
+          achievements?: Json | null
+          additional_emails?: Json | null
           availability?: Json | null
           bio?: string | null
           created_at?: string | null
@@ -672,7 +836,7 @@ export type Database = {
           p_source_type: string
         }
         Returns: {
-          abstract: string
+          abstract: string | null
           arxiv_id: string | null
           authors: Json
           chunk_count: number | null
@@ -680,11 +844,13 @@ export type Database = {
           error_message: string | null
           full_text: string | null
           id: string
-          publication_date: string
+          publication_date: string | null
           related_papers: Json | null
+          related_papers_completed: boolean | null
           source_type: string
           source_url: string | null
           summaries: Json | null
+          summary_completed: boolean | null
           tags: Json | null
           title: string
         }[]

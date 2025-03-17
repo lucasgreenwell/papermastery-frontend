@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import LearningStepCard from '@/components/ui-components/LearningStepCard';
 import MarkdownRenderer from '@/components/ui-components/MarkdownRenderer';
 import { PaperResponse } from '@/services/types';
+import { learningAPI } from '@/services/learningAPI';
+import { toast } from '@/components/ui/use-toast';
 
 interface SummaryStepProps {
   paper: PaperResponse | null;
@@ -11,7 +13,54 @@ interface SummaryStepProps {
 }
 
 const SummaryStep: React.FC<SummaryStepProps> = ({ paper, onComplete }) => {
-  const [selectedSummaryType, setSelectedSummaryType] = useState<'beginner' | 'intermediate' | 'advanced' | 'abstract'>('intermediate');
+  const [selectedSummaryType, setSelectedSummaryType] = useState<'beginner' | 'intermediate' | 'advanced' | 'abstract'>('beginner');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [viewedTabs, setViewedTabs] = useState<Set<string>>(new Set(['beginner']));
+  const [allTabsViewed, setAllTabsViewed] = useState(false);
+
+  // Check if all tabs have been viewed
+  useEffect(() => {
+    const requiredTabs = ['beginner', 'intermediate', 'advanced', 'abstract'];
+    const allViewed = requiredTabs.every(tab => viewedTabs.has(tab));
+    setAllTabsViewed(allViewed);
+  }, [viewedTabs]);
+
+  const handleTabChange = (tabName: 'beginner' | 'intermediate' | 'advanced' | 'abstract') => {
+    setSelectedSummaryType(tabName);
+    
+    // Add this tab to the viewed tabs
+    setViewedTabs(prev => {
+      const newSet = new Set(prev);
+      newSet.add(tabName);
+      return newSet;
+    });
+  };
+
+  const handleComplete = async () => {
+    if (!paper?.id) {
+      toast({
+        title: "Error",
+        description: "Paper ID is missing. Cannot record progress.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await learningAPI.recordPaperProgress(paper.id, 'summary');
+      onComplete();
+    } catch (error) {
+      console.error('Error recording summary progress:', error);
+      toast({
+        title: "Error",
+        description: "Failed to record progress. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <LearningStepCard 
@@ -22,28 +71,28 @@ const SummaryStep: React.FC<SummaryStepProps> = ({ paper, onComplete }) => {
         <div className="flex flex-wrap gap-2 mb-6">
           <Button
             variant={selectedSummaryType === 'beginner' ? 'default' : 'outline'}
-            onClick={() => setSelectedSummaryType('beginner')}
+            onClick={() => handleTabChange('beginner')}
             size="sm"
           >
             Beginner
           </Button>
           <Button
             variant={selectedSummaryType === 'intermediate' ? 'default' : 'outline'}
-            onClick={() => setSelectedSummaryType('intermediate')}
+            onClick={() => handleTabChange('intermediate')}
             size="sm"
           >
             Intermediate
           </Button>
           <Button
             variant={selectedSummaryType === 'advanced' ? 'default' : 'outline'}
-            onClick={() => setSelectedSummaryType('advanced')}
+            onClick={() => handleTabChange('advanced')}
             size="sm"
           >
             Advanced
           </Button>
           <Button
             variant={selectedSummaryType === 'abstract' ? 'default' : 'outline'}
-            onClick={() => setSelectedSummaryType('abstract')}
+            onClick={() => handleTabChange('abstract')}
             size="sm"
           >
             Abstract
@@ -67,9 +116,18 @@ const SummaryStep: React.FC<SummaryStepProps> = ({ paper, onComplete }) => {
         </div>
       </div>
       <div className="mt-8">
-        <Button onClick={onComplete}>
-          I've read the summary
-        </Button>
+        {allTabsViewed ? (
+          <Button 
+            onClick={handleComplete}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? 'Recording progress...' : 'I\'ve read the summary'}
+          </Button>
+        ) : (
+          <p className="text-sm text-gray-500">
+            Please view all summary types before marking as complete.
+          </p>
+        )}
       </div>
     </LearningStepCard>
   );

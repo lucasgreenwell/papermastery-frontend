@@ -17,6 +17,8 @@ const VideoEmbed = ({ videoUrl, title, className }: VideoEmbedProps) => {
   };
 
   const videoId = getYouTubeId(videoUrl);
+  // console.log('videoId', videoId);
+  // const videoId = 'N6Piou4oYx8'
   const embedUrl = videoId ? `https://www.youtube.com/embed/${videoId}` : videoUrl;
 
   return (
