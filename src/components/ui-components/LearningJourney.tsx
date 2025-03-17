@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, BookOpen, FileText, Video, Brain, Layers } from 'lucide-react';
+import { ChevronLeft, ChevronRight, BookOpen, FileText, Video, Brain, Layers, Presentation, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { cn } from '@/lib/utils';
@@ -14,7 +14,7 @@ interface LearningJourneyProps {
 }
 
 // Define content types for filtering
-type ContentType = 'all' | 'reading' | 'video' | 'quiz' | 'flashcard';
+type ContentType = 'all' | 'reading' | 'video' | 'quiz' | 'flashcard' | 'slides' | 'consulting';
 
 const LearningJourney = ({ steps, className, onCompleteStep, paperTitle, paperId }: LearningJourneyProps) => {
   const [currentStep, setCurrentStep] = useState(0);
@@ -165,7 +165,8 @@ const LearningJourney = ({ steps, className, onCompleteStep, paperTitle, paperId
           if (
             (activeFilter === 'video' && (stepTitle.includes('Video Explanation') || (typeof stepElement.type !== 'string' && stepElement.type.name === 'VideoExplanationStep'))) ||
             (activeFilter === 'quiz' && (stepTitle.includes('Comprehension Quiz') || (typeof stepElement.type !== 'string' && stepElement.type.name === 'QuizStep'))) ||
-            (activeFilter === 'flashcard' && (stepTitle.includes('Flashcards') || (typeof stepElement.type !== 'string' && stepElement.type.name === 'FlashcardsStep')))
+            (activeFilter === 'flashcard' && (stepTitle.includes('Flashcards') || (typeof stepElement.type !== 'string' && stepElement.type.name === 'FlashcardsStep'))) ||
+            (activeFilter === 'consulting' && (stepTitle.includes('Expert Consulting') || typeof stepElement.type !== 'string' && stepElement.type.name === 'ConsultingStep'))
           ) {
             map[filtered.length] = index;
             filtered.push(step);
@@ -239,6 +240,10 @@ const LearningJourney = ({ steps, className, onCompleteStep, paperTitle, paperId
             <ToggleGroupItem value="flashcard" aria-label="Show flashcards">
               <Layers size={16} />
               <span className="hidden sm:inline ml-1">Cards</span>
+            </ToggleGroupItem>
+            <ToggleGroupItem value="consulting" aria-label="Show consulting">
+              <MessageSquare size={16} />
+              <span className="hidden sm:inline ml-1">Consulting</span>
             </ToggleGroupItem>
           </ToggleGroup>
         )}

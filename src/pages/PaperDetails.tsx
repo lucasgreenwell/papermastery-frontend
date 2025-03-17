@@ -14,7 +14,8 @@ import {
   QuizStep,
   FlashcardsStep,
   RelatedPapersStep,
-  MasteryStep
+  MasteryStep,
+  ConsultingStep
 } from '@/components/learning-steps';
 import { usePaperDetails } from '@/hooks/usePaperDetails';
 import { useSkillLevel } from '@/hooks/useSkillLevel';
@@ -164,6 +165,11 @@ const PaperDetails = () => {
       key="mastery-step"
       onComplete={() => handleStepComplete(8)} 
     />,
+    <ConsultingStep
+      key="consulting-step"
+      paperId={id || ''}
+      onComplete={() => handleStepComplete(8)}
+    />,
   ];
 
   if (isLoading && !cachedContent) {
@@ -219,7 +225,7 @@ const PaperDetails = () => {
       </header>
       
       <main className="w-full overflow-hidden">
-        <div className="grid grid-cols-1 md:grid-cols-2 h-[calc(100vh-12rem)]">
+        <div className="grid grid-cols-1 md:grid-cols-2 h-[calc(100vh-12rem)] overflow-hidden">
           {(showPdf || window.innerWidth >= 768) && (
             <div className={`h-full ${!showPdf ? 'hidden md:block' : ''}`}>
               <PdfViewer pdfUrl={pdfSource} className="h-full" />
@@ -227,7 +233,7 @@ const PaperDetails = () => {
           )}
           
           {(!showPdf || window.innerWidth >= 768) && (
-            <div className={`h-full p-2 sm:p-4 flex flex-col ${showPdf ? 'hidden md:block' : ''}`}>
+            <div className={`h-full p-2 sm:p-4 flex flex-col overflow-hidden ${showPdf ? 'hidden md:block' : ''}`}>
               <LearningJourney
                 steps={learningJourneySteps}
                 onCompleteStep={handleStepComplete}

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,15 +7,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface PaperUploadFormProps {
   onSubmit: (input: string | File, type: 'url' | 'file') => Promise<void>;
+  sampleUrl?: string | null;
 }
 
-const PaperUploadForm = ({ onSubmit }: PaperUploadFormProps) => {
+const PaperUploadForm = ({ onSubmit, sampleUrl }: PaperUploadFormProps) => {
   const [inputValue, setInputValue] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'url' | 'file'>('url');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  // Use the sampleUrl when it changes
+  useEffect(() => {
+    if (sampleUrl) {
+      setInputValue(sampleUrl);
+      setActiveTab('url'); // Switch to URL tab when a sample URL is provided
+    }
+  }, [sampleUrl]);
 
   const handleUrlSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,10 +113,8 @@ const PaperUploadForm = ({ onSubmit }: PaperUploadFormProps) => {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-md p-6 border border-gray-100">
-      <h2 className="text-xl font-semibold mb-4">Upload a Paper</h2>
-      
-      <Tabs defaultValue="url" onValueChange={(value) => setActiveTab(value as 'url' | 'file')}>
+    <div>
+      <Tabs defaultValue="url" value={activeTab} onValueChange={(value) => setActiveTab(value as 'url' | 'file')}>
         <TabsList className="grid w-full grid-cols-2 mb-4">
           <TabsTrigger value="url">URL</TabsTrigger>
           <TabsTrigger value="file">File Upload</TabsTrigger>
