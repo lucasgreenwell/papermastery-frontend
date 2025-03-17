@@ -2,7 +2,7 @@ Sprint 2: Consulting Step and Subscription Prompt (Steps 11-20)
 Create ConsultingStep.tsx.
 Fetch is_subscribed.
 Navigate if subscribed.
-Show prompt if not.
+Show  if not.
 Add "Subscribe Now" button.
 Handle success redirection.
 Add loading states.

@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import PaperDetails from "./pages/PaperDetails";
 import NotFound from "./pages/NotFound";
 import Playground from "./pages/playground/Playground";
+import ConsultingBooking from "./pages/consulting/ConsultingBooking";
 
 const queryClient = new QueryClient();
 
@@ -50,6 +51,12 @@ const AppRoutes = () => {
       <Route path="/papers/:id" element={
         <ProtectedRoute>
           <PaperDetails />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/papers/:paperId/consulting" element={
+        <ProtectedRoute>
+          <ConsultingBooking />
         </ProtectedRoute>
       } />
       
