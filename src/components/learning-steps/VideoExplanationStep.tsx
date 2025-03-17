@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import LearningStepCard from '@/components/ui-components/LearningStepCard';
@@ -78,7 +78,33 @@ const VideoExplanationStep: React.FC<VideoExplanationStepProps> = ({
   
   // Get the first video item
   const videoItem = videoItems[0];
-  const videos = videoItem?.metadata?.videos || [];
+  
+  // Check different possible locations for video data
+  let videos = [];
+  
+  // Try to find videos in different possible locations
+  if (videoItem.metadata?.video) {
+    // Single video in metadata.video
+    videos = [videoItem.metadata.video];
+  } else if (videoItem.data?.video) {
+    // Single video in data.video
+    videos = [videoItem.data.video];
+  } else if (Array.isArray(videoItem.metadata?.videos)) {
+    // Array of videos in metadata.videos
+    videos = videoItem.metadata.videos;
+  } else if (videoItem.videos) {
+    // Videos directly attached to item
+    videos = Array.isArray(videoItem.videos) ? videoItem.videos : [videoItem.videos];
+  } else if (videoItem.data?.videos) {
+    // Videos in data.videos
+    videos = videoItem.data.videos;
+  } else if (videoItem.data && videoItem.data.video_id) {
+    // If video_id is directly in data object
+    videos = [videoItem.data];
+  } else if (videoItem.metadata && videoItem.metadata.video_id) {
+    // If video_id is directly in metadata
+    videos = [videoItem.metadata];
+  }
   
   return (
     <LearningStepCard 
@@ -91,16 +117,25 @@ const VideoExplanationStep: React.FC<VideoExplanationStepProps> = ({
       
       {videos.length > 0 ? (
         <div className="space-y-6">
-          {videos.map((video: VideoItem, index: number) => (
-            <div key={index} className="mb-4">
-              <VideoEmbed 
-                videoUrl={`https://www.youtube.com/watch?v=${video.video_id}`}
-                title={video.title}
-                className="mb-2"
-              />
-              <p className="text-sm text-gray-600">{video.channel}</p>
-            </div>
-          ))}
+          {videos.map((video: any, index: number) => {
+            // Create a safe video object handling different structures
+            const videoId = video.video_id || '';
+            const videoTitle = video.title || 'Learning Video';
+            const videoChannel = video.channel || 'Educational Channel';
+            
+            if (!videoId) return null;
+            
+            return (
+              <div key={index} className="mb-4">
+                <VideoEmbed 
+                  videoUrl={`https://www.youtube.com/watch?v=${videoId}`}
+                  title={videoTitle}
+                  className="mb-2"
+                />
+                <p className="text-sm text-gray-600">{videoChannel}</p>
+              </div>
+            );
+          })}
         </div>
       ) : (
         <p className="text-gray-500">No videos available in this item.</p>

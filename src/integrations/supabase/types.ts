@@ -88,6 +88,111 @@ export type Database = {
         }
         Relationships: []
       }
+      edges: {
+        Row: {
+          created_at: string | null
+          edge_type: string
+          graph_id: string
+          id: string
+          label: string | null
+          metadata: Json | null
+          source: string
+          style: Json | null
+          target: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          edge_type?: string
+          graph_id: string
+          id?: string
+          label?: string | null
+          metadata?: Json | null
+          source: string
+          style?: Json | null
+          target: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          edge_type?: string
+          graph_id?: string
+          id?: string
+          label?: string | null
+          metadata?: Json | null
+          source?: string
+          style?: Json | null
+          target?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "edges_graph_id_fkey"
+            columns: ["graph_id"]
+            isOneToOne: false
+            referencedRelation: "graphs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "edges_source_fkey"
+            columns: ["source"]
+            isOneToOne: false
+            referencedRelation: "nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "edges_target_fkey"
+            columns: ["target"]
+            isOneToOne: false
+            referencedRelation: "nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      graphs: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          paper_id: string
+          settings: Json | null
+          status: string
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          paper_id: string
+          settings?: Json | null
+          status?: string
+          title: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          paper_id?: string
+          settings?: Json | null
+          status?: string
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "graphs_paper_id_fkey"
+            columns: ["paper_id"]
+            isOneToOne: false
+            referencedRelation: "papers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       items: {
         Row: {
           category: string | null
@@ -177,6 +282,56 @@ export type Database = {
           },
         ]
       }
+      nodes: {
+        Row: {
+          content: Json | null
+          created_at: string | null
+          description: string | null
+          graph_id: string
+          id: string
+          label: string
+          metadata: Json | null
+          node_type: string
+          position: Json
+          style: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          content?: Json | null
+          created_at?: string | null
+          description?: string | null
+          graph_id: string
+          id?: string
+          label: string
+          metadata?: Json | null
+          node_type?: string
+          position?: Json
+          style?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          content?: Json | null
+          created_at?: string | null
+          description?: string | null
+          graph_id?: string
+          id?: string
+          label?: string
+          metadata?: Json | null
+          node_type?: string
+          position?: Json
+          style?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nodes_graph_id_fkey"
+            columns: ["graph_id"]
+            isOneToOne: false
+            referencedRelation: "graphs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       outreach_requests: {
         Row: {
           created_at: string | null
@@ -261,7 +416,7 @@ export type Database = {
           error_message: string | null
           full_text: string | null
           id: string
-          publication_date: string
+          publication_date: string | null
           related_papers: Json | null
           related_papers_completed: boolean | null
           source_type: string
@@ -280,7 +435,7 @@ export type Database = {
           error_message?: string | null
           full_text?: string | null
           id?: string
-          publication_date: string
+          publication_date?: string | null
           related_papers?: Json | null
           related_papers_completed?: boolean | null
           source_type?: string
@@ -299,7 +454,7 @@ export type Database = {
           error_message?: string | null
           full_text?: string | null
           id?: string
-          publication_date?: string
+          publication_date?: string | null
           related_papers?: Json | null
           related_papers_completed?: boolean | null
           source_type?: string
@@ -362,22 +517,25 @@ export type Database = {
       progress: {
         Row: {
           completed: boolean
-          item_id: string | null
+          id: string
+          item_id: string
           user_id: string
         }
         Insert: {
           completed?: boolean
-          item_id?: string | null
+          id?: string
+          item_id: string
           user_id: string
         }
         Update: {
           completed?: boolean
-          item_id?: string | null
+          id?: string
+          item_id?: string
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "progress_item_id_fkey"
+            foreignKeyName: "fk_progress_item"
             columns: ["item_id"]
             isOneToOne: false
             referencedRelation: "items"
@@ -686,7 +844,7 @@ export type Database = {
           error_message: string | null
           full_text: string | null
           id: string
-          publication_date: string
+          publication_date: string | null
           related_papers: Json | null
           related_papers_completed: boolean | null
           source_type: string

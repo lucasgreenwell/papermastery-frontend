@@ -122,15 +122,50 @@ export function useLearningItemsSubscription(paperId: string) {
         
         if (data) {
           // Process and categorize items
-          setLearningItems(data);
+          const transformedItems = data.map(item => {
+            // Basic transformation for all items
+            const baseItem = {
+              ...item,
+              title: item.data?.title || '',
+              content: item.data?.content || '',
+              metadata: item.data?.metadata || {},
+              created_at: item.created_at || new Date().toISOString(),
+              updated_at: item.updated_at || new Date().toISOString()
+            };
+            
+            // Special handling for different item types
+            if (item.type === 'video') {
+              // For video items - extract video info
+              return {
+                ...baseItem,
+                // Handle case where videos might be in a different structure
+                videos: item.videos || baseItem.metadata?.videos || null
+              };
+            } else if (item.type === 'quiz') {
+              // For quiz items - ensure questions are properly structured
+              return {
+                ...baseItem
+              };
+            } else if (item.type === 'flashcard') {
+              // For flashcard items - ensure cards data is accessible
+              return {
+                ...baseItem
+              };
+            }
+            
+            // Default case for other item types (concepts, methodology, results)
+            return baseItem;
+          });
+          
+          setLearningItems(transformedItems);
           
           // Filter items by type
-          const videos = data.filter(item => item.type === 'video');
-          const quizzes = data.filter(item => item.type === 'quiz');
-          const cards = data.filter(item => item.type === 'flashcard');
-          const concepts = data.filter(item => item.type === 'concepts');
-          const methodology = data.filter(item => item.type === 'methodology');
-          const results = data.filter(item => item.type === 'results');
+          const videos = transformedItems.filter(item => item.type === 'video');
+          const quizzes = transformedItems.filter(item => item.type === 'quiz');
+          const cards = transformedItems.filter(item => item.type === 'flashcard');
+          const concepts = transformedItems.filter(item => item.type === 'concepts');
+          const methodology = transformedItems.filter(item => item.type === 'methodology');
+          const results = transformedItems.filter(item => item.type === 'results');
 
           setVideoItems(videos);
           setQuizItems(quizzes);
@@ -158,11 +193,30 @@ export function useLearningItemsSubscription(paperId: string) {
         table: 'items',
         filter: `paper_id=eq.${paperId}` 
       }, payload => {
-        const newItem = payload.new;
+        const newItemRaw = payload.new;
+        
+        // Transform the item to match expected format - same logic as initial fetch
+        let newItem = {
+          ...newItemRaw,
+          title: newItemRaw.data?.title || '',
+          content: newItemRaw.data?.content || '',
+          metadata: newItemRaw.data?.metadata || {},
+          created_at: newItemRaw.created_at || new Date().toISOString(),
+          updated_at: newItemRaw.updated_at || new Date().toISOString()
+        };
+        
+        // Special handling for different item types
+        if (newItemRaw.type === 'video') {
+          newItem = {
+            ...newItem,
+            videos: newItemRaw.videos || newItem.metadata?.videos || null
+          };
+        }
+        
         setLearningItems(current => [...current, newItem]);
         
         // Update the appropriate category
-        switch (newItem.type) {
+        switch (newItemRaw.type) {
           case 'video':
             setVideoItems(current => [...current, newItem]);
             break;
@@ -189,7 +243,25 @@ export function useLearningItemsSubscription(paperId: string) {
         table: 'items',
         filter: `paper_id=eq.${paperId}` 
       }, payload => {
-        const updatedItem = payload.new;
+        const updatedItemRaw = payload.new;
+        
+        // Transform the item to match expected format - same logic as above
+        let updatedItem = {
+          ...updatedItemRaw,
+          title: updatedItemRaw.data?.title || '',
+          content: updatedItemRaw.data?.content || '',
+          metadata: updatedItemRaw.data?.metadata || {},
+          created_at: updatedItemRaw.created_at || new Date().toISOString(),
+          updated_at: updatedItemRaw.updated_at || new Date().toISOString()
+        };
+        
+        // Special handling for different item types
+        if (updatedItemRaw.type === 'video') {
+          updatedItem = {
+            ...updatedItem,
+            videos: updatedItemRaw.videos || updatedItem.metadata?.videos || null
+          };
+        }
         
         // Update in the main items list
         setLearningItems(current => 

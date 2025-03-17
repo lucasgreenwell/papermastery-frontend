@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import LearningStepCard from '@/components/ui-components/LearningStepCard';
@@ -88,7 +88,9 @@ const KeyConceptsStep: React.FC<KeyConceptsStepProps> = ({
           ))}
         </ul>
       ) : (
-        <div className="text-gray-500 mb-6">No key concepts available for this paper.</div>
+        <div className="text-gray-500 mb-6">
+          {data ? 'No key concepts found in the learning data.' : 'No learning data available for this paper.'}
+        </div>
       )}
       <Button 
         onClick={handleComplete}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Layers } from 'lucide-react';
 import LearningStepCard from '@/components/ui-components/LearningStepCard';
 import Flashcard, { FlashcardData } from '@/components/ui-components/Flashcard';
@@ -79,12 +79,45 @@ const FlashcardsStep: React.FC<FlashcardsStepProps> = ({
   const extractedCards: FlashcardData[] = [];
   
   flashcardItems.forEach((item, itemIndex) => {
-    // For individual flashcard items, the content is the front and metadata.back is the back
-    extractedCards.push({
-      id: `f${itemIndex + 1}`,
-      front: item.content || '',
-      back: item.metadata?.back || ''
-    });
+    // Check multiple possible structures for flashcards
+    
+    // Case 1: If there's a cards array in data.cards or metadata.cards
+    const cardsArray = item.data?.cards || item.metadata?.cards;
+    if (Array.isArray(cardsArray) && cardsArray.length > 0) {
+      cardsArray.forEach((card, cardIndex) => {
+        if (card.front && card.back) {
+          extractedCards.push({
+            id: `f${itemIndex}-${cardIndex}`,
+            front: card.front,
+            back: card.back
+          });
+        }
+      });
+    } 
+    // Case 2: For individual flashcard items with front/back in content/metadata
+    else if (item.content || item.metadata?.back) {
+      extractedCards.push({
+        id: `f${itemIndex}`,
+        front: item.content || '',
+        back: item.metadata?.back || ''
+      });
+    }
+    // Case 3: If there's a structured data object
+    else if (item.data) {
+      if (typeof item.data === 'object') {
+        // Try to find cards structure in data
+        const data = item.data as any;
+        
+        // Direct front/back
+        if (data.front && data.back) {
+          extractedCards.push({
+            id: `f${itemIndex}-direct`,
+            front: data.front,
+            back: data.back
+          });
+        }
+      }
+    }
   });
   
   if (extractedCards.length === 0) {
@@ -94,7 +127,7 @@ const FlashcardsStep: React.FC<FlashcardsStepProps> = ({
         icon={<Layers size={20} />}
       >
         <p className="text-gray-700 mb-4">
-          No flashcards available for this paper.
+          No flashcard data could be extracted for this paper.
         </p>
       </LearningStepCard>
     );
