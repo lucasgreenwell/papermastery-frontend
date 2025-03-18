@@ -1,9 +1,11 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { CheckCircle2, XCircle, HelpCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { learningAPI } from '@/services/learningAPI';
+import { useQuizHistory, QuizAnswer } from '@/hooks/useQuizHistory';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export interface QuizQuestion {
   id: string;
@@ -18,27 +20,78 @@ interface MultipleChoiceQuizProps {
   title?: string;
   className?: string;
   onComplete?: (score: number, total: number) => void;
+  isCompleted?: boolean;
 }
 
 const MultipleChoiceQuiz = ({ 
   questions, 
   title, 
   className,
-  onComplete 
+  onComplete,
+  isCompleted: initialIsCompleted = false
 }: MultipleChoiceQuizProps) => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedOptions, setSelectedOptions] = useState<number[]>(Array(questions.length).fill(-1));
   const [showResults, setShowResults] = useState<boolean[]>(Array(questions.length).fill(false));
-  const [isCompleted, setIsCompleted] = useState(false);
+  const [isCompleted, setIsCompleted] = useState(initialIsCompleted);
   const { toast } = useToast();
+  
+  // Get quiz history
+  const { answers: userAnswers, isLoading: isLoadingHistory } = useQuizHistory();
+  const [previousAnswers, setPreviousAnswers] = useState<Record<string, QuizAnswer>>({});
+
+  // Process user answers to create a map of question ID to answer details
+  useEffect(() => {
+    if (!userAnswers || userAnswers.length === 0) return;
+    
+    // Create a map of question IDs to answer details
+    const answerMap: Record<string, QuizAnswer> = {};
+    
+    // For each user answer, store it by question ID
+    userAnswers.forEach(answer => {
+      answerMap[answer.question_id] = answer;
+    });
+    
+    setPreviousAnswers(answerMap);
+    
+    // Pre-populate selected options and results if we have previous answers
+    const newSelections = [...selectedOptions];
+    const newResults = [...showResults];
+    
+    questions.forEach((question, index) => {
+      const previousAnswer = answerMap[question.id];
+      if (previousAnswer) {
+        newSelections[index] = previousAnswer.selected_answer;
+        newResults[index] = true;
+      }
+    });
+    
+    setSelectedOptions(newSelections);
+    setShowResults(newResults);
+  }, [userAnswers]);
+
+  useEffect(() => {
+    setIsCompleted(initialIsCompleted);
+    
+    if (initialIsCompleted) {
+      setShowResults(Array(questions.length).fill(true));
+      
+      if (selectedOptions.every(opt => opt === -1)) {
+        const defaultSelections = Array(questions.length).fill(0).map((_, i) => questions[i].correctAnswer);
+        setSelectedOptions(defaultSelections);
+      }
+    }
+  }, [initialIsCompleted, questions.length]);
 
   const handleSelectOption = (optionIndex: number) => {
+    if (isCompleted) return;
+    
     const newSelections = [...selectedOptions];
     newSelections[currentQuestion] = optionIndex;
     setSelectedOptions(newSelections);
   };
 
-  const handleCheckAnswer = () => {
+  const handleCheckAnswer = async () => {
     if (selectedOptions[currentQuestion] === -1) {
       toast({
         title: "No option selected",
@@ -48,9 +101,28 @@ const MultipleChoiceQuiz = ({
       return;
     }
 
-    const newResults = [...showResults];
-    newResults[currentQuestion] = true;
-    setShowResults(newResults);
+    // Get the current question ID and selected answer
+    const currentQuestionId = questions[currentQuestion].id;
+    const selectedAnswer = selectedOptions[currentQuestion];
+
+    console.log('Submitting answer for question ID:', currentQuestionId);
+
+    try {
+      // Submit the answer to the backend
+      await learningAPI.submitAnswer(currentQuestionId, selectedAnswer);
+      
+      // Update UI to show results
+      const newResults = [...showResults];
+      newResults[currentQuestion] = true;
+      setShowResults(newResults);
+    } catch (error) {
+      console.error('Error submitting answer:', error);
+      toast({
+        title: "Error",
+        description: "Failed to submit your answer. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleNextQuestion = () => {
@@ -68,6 +140,8 @@ const MultipleChoiceQuiz = ({
   };
 
   const completeQuiz = () => {
+    if (isCompleted) return;
+    
     const score = selectedOptions.reduce((total, selected, index) => {
       return selected === questions[index].correctAnswer ? total + 1 : total;
     }, 0);
@@ -89,6 +163,24 @@ const MultipleChoiceQuiz = ({
     if (!showResults[questionIndex]) return null;
     
     const isSelected = selectedOptions[questionIndex] === optionIndex;
+    const currentQuestionId = questions[questionIndex].id;
+    const previousAnswer = previousAnswers[currentQuestionId];
+    
+    // If we have a previous answer for this question, use it
+    if (previousAnswer) {
+      const isCorrect = previousAnswer.correct_answer === optionIndex;
+      
+      if (isSelected && isCorrect) {
+        return <CheckCircle2 className="text-green-500" size={20} />;
+      } else if (isSelected && !isCorrect) {
+        return <XCircle className="text-red-500" size={20} />;
+      } else if (!isSelected && isCorrect) {
+        return <CheckCircle2 className="text-green-400 opacity-70" size={20} />;
+      }
+      return null;
+    }
+    
+    // Otherwise, use the local state
     const isCorrect = questions[questionIndex].correctAnswer === optionIndex;
     
     if (isSelected && isCorrect) {
@@ -102,6 +194,25 @@ const MultipleChoiceQuiz = ({
     return null;
   };
 
+  if (isLoadingHistory) {
+    return (
+      <div className={cn("p-4 bg-white rounded-lg border border-gray-200", className)}>
+        <Skeleton className="h-6 w-1/4 mb-4" />
+        <Skeleton className="h-12 w-full mb-3" />
+        <div className="space-y-3 mb-6">
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+        </div>
+        <div className="flex justify-between">
+          <Skeleton className="h-10 w-24" />
+          <Skeleton className="h-10 w-24" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={cn("p-4 bg-white rounded-lg border border-gray-200", className)}>
       {title && (
@@ -110,7 +221,7 @@ const MultipleChoiceQuiz = ({
       
       <div className="mb-4 flex justify-between text-sm text-gray-500">
         <span>Question {currentQuestion + 1} of {questions.length}</span>
-        {isCompleted && <span className="text-blue-600 font-medium">Quiz completed</span>}
+        {isCompleted && <span className="text-green-600 font-medium">Quiz completed ✓</span>}
       </div>
       
       <div className="quiz-question mb-6">
@@ -121,7 +232,8 @@ const MultipleChoiceQuiz = ({
             <div 
               key={optionIndex}
               className={cn(
-                "p-3 border rounded-lg flex items-start cursor-pointer transition-colors",
+                "p-3 border rounded-lg flex items-start transition-colors",
+                !isCompleted && "cursor-pointer",
                 selectedOptions[currentQuestion] === optionIndex 
                   ? "border-blue-300 bg-blue-50" 
                   : "border-gray-200 hover:bg-gray-50",
@@ -129,7 +241,7 @@ const MultipleChoiceQuiz = ({
                   ? "border-green-300 bg-green-50" 
                   : ""
               )}
-              onClick={() => !showResults[currentQuestion] && handleSelectOption(optionIndex)}
+              onClick={() => !showResults[currentQuestion] && !isCompleted && handleSelectOption(optionIndex)}
             >
               <div className="flex items-center justify-between w-full">
                 <div className="flex items-center">
@@ -164,11 +276,11 @@ const MultipleChoiceQuiz = ({
         </Button>
         
         {!showResults[currentQuestion] ? (
-          <Button onClick={handleCheckAnswer}>
+          <Button onClick={handleCheckAnswer} disabled={isCompleted}>
             Check Answer
           </Button>
         ) : (
-          <Button onClick={handleNextQuestion}>
+          <Button onClick={handleNextQuestion} disabled={isCompleted && currentQuestion === questions.length - 1}>
             {currentQuestion < questions.length - 1 ? "Next Question" : "Finish Quiz"}
           </Button>
         )}

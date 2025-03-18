@@ -151,5 +151,17 @@ export const learningAPI = {
     return api.get<QuestionItem[]>(`/learning/papers/${paperId}/quiz-questions`, {
       params: { use_mock_for_tests: useMockForTests }
     });
+  },
+  
+  /**
+   * Retrieves a user's answers to quiz questions.
+   * 
+   * @param paperId - Optional paper ID to filter answers by paper
+   * @returns A promise that resolves to an array of user answers with question details
+   */
+  async getUserAnswers(paperId?: string): Promise<any[]> {
+    return api.get<any[]>('/learning/user/answers', {
+      params: { paper_id: paperId }
+    });
   }
 }; 
