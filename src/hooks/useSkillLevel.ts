@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
 interface UseSkillLevelReturn {
@@ -8,16 +8,26 @@ interface UseSkillLevelReturn {
 
 export const useSkillLevel = (initialLevel: number = 0): UseSkillLevelReturn => {
   const [skillLevel, setSkillLevel] = useState(initialLevel);
+  const [previousLevel, setPreviousLevel] = useState(initialLevel);
   const { toast } = useToast();
   
-  const handleStepComplete = (stepIndex: number) => {
-    const newLevel = Math.min(skillLevel + 10, 100);
-    
-    if (newLevel > skillLevel) {
-      setSkillLevel(newLevel);
+  // Update skillLevel when initialLevel changes
+  useEffect(() => {
+    if (initialLevel !== previousLevel) {
+      setSkillLevel(initialLevel);
+      setPreviousLevel(initialLevel);
+    }
+  }, [initialLevel, previousLevel]);
+  
+  const handleStepComplete = (calculatedLevel: number) => {
+    // Only update if the calculated level is higher than current
+    if (calculatedLevel > skillLevel) {
+      const prevLevel = skillLevel;
+      setSkillLevel(calculatedLevel);
+      setPreviousLevel(skillLevel);
       
       toast({
-        title: "Skill level increased!",
+        title: "Progress updated!",
         description: "You've made progress in understanding this paper."
       });
     }

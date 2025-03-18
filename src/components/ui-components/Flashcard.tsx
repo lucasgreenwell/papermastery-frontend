@@ -14,23 +14,26 @@ interface FlashcardProps {
   title?: string;
   className?: string;
   onComplete?: () => void;
+  isCompleted?: boolean;
 }
 
-const Flashcard = ({ cards, title, className, onComplete }: FlashcardProps) => {
+const Flashcard = ({ cards, title, className, onComplete, isCompleted = false }: FlashcardProps) => {
   const [currentCard, setCurrentCard] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [viewedCards, setViewedCards] = useState<string[]>([]);
   const [allCardsViewed, setAllCardsViewed] = useState(false);
   const [completed, setCompleted] = useState(false);
 
-  // Mark current card as viewed when flipped
+  useEffect(() => {
+    setCompleted(isCompleted);
+  }, [isCompleted]);
+
   useEffect(() => {
     if (flipped && cards[currentCard] && !viewedCards.includes(cards[currentCard].id)) {
       setViewedCards(prev => [...prev, cards[currentCard].id]);
     }
   }, [flipped, currentCard, cards, viewedCards]);
 
-  // Check if all cards have been viewed
   useEffect(() => {
     if (viewedCards.length === cards.length && viewedCards.length > 0) {
       setAllCardsViewed(true);
@@ -119,7 +122,6 @@ const Flashcard = ({ cards, title, className, onComplete }: FlashcardProps) => {
         </div>
       </div>
       
-      {/* Navigation controls */}
       <div className="flex justify-between items-center mb-6">
         <Button 
           variant="outline" 
@@ -134,6 +136,7 @@ const Flashcard = ({ cards, title, className, onComplete }: FlashcardProps) => {
         
         <span className="text-sm text-gray-500">
           Card {currentCard + 1} of {totalCards}
+          {completed && " (Completed)"}
         </span>
         
         <Button 
@@ -148,7 +151,6 @@ const Flashcard = ({ cards, title, className, onComplete }: FlashcardProps) => {
         </Button>
       </div>
       
-      {/* Completion button - only enabled after viewing all cards */}
       <div className="flex justify-center">
         <Button 
           onClick={handleComplete}

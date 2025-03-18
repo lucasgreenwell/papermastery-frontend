@@ -22,7 +22,8 @@ import { useSkillLevel } from '@/hooks/useSkillLevel';
 
 const PaperDetails = () => {
   const { id } = useParams<{ id: string }>();
-  const { skillLevel, handleStepComplete } = useSkillLevel(0);
+  const location = useLocation();
+  
   const { 
     paper, 
     isLoading, 
@@ -32,15 +33,67 @@ const PaperDetails = () => {
     keyConceptsItems,
     methodologyItems,
     resultsItems,
-    isLoadingLearningItems 
+    isLoadingLearningItems,
+    // Progress data
+    completedItems,
+    summaryCompleted,
+    relatedPapersCompleted,
+    isPaperCompleted,
+    isLoadingProgress
   } = usePaperDetails(id || '');
+  
+  // Calculate the current skill level based on completed items
+  const calculateSkillLevel = () => {
+    // Define the total number of steps
+    const totalSteps = 9; // 9 learning steps
+    let completedSteps = 0;
+    
+    // Check each step's completion status
+    if (summaryCompleted) completedSteps++;
+    if (completedItems.some(id => keyConceptsItems.some(item => item.id === id))) completedSteps++;
+    if (completedItems.some(id => methodologyItems.some(item => item.id === id))) completedSteps++;
+    if (completedItems.some(id => resultsItems.some(item => item.id === id))) completedSteps++;
+    
+    // Check if any video items are completed
+    if (completedItems.some(id => videoItems.some(item => item.id === id))) completedSteps++;
+    
+    // Check if any quiz items are completed
+    if (completedItems.some(id => quizItems.some(item => item.id === id))) completedSteps++;
+    
+    // Check if any flashcard items are completed
+    if (completedItems.some(id => flashcardItems.some(item => item.id === id))) completedSteps++;
+    
+    // Check related papers completion
+    if (relatedPapersCompleted) completedSteps++;
+    
+    // Paper fully completed
+    if (isPaperCompleted) completedSteps++;
+    
+    // Convert to a skill level (0-100)
+    return Math.floor((completedSteps / totalSteps) * 100);
+  };
+  
+  // Set the initial skill level based on progress data
+  const initialSkillLevel = useMemo(() => {
+    return isLoadingProgress ? 0 : calculateSkillLevel();
+  }, [isLoadingProgress, completedItems, summaryCompleted, relatedPapersCompleted, isPaperCompleted]);
+  
+  // Set up skill level with initial value
+  const { skillLevel, handleStepComplete } = useSkillLevel(initialSkillLevel);
+  
+  // Update skill level when progress changes
+  useEffect(() => {
+    if (!isLoadingProgress) {
+      const currentSkillLevel = calculateSkillLevel();
+      handleStepComplete(currentSkillLevel);
+    }
+  }, [completedItems, summaryCompleted, relatedPapersCompleted, isPaperCompleted, isLoadingProgress]);
   
   const [showPdf, setShowPdf] = useState(true);
   
   // Add state for cached content
   const [cachedContent, setCachedContent] = useState<string | File | null>(null);
   const [contentType, setContentType] = useState<'url' | 'file' | null>(null);
-  const location = useLocation();
 
   useEffect(() => {
     // Check if we have cached content from navigation state
@@ -119,56 +172,66 @@ const PaperDetails = () => {
       key="summary-step"
       paper={paper} 
       onComplete={() => handleStepComplete(0)} 
+      isCompleted={summaryCompleted}
     />,
     <KeyConceptsStep 
       key="key-concepts-step"
       data={keyConceptsItems.length > 0 ? keyConceptsItems[0] : undefined}
       isLoading={isLoadingLearningItems}
       onComplete={() => handleStepComplete(1)} 
+      isCompleted={keyConceptsItems.length > 0 && completedItems.includes(keyConceptsItems[0].id)}
     />,
     <MethodologyStep 
       key="methodology-step"
       data={methodologyItems.length > 0 ? methodologyItems[0] : undefined}
       isLoading={isLoadingLearningItems}
       onComplete={() => handleStepComplete(2)} 
+      isCompleted={methodologyItems.length > 0 && completedItems.includes(methodologyItems[0].id)}
     />,
     <ResultsStep 
       key="results-step"
       data={resultsItems.length > 0 ? resultsItems[0] : undefined}
       isLoading={isLoadingLearningItems}
       onComplete={() => handleStepComplete(3)} 
+      isCompleted={resultsItems.length > 0 && completedItems.includes(resultsItems[0].id)}
     />,
     <VideoExplanationStep 
       key="video-explanation-step"
       videoItems={videoItems} 
       isLoading={isLoadingLearningItems} 
       onComplete={() => handleStepComplete(4)} 
+      completedItemIds={completedItems}
     />,
     <QuizStep 
       key="quiz-step"
       quizItems={quizItems} 
       isLoading={isLoadingLearningItems} 
       onComplete={() => handleStepComplete(5)} 
+      completedItemIds={completedItems}
+      paperId={id}
     />,
     <FlashcardsStep 
       key="flashcards-step"
       flashcardItems={flashcardItems} 
       isLoading={isLoadingLearningItems} 
       onComplete={() => handleStepComplete(6)} 
+      completedItemIds={completedItems}
     />,
     <RelatedPapersStep 
       key="related-papers-step"
       paper={paper} 
       onComplete={() => handleStepComplete(7)} 
+      isCompleted={relatedPapersCompleted}
     />,
     <MasteryStep 
       key="mastery-step"
       onComplete={() => handleStepComplete(8)} 
+      isCompleted={isPaperCompleted}
     />,
     <ConsultingStep
       key="consulting-step"
       paperId={id || ''}
-      onComplete={() => handleStepComplete(8)}
+      onComplete={() => handleStepComplete(9)}
     />,
   ];
 

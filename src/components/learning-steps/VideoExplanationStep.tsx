@@ -12,12 +12,14 @@ interface VideoExplanationStepProps {
   videoItems: LearningItem[];
   isLoading: boolean;
   onComplete: () => void;
+  completedItemIds?: string[]; // Add prop for completed items
 }
 
 const VideoExplanationStep: React.FC<VideoExplanationStepProps> = ({ 
   videoItems, 
   isLoading, 
-  onComplete 
+  onComplete,
+  completedItemIds = [] // Default to empty array
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
@@ -71,9 +73,27 @@ const VideoExplanationStep: React.FC<VideoExplanationStepProps> = ({
     setAllVideos(extractedVideos);
   }, [videoItems]);
 
+  // Check if current video is already completed
+  useEffect(() => {
+    if (allVideos.length > 0 && currentVideoIndex >= 0 && currentVideoIndex < allVideos.length) {
+      const currentVideo = allVideos[currentVideoIndex];
+      setCurrentVideoCompleted(completedItemIds.includes(currentVideo.itemId));
+    }
+  }, [allVideos, currentVideoIndex, completedItemIds]);
+
   const handleComplete = async () => {
     if (allVideos.length === 0) {
       onComplete();
+      return;
+    }
+
+    // Skip if already completed
+    if (currentVideoCompleted) {
+      if (currentVideoIndex === allVideos.length - 1) {
+        onComplete();
+      } else {
+        goToNextVideo();
+      }
       return;
     }
 
@@ -108,14 +128,12 @@ const VideoExplanationStep: React.FC<VideoExplanationStepProps> = ({
   const goToNextVideo = () => {
     if (currentVideoIndex < allVideos.length - 1) {
       setCurrentVideoIndex(prevIndex => prevIndex + 1);
-      setCurrentVideoCompleted(false);
     }
   };
 
   const goToPrevVideo = () => {
     if (currentVideoIndex > 0) {
       setCurrentVideoIndex(prevIndex => prevIndex - 1);
-      setCurrentVideoCompleted(false);
     }
   };
 
@@ -156,6 +174,11 @@ const VideoExplanationStep: React.FC<VideoExplanationStepProps> = ({
   const videoTitle = currentVideo?.title || 'Learning Video';
   const videoChannel = currentVideo?.channel || 'Educational Channel';
   
+  // Calculate completion status
+  const allVideosCompleted = allVideos.every(video => 
+    completedItemIds.includes(video.itemId)
+  );
+  
   return (
     <LearningStepCard 
       title="Video Explanation" 
@@ -191,6 +214,7 @@ const VideoExplanationStep: React.FC<VideoExplanationStepProps> = ({
             
             <span className="text-sm text-gray-500">
               Video {currentVideoIndex + 1} of {allVideos.length}
+              {allVideosCompleted && " (All Completed)"}
             </span>
             
             <Button

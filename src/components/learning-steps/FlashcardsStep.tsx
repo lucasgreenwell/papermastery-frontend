@@ -11,17 +11,26 @@ interface FlashcardsStepProps {
   flashcardItems: LearningItem[];
   isLoading: boolean;
   onComplete: () => void;
+  completedItemIds?: string[]; // Add prop for completed items
 }
 
 const FlashcardsStep: React.FC<FlashcardsStepProps> = ({ 
   flashcardItems, 
   isLoading, 
-  onComplete 
+  onComplete,
+  completedItemIds = [] // Default to empty array
 }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [extractedCards, setExtractedCards] = useState<FlashcardData[]>([]);
   const [allCardsCompleted, setAllCardsCompleted] = useState(false);
   const startTime = React.useRef(Date.now());
+
+  // Check if all flashcards are already completed
+  useEffect(() => {
+    const areAllCompleted = flashcardItems.length > 0 && 
+      flashcardItems.every(item => completedItemIds.includes(item.id));
+    setAllCardsCompleted(areAllCompleted);
+  }, [flashcardItems, completedItemIds]);
 
   // Extract flashcards from the items when they change
   useEffect(() => {
@@ -77,6 +86,12 @@ const FlashcardsStep: React.FC<FlashcardsStepProps> = ({
 
   const handleComplete = async () => {
     if (flashcardItems.length === 0) {
+      onComplete();
+      return;
+    }
+
+    // Skip if already completed
+    if (allCardsCompleted) {
       onComplete();
       return;
     }
@@ -151,11 +166,13 @@ const FlashcardsStep: React.FC<FlashcardsStepProps> = ({
     >
       <p className="text-gray-700 mb-4">
         Solidify your understanding with these key concept flashcards:
+        {allCardsCompleted && " (Completed)"}
       </p>
       <Flashcard
         cards={extractedCards}
         onComplete={handleComplete}
         className="mb-4"
+        isCompleted={allCardsCompleted}
       />
     </LearningStepCard>
   );
