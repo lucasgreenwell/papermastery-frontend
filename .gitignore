@@ -31,3 +31,4 @@ dist-ssr
 .cursorignore
 /plans/*
 *_docs.md
+/src/components

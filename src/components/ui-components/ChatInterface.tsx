@@ -57,8 +57,6 @@ const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceP
       try {
         const conversationMessages = await getConversationMessages(paperId, currentConversationId);
         
-        // No need to filter messages as we're now fetching only messages for the current conversation
-        
         // Create welcome message
         const welcomeMessage = {
           id: 'welcome',
@@ -68,8 +66,14 @@ const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceP
         };
         
         if (conversationMessages.length > 0) {
+          // Process messages to ensure timestamps are Date objects
+          const processedMessages = conversationMessages.map(msg => ({
+            ...msg,
+            timestamp: new Date(msg.timestamp)
+          }));
+          
           // Always prepend the welcome message to the conversation history
-          setMessages([welcomeMessage, ...conversationMessages]);
+          setMessages([welcomeMessage, ...processedMessages]);
         } else {
           // If no messages, just show the welcome message
           setMessages([welcomeMessage]);
@@ -187,6 +191,9 @@ const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceP
   };
 
   const formatTime = (date: Date) => {
+    if (!(date instanceof Date) || isNaN(date.getTime())) {
+      return '';
+    }
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
