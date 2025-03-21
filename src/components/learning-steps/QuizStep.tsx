@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { Brain } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Brain, Filter } from 'lucide-react';
 import LearningStepCard from '@/components/ui-components/LearningStepCard';
 import MultipleChoiceQuiz, { QuizQuestion } from '@/components/ui-components/MultipleChoiceQuiz';
 import { LearningItem } from '@/services/types';
 import { learningAPI } from '@/services/learningAPI';
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { useQuizHistory } from '@/hooks/useQuizHistory';
+import { useQuizHistory, QuizAnswer } from '@/hooks/useQuizHistory';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Badge } from '@/components/ui/badge';
 
 interface QuizStepProps {
   quizItems: LearningItem[];
@@ -25,6 +27,10 @@ interface DbQuestion {
   type: string;
 }
 
+// Define the display mode types
+type DisplayMode = 'unanswered' | 'answered';
+type AnsweredFilter = 'all' | 'correct' | 'incorrect';
+
 const QuizStep: React.FC<QuizStepProps> = ({ 
   quizItems, 
   isLoading, 
@@ -37,9 +43,66 @@ const QuizStep: React.FC<QuizStepProps> = ({
   const [loadingQuestions, setLoadingQuestions] = useState(false);
   const [dbQuestions, setDbQuestions] = useState<DbQuestion[]>([]);
   const startTime = React.useRef(Date.now());
+  
+  // New state for toggle and filter
+  const [displayMode, setDisplayMode] = useState<DisplayMode>('unanswered');
+  const [answeredFilter, setAnsweredFilter] = useState<AnsweredFilter>('all');
+  const [formattedQuestions, setFormattedQuestions] = useState<QuizQuestion[]>([]);
 
   // Fetch quiz history for this paper
-  const { answers: quizAnswers } = useQuizHistory(paperId);
+  const { answers: quizAnswers, isLoading: isLoadingAnswers } = useQuizHistory(paperId);
+  
+  // Filter out questions with no options
+  const validQuestions = useMemo(() => {
+    return formattedQuestions.filter(q => q.options && q.options.length > 0);
+  }, [formattedQuestions]);
+
+  // Create a map of answered questions for easy lookup
+  const answeredQuestionMap = useMemo(() => {
+    const map: Record<string, QuizAnswer> = {};
+    if (quizAnswers && quizAnswers.length > 0) {
+      quizAnswers.forEach(answer => {
+        map[answer.question_id] = answer;
+      });
+    }
+    return map;
+  }, [quizAnswers]);
+  
+  // Filter questions based on display mode and answer filter
+  const filteredQuestions = useMemo(() => {
+    if (displayMode === 'unanswered') {
+      return validQuestions.filter(q => !answeredQuestionMap[q.id]);
+    } else {
+      // Filter answered questions
+      const answeredQuestions = validQuestions.filter(q => answeredQuestionMap[q.id]);
+      
+      // Apply additional filter if needed
+      if (answeredFilter === 'correct') {
+        return answeredQuestions.filter(q => answeredQuestionMap[q.id]?.is_correct);
+      } else if (answeredFilter === 'incorrect') {
+        return answeredQuestions.filter(q => !answeredQuestionMap[q.id]?.is_correct);
+      }
+      
+      return answeredQuestions;
+    }
+  }, [validQuestions, displayMode, answeredFilter, answeredQuestionMap]);
+
+  // Calculate counts for badges
+  const answeredCount = useMemo(() => {
+    return validQuestions.filter(q => answeredQuestionMap[q.id]).length;
+  }, [validQuestions, answeredQuestionMap]);
+  
+  const unansweredCount = useMemo(() => {
+    return validQuestions.length - answeredCount;
+  }, [validQuestions.length, answeredCount]);
+  
+  const correctCount = useMemo(() => {
+    return validQuestions.filter(q => answeredQuestionMap[q.id]?.is_correct).length;
+  }, [validQuestions, answeredQuestionMap]);
+  
+  const incorrectCount = useMemo(() => {
+    return answeredCount - correctCount;
+  }, [answeredCount, correctCount]);
 
   // Check if all quizzes are already completed
   useEffect(() => {
@@ -47,6 +110,101 @@ const QuizStep: React.FC<QuizStepProps> = ({
       quizItems.every(item => completedItemIds.includes(item.id));
     setAllQuizzesCompleted(areAllCompleted);
   }, [quizItems, completedItemIds]);
+
+  // Process questions once dbQuestions is loaded
+  useEffect(() => {
+    if (dbQuestions.length === 0 && (quizItems.length === 0 || isLoading)) return;
+    
+    const newFormattedQuestions: QuizQuestion[] = [];
+    
+    // First try to use questions from the database
+    if (dbQuestions.length > 0) {
+      dbQuestions.forEach(q => {
+        if (q.text && Array.isArray(q.choices) && q.choices.length > 0) {
+          const correctAns = typeof q.correct_answer === 'string' 
+            ? parseInt(q.correct_answer, 10) 
+            : 0;
+          
+          newFormattedQuestions.push({
+            id: q.id, // Use the actual question ID from the database
+            question: q.text,
+            options: q.choices,
+            correctAnswer: correctAns,
+            explanation: ''
+          });
+        }
+      });
+    }
+    
+    // If no database questions, fall back to extracting from items
+    if (newFormattedQuestions.length === 0 && quizItems.length > 0) {
+      quizItems.forEach((item, itemIndex) => {
+        // Check for different possible data structures
+        
+        // Case 1: Questions array in data.questions or metadata.questions
+        const itemAny = item as any; // Type assertion to handle dynamic properties
+        const questionsArray = itemAny.data?.questions || item.metadata?.questions;
+        if (Array.isArray(questionsArray) && questionsArray.length > 0) {
+          questionsArray.forEach((q, qIndex) => {
+            if (q.question && Array.isArray(q.options) && q.options.length > 0) {
+              let correctAns = 0;
+              if (q.correct_answer !== undefined) {
+                correctAns = typeof q.correct_answer === 'string' 
+                  ? parseInt(q.correct_answer, 10) 
+                  : q.correct_answer;
+              }
+              
+              newFormattedQuestions.push({
+                id: `${item.id}-q${qIndex}`,
+                question: q.question,
+                options: q.options,
+                correctAnswer: correctAns,
+                explanation: q.explanation || ''
+              });
+            }
+          });
+        }
+        // Case 2: Single question in the item itself
+        else {
+          // Extract options from metadata or data
+          const options = item.metadata?.options || itemAny.data?.options || [];
+          
+          // Extract correct answer
+          let correctAnswer = 0; // Default to first option
+          
+          if (item.metadata?.correct_answer !== undefined) {
+            correctAnswer = typeof item.metadata.correct_answer === 'string' 
+              ? parseInt(item.metadata.correct_answer, 10) 
+              : item.metadata.correct_answer;
+          } else if (item.metadata?.correctAnswer !== undefined) {
+            correctAnswer = typeof item.metadata.correctAnswer === 'string'
+              ? parseInt(item.metadata.correctAnswer, 10)
+              : item.metadata.correctAnswer;
+          } else if (itemAny.data?.correct_answer !== undefined) {
+            correctAnswer = typeof itemAny.data.correct_answer === 'string'
+              ? parseInt(itemAny.data.correct_answer, 10)
+              : itemAny.data.correct_answer;
+          }
+          
+          // Get the question text
+          const questionText = item.content || item.title || itemAny.data?.question || 
+            (item.metadata?.title as string) || 'Question not available';
+          
+          if (Array.isArray(options) && options.length > 0) {
+            newFormattedQuestions.push({
+              id: item.id,
+              question: questionText,
+              options: options,
+              correctAnswer: correctAnswer,
+              explanation: item.metadata?.explanation || itemAny.data?.explanation || ''
+            });
+          }
+        }
+      });
+    }
+    
+    setFormattedQuestions(newFormattedQuestions);
+  }, [dbQuestions, quizItems, isLoading]);
 
   // Fetch actual questions from the questions table
   useEffect(() => {
@@ -122,7 +280,7 @@ const QuizStep: React.FC<QuizStepProps> = ({
     }
   };
 
-  if (isLoading || loadingQuestions) {
+  if (isLoading || loadingQuestions || isLoadingAnswers) {
     return (
       <LearningStepCard 
         title="Comprehension Quiz" 
@@ -151,98 +309,6 @@ const QuizStep: React.FC<QuizStepProps> = ({
     );
   }
   
-  // Format questions from the database
-  const formattedQuestions: QuizQuestion[] = [];
-  
-  // First try to use questions from the database
-  if (dbQuestions.length > 0) {
-    dbQuestions.forEach(q => {
-      if (q.text && Array.isArray(q.choices) && q.choices.length > 0) {
-        const correctAns = typeof q.correct_answer === 'string' 
-          ? parseInt(q.correct_answer, 10) 
-          : 0;
-        
-        formattedQuestions.push({
-          id: q.id, // Use the actual question ID from the database
-          question: q.text,
-          options: q.choices,
-          correctAnswer: correctAns,
-          explanation: ''
-        });
-      }
-    });
-  }
-  
-  // If no database questions, fall back to extracting from items
-  if (formattedQuestions.length === 0) {
-    quizItems.forEach((item, itemIndex) => {
-      // Check for different possible data structures
-      
-      // Case 1: Questions array in data.questions or metadata.questions
-      const itemAny = item as any; // Type assertion to handle dynamic properties
-      const questionsArray = itemAny.data?.questions || item.metadata?.questions;
-      if (Array.isArray(questionsArray) && questionsArray.length > 0) {
-        questionsArray.forEach((q, qIndex) => {
-          if (q.question && Array.isArray(q.options) && q.options.length > 0) {
-            let correctAns = 0;
-            if (q.correct_answer !== undefined) {
-              correctAns = typeof q.correct_answer === 'string' 
-                ? parseInt(q.correct_answer, 10) 
-                : q.correct_answer;
-            }
-            
-            formattedQuestions.push({
-              id: `${item.id}-q${qIndex}`,
-              question: q.question,
-              options: q.options,
-              correctAnswer: correctAns,
-              explanation: q.explanation || ''
-            });
-          }
-        });
-      }
-      // Case 2: Single question in the item itself
-      else {
-        // Extract options from metadata or data
-        const options = item.metadata?.options || itemAny.data?.options || [];
-        
-        // Extract correct answer
-        let correctAnswer = 0; // Default to first option
-        
-        if (item.metadata?.correct_answer !== undefined) {
-          correctAnswer = typeof item.metadata.correct_answer === 'string' 
-            ? parseInt(item.metadata.correct_answer, 10) 
-            : item.metadata.correct_answer;
-        } else if (item.metadata?.correctAnswer !== undefined) {
-          correctAnswer = typeof item.metadata.correctAnswer === 'string'
-            ? parseInt(item.metadata.correctAnswer, 10)
-            : item.metadata.correctAnswer;
-        } else if (itemAny.data?.correct_answer !== undefined) {
-          correctAnswer = typeof itemAny.data.correct_answer === 'string'
-            ? parseInt(itemAny.data.correct_answer, 10)
-            : itemAny.data.correct_answer;
-        }
-        
-        // Get the question text
-        const questionText = item.content || item.title || itemAny.data?.question || 
-          (item.metadata?.title as string) || 'Question not available';
-        
-        if (Array.isArray(options) && options.length > 0) {
-          formattedQuestions.push({
-            id: item.id,
-            question: questionText,
-            options: options,
-            correctAnswer: correctAnswer,
-            explanation: item.metadata?.explanation || itemAny.data?.explanation || ''
-          });
-        }
-      }
-    });
-  }
-  
-  // Filter out questions with no options
-  const validQuestions = formattedQuestions.filter(q => q.options && q.options.length > 0);
-  
   if (validQuestions.length === 0) {
     return (
       <LearningStepCard 
@@ -255,7 +321,7 @@ const QuizStep: React.FC<QuizStepProps> = ({
       </LearningStepCard>
     );
   }
-  
+
   return (
     <LearningStepCard 
       title="Comprehension Quiz" 
@@ -265,12 +331,64 @@ const QuizStep: React.FC<QuizStepProps> = ({
         Test your understanding of the paper:
         {allQuizzesCompleted && " (Completed)"}
       </p>
-      <MultipleChoiceQuiz
-        questions={validQuestions}
-        onComplete={handleComplete}
-        className="mb-4"
-        isCompleted={allQuizzesCompleted}
-      />
+
+      {/* Toggle between answered and unanswered questions */}
+      <div className="mb-4">
+        <ToggleGroup 
+          type="single" 
+          value={displayMode} 
+          onValueChange={(value) => value && setDisplayMode(value as DisplayMode)}
+          className="justify-start mb-2"
+        >
+          <ToggleGroupItem value="unanswered" aria-label="Show unanswered questions">
+            Unanswered <Badge variant="outline" className="ml-2">{unansweredCount}</Badge>
+          </ToggleGroupItem>
+          <ToggleGroupItem value="answered" aria-label="Show answered questions">
+            Answered <Badge variant="outline" className="ml-2">{answeredCount}</Badge>
+          </ToggleGroupItem>
+        </ToggleGroup>
+
+        {/* Show filter for answered questions */}
+        {displayMode === 'answered' && answeredCount > 0 && (
+          <ToggleGroup 
+            type="single" 
+            value={answeredFilter} 
+            onValueChange={(value) => value && setAnsweredFilter(value as AnsweredFilter)}
+            className="justify-start"
+          >
+            <ToggleGroupItem value="all" aria-label="Show all answered questions">
+              All <Badge variant="outline" className="ml-2">{answeredCount}</Badge>
+            </ToggleGroupItem>
+            <ToggleGroupItem value="correct" aria-label="Show correctly answered questions">
+              Correct <Badge variant="outline" className="ml-2">{correctCount}</Badge>
+            </ToggleGroupItem>
+            <ToggleGroupItem value="incorrect" aria-label="Show incorrectly answered questions">
+              Incorrect <Badge variant="outline" className="ml-2">{incorrectCount}</Badge>
+            </ToggleGroupItem>
+          </ToggleGroup>
+        )}
+      </div>
+
+      {filteredQuestions.length > 0 ? (
+        <MultipleChoiceQuiz
+          key={`${displayMode}-${answeredFilter}`}
+          questions={filteredQuestions}
+          onComplete={handleComplete}
+          className="mb-4"
+          isCompleted={allQuizzesCompleted || displayMode === 'answered'}
+          previousAnswers={displayMode === 'answered' ? answeredQuestionMap : undefined}
+        />
+      ) : (
+        <div className="p-4 border border-gray-200 rounded-md text-center">
+          <p className="text-gray-500">
+            {displayMode === 'unanswered' 
+              ? "You've answered all the questions. Switch to 'Answered' to review your answers." 
+              : answeredFilter !== 'all' 
+                ? `No ${answeredFilter === 'correct' ? 'correctly' : 'incorrectly'} answered questions yet.`
+                : "You haven't answered any questions yet."}
+          </p>
+        </div>
+      )}
     </LearningStepCard>
   );
 };
