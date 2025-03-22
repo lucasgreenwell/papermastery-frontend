@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Brain, Filter } from 'lucide-react';
+import { Brain, Filter, Loader2 } from 'lucide-react';
 import LearningStepCard from '@/components/ui-components/LearningStepCard';
 import MultipleChoiceQuiz, { QuizQuestion } from '@/components/ui-components/MultipleChoiceQuiz';
 import { LearningItem } from '@/services/types';
@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuizHistory, QuizAnswer } from '@/hooks/useQuizHistory';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 interface QuizStepProps {
   quizItems: LearningItem[];
@@ -42,6 +43,7 @@ const QuizStep: React.FC<QuizStepProps> = ({
   const [allQuizzesCompleted, setAllQuizzesCompleted] = useState(false);
   const [loadingQuestions, setLoadingQuestions] = useState(false);
   const [dbQuestions, setDbQuestions] = useState<DbQuestion[]>([]);
+  const [isGeneratingQuestions, setIsGeneratingQuestions] = useState(false);
   const startTime = React.useRef(Date.now());
   
   // New state for toggle and filter
@@ -280,6 +282,43 @@ const QuizStep: React.FC<QuizStepProps> = ({
     }
   };
 
+  const handleGenerateMoreQuestions = async () => {
+    if (!paperId) return;
+    
+    setIsGeneratingQuestions(true);
+    try {
+      const newQuestions = await learningAPI.generateAdditionalQuestions(paperId);
+      
+      // Refresh the component to show the new questions
+      if (newQuestions.length > 0) {
+        toast({
+          title: "Success",
+          description: `Generated ${newQuestions.length} new questions!`,
+          variant: "default"
+        });
+        
+        // Refresh the questions by refetching
+        const questions = await learningAPI.getQuizQuestions(paperId);
+        setFormattedQuestions(questions);
+      } else {
+        toast({
+          title: "No new questions",
+          description: "Could not generate additional questions. Please try again.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error generating additional questions:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate additional questions. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGeneratingQuestions(false);
+    }
+  };
+
   if (isLoading || loadingQuestions || isLoadingAnswers) {
     return (
       <LearningStepCard 
@@ -380,13 +419,28 @@ const QuizStep: React.FC<QuizStepProps> = ({
         />
       ) : (
         <div className="p-4 border border-gray-200 rounded-md text-center">
-          <p className="text-gray-500">
+          <p className="text-gray-500 mb-4">
             {displayMode === 'unanswered' 
-              ? "You've answered all the questions. Switch to 'Answered' to review your answers." 
+              ? "You've answered all the questions. Generate more questions or switch to 'Answered' to review your answers." 
               : answeredFilter !== 'all' 
                 ? `No ${answeredFilter === 'correct' ? 'correctly' : 'incorrectly'} answered questions yet.`
                 : "You haven't answered any questions yet."}
           </p>
+          {displayMode === 'unanswered' && paperId && (
+            <Button 
+              onClick={handleGenerateMoreQuestions} 
+              disabled={isGeneratingQuestions}
+            >
+              {isGeneratingQuestions ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Generating Questions...
+                </>
+              ) : (
+                "Generate More Questions"
+              )}
+            </Button>
+          )}
         </div>
       )}
     </LearningStepCard>

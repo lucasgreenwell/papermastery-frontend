@@ -154,6 +154,16 @@ export const learningAPI = {
   },
   
   /**
+   * Generates additional quiz questions based on user's quiz history.
+   * 
+   * @param paperId - The ID of the paper
+   * @returns A promise that resolves to an array of new quiz question items
+   */
+  async generateAdditionalQuestions(paperId: string): Promise<QuestionItem[]> {
+    return api.post<QuestionItem[]>(`/learning/papers/${paperId}/generate-additional-questions`);
+  },
+  
+  /**
    * Retrieves a user's answers to quiz questions.
    * 
    * @param paperId - Optional paper ID to filter answers by paper
