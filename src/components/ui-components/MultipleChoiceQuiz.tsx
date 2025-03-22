@@ -191,12 +191,6 @@ const MultipleChoiceQuiz = ({
     if (onComplete) {
       onComplete(score, questions.length);
     }
-    
-    toast({
-      title: "Quiz completed!",
-      description: `You scored ${score} out of ${questions.length}.`,
-      variant: score / questions.length >= 0.7 ? "default" : "destructive"
-    });
   };
 
   const getResultIcon = (questionIndex: number, optionIndex: number) => {
