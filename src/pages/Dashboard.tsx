@@ -14,6 +14,7 @@ import PaperGraphView from '@/components/ui-components/PaperGraphView';
 import { papersAPI } from '@/services/papersAPI';
 import { PaperResponse } from '@/services/types';
 import { isArxivUrl } from '@/utils/urlUtils';
+import { usePaperSearch } from '@/hooks/usePaperSearch';
 
 // Sample arXiv URLs for quick testing
 const SAMPLE_ARXIV_URLS = [
@@ -36,6 +37,9 @@ const Dashboard = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sampleUrl, setSampleUrl] = useState<string | null>(null);
+  
+  // Use our paper search hook
+  const { searchResults, isSearching, error: searchError, search } = usePaperSearch();
 
   // Fetch papers on component mount
   useEffect(() => {
@@ -90,15 +94,15 @@ const Dashboard = () => {
       }
       
       // Create a paper object with minimal information
-      const newPaper = {
+      const newPaper: PaperResponse = {
         id: response.id,
         title: "Processing...",
         authors: [],
         abstract: "",
         publication_date: new Date().toISOString(),
         source_url: type === 'url' ? input as string : "",
-        source_type: type === 'url' ? (isArxivUrl(input as string) ? 'arxiv' : 'pdf') : 'file',
-        tags: { status: "processing" }
+        source_type: type === 'url' ? (isArxivUrl(input as string) ? 'arxiv' : 'pdf') : 'other',
+        tags: []
       };
 
       // Add to paper list and navigate to details page
@@ -128,30 +132,30 @@ const Dashboard = () => {
     }
   };
 
-  // Filter papers based on search query
-  const filteredPapers = papers.filter(paper => {
-    const searchLower = searchQuery.toLowerCase();
-
-    // Search in title
-    if (paper.title.toLowerCase().includes(searchLower)) {
-      return true;
+  // Handle search input changes
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+    
+    if (query.trim()) {
+      search(query);
     }
+    // We don't need to reset search results when query is empty
+    // The hook will handle that internally
+  };
 
-    // Search in authors
-    if (paper.authors.some(author => {
-      if (typeof author === 'string') {
-        return author.toLowerCase().includes(searchLower);
-      }
-      return author.name.toLowerCase().includes(searchLower);
-    })) {
-      return true;
-    }
-
-    return false;
-  });
+  // Clear search and reset to normal paper list
+  const clearSearch = () => {
+    setSearchQuery('');
+    // No need to reset search results here, just clearing the query will
+    // cause the hook to reset results internally
+  };
+  
+  // Determine which papers to display based on search state
+  const displayedPapers = searchQuery.trim() ? searchResults : papers;
 
   // Format papers for graph view
-  const formattedPapers = filteredPapers.map(paper => ({
+  const formattedPapers = displayedPapers.map(paper => ({
     id: paper.id,
     title: paper.title,
     authors: paper.authors,
@@ -236,10 +240,10 @@ const Dashboard = () => {
                 <div className="relative flex-1 mr-4">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
                   <Input
-                    placeholder="Search papers by title or author..."
+                    placeholder="Search papers by title, author, or content..."
                     className="pl-10"
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={handleSearchInputChange}
                   />
                 </div>
                 <div className="flex items-center">
@@ -263,10 +267,15 @@ const Dashboard = () => {
                   <h3 className="text-lg font-medium text-gray-700 mb-2">Loading papers...</h3>
                   <p className="text-gray-500">Please wait while we fetch your papers.</p>
                 </div>
-              ) : error ? (
+              ) : isSearching ? (
+                <div className="bg-white rounded-xl shadow-md p-8 text-center border border-gray-100">
+                  <Loader2 size={24} className="mx-auto text-blue-500 mb-4 animate-spin" />
+                  <h3 className="text-lg font-medium text-gray-700 mb-2">Searching papers...</h3>
+                </div>
+              ) : error || searchError ? (
                 <div className="bg-white rounded-xl shadow-md p-8 text-center border border-gray-100">
                   <h3 className="text-lg font-medium text-red-600 mb-2">Error loading papers</h3>
-                  <p className="text-gray-500 mb-4">{error}</p>
+                  <p className="text-gray-500 mb-4">{error || (searchError && searchError.message)}</p>
                   <Button onClick={() => window.location.reload()}>
                     Try Again
                   </Button>
@@ -279,8 +288,8 @@ const Dashboard = () => {
                       <span className="text-blue-700">Uploading paper...</span>
                     </div>
                   )}
-                  {filteredPapers.length > 0 ? (
-                    filteredPapers.map(paper => (
+                  {displayedPapers.length > 0 ? (
+                    displayedPapers.map(paper => (
                       <PaperCard
                         key={paper.id}
                         id={paper.id}
@@ -298,7 +307,7 @@ const Dashboard = () => {
                         {searchQuery ? 'No papers match your search query.' : 'Start by uploading your first research paper.'}
                       </p>
                       {searchQuery && (
-                        <Button variant="outline" onClick={() => setSearchQuery('')}>
+                        <Button variant="outline" onClick={clearSearch}>
                           Clear search
                         </Button>
                       )}
@@ -306,7 +315,14 @@ const Dashboard = () => {
                   )}
                 </div>
               ) : (
-                <PaperGraphView papers={formattedPapers} />
+                <PaperGraphView papers={formattedPapers.map(paper => ({
+                  ...paper,
+                  date: paper.publication_date || new Date().toISOString(),
+                  skillLevel: 0,
+                  authors: Array.isArray(paper.authors) ? paper.authors.map(author => 
+                    typeof author === 'string' ? author : (author?.name || '')
+                  ) : []
+                }))} />
               )}
             </div>
           </div>
