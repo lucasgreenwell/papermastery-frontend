@@ -19,6 +19,8 @@ import {
 } from '@/components/learning-steps';
 import { usePaperDetails } from '@/hooks/usePaperDetails';
 import { useSkillLevel } from '@/hooks/useSkillLevel';
+import { useQuizHistory } from '@/hooks/useQuizHistory';
+import { supabase } from '@/integrations/supabase/client';
 
 const PaperDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -57,8 +59,20 @@ const PaperDetails = () => {
     // Check if any video items are completed
     if (completedItems.some(id => videoItems.some(item => item.id === id))) completedSteps++;
     
-    // Check if any quiz items are completed
-    if (completedItems.some(id => quizItems.some(item => item.id === id))) completedSteps++;
+    // Check if any quiz items are completed OR if the user has answered any quiz questions
+    const quizCompletionValue = quizAnswers && quizAnswers.length > 0 ? 
+      Math.min(1, quizAnswers.length / Math.max(5, totalQuizQuestions)) : 0;
+    
+    const hasCompletedQuizItems = completedItems.some(id => quizItems.some(item => item.id === id));
+    
+    // If any quiz is fully completed OR if the user has answered enough questions, count the step as completed
+    if (hasCompletedQuizItems || quizCompletionValue >= 0.5) {
+      completedSteps++;
+    } 
+    // If they've answered some questions but not enough for full completion, give partial credit
+    else if (quizCompletionValue > 0) {
+      completedSteps += quizCompletionValue;
+    }
     
     // Check if any flashcard items are completed
     if (completedItems.some(id => flashcardItems.some(item => item.id === id))) completedSteps++;
@@ -73,21 +87,55 @@ const PaperDetails = () => {
     return Math.floor((completedSteps / totalSteps) * 100);
   };
   
+  // Fetch quiz history for this paper to track answered questions
+  const { answers: quizAnswers, isLoading: isLoadingAnswers } = useQuizHistory(id);
+  
+  // Calculate total number of quiz questions available
+  const [totalQuizQuestions, setTotalQuizQuestions] = useState(0);
+  
+  // Count total quiz questions available
+  useEffect(() => {
+    const fetchQuizQuestionCount = async () => {
+      if (!id || quizItems.length === 0) return;
+      
+      try {
+        // Get all item IDs from quizItems
+        const itemIds = quizItems.map(item => item.id);
+
+        // Fetch questions count from the questions table
+        const { count, error } = await supabase
+          .from('questions')
+          .select('*', { count: 'exact', head: true })
+          .in('item_id', itemIds);
+
+        if (error) throw error;
+        
+        if (count !== null) {
+          setTotalQuizQuestions(count);
+        }
+      } catch (err) {
+        console.error('Error counting quiz questions:', err);
+      }
+    };
+
+    fetchQuizQuestionCount();
+  }, [id, quizItems]);
+  
   // Set the initial skill level based on progress data
   const initialSkillLevel = useMemo(() => {
-    return isLoadingProgress ? 0 : calculateSkillLevel();
-  }, [isLoadingProgress, completedItems, summaryCompleted, relatedPapersCompleted, isPaperCompleted]);
+    return isLoadingProgress || isLoadingAnswers ? 0 : calculateSkillLevel();
+  }, [isLoadingProgress, isLoadingAnswers, completedItems, summaryCompleted, relatedPapersCompleted, isPaperCompleted, quizAnswers, totalQuizQuestions]);
   
   // Set up skill level with initial value
   const { skillLevel, handleStepComplete } = useSkillLevel(initialSkillLevel);
   
   // Update skill level when progress changes
   useEffect(() => {
-    if (!isLoadingProgress) {
+    if (!isLoadingProgress && !isLoadingAnswers) {
       const currentSkillLevel = calculateSkillLevel();
       handleStepComplete(currentSkillLevel);
     }
-  }, [completedItems, summaryCompleted, relatedPapersCompleted, isPaperCompleted, isLoadingProgress]);
+  }, [completedItems, summaryCompleted, relatedPapersCompleted, isPaperCompleted, isLoadingProgress, isLoadingAnswers, quizAnswers, totalQuizQuestions]);
   
   const [showPdf, setShowPdf] = useState(true);
   
