@@ -23,6 +23,7 @@ const Flashcard = ({ cards, title, className, onComplete, isCompleted = false }:
   const [viewedCards, setViewedCards] = useState<string[]>([]);
   const [allCardsViewed, setAllCardsViewed] = useState(false);
   const [completed, setCompleted] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   useEffect(() => {
     setCompleted(isCompleted);
@@ -41,20 +42,34 @@ const Flashcard = ({ cards, title, className, onComplete, isCompleted = false }:
   }, [viewedCards, cards]);
 
   const handleFlip = () => {
-    setFlipped(!flipped);
+    if (!isTransitioning) {
+      setFlipped(!flipped);
+    }
   };
 
   const handleNextCard = () => {
-    if (currentCard < cards.length - 1) {
-      setCurrentCard(currentCard + 1);
+    if (currentCard < cards.length - 1 && !isTransitioning) {
+      setIsTransitioning(true);
+      
       setFlipped(false);
+      
+      setTimeout(() => {
+        setCurrentCard(currentCard + 1);
+        setIsTransitioning(false);
+      }, 300);
     }
   };
 
   const handlePrevCard = () => {
-    if (currentCard > 0) {
-      setCurrentCard(currentCard - 1);
+    if (currentCard > 0 && !isTransitioning) {
+      setIsTransitioning(true);
+      
       setFlipped(false);
+      
+      setTimeout(() => {
+        setCurrentCard(currentCard - 1);
+        setIsTransitioning(false);
+      }, 300);
     }
   };
 
@@ -93,11 +108,13 @@ const Flashcard = ({ cards, title, className, onComplete, isCompleted = false }:
       <div 
         className={cn(
           "relative cursor-pointer w-full h-60 md:h-80 perspective-1000 transition-transform duration-300 mb-4",
-          flipped ? "rotate-y-180" : ""
+          flipped ? "rotate-y-180" : "",
+          isTransitioning ? "pointer-events-none" : ""
         )}
         onClick={handleFlip}
       >
         <div 
+          key={`front-${currentCard}`}
           className={cn(
             "absolute w-full h-full rounded-lg border border-gray-200 p-4 flex flex-col justify-center items-center backface-hidden transition-all duration-500",
             flipped ? "rotate-y-180 invisible" : "bg-white"
@@ -110,9 +127,10 @@ const Flashcard = ({ cards, title, className, onComplete, isCompleted = false }:
         </div>
         
         <div 
+          key={`back-${currentCard}`}
           className={cn(
             "absolute w-full h-full rounded-lg border border-gray-200 p-4 flex flex-col justify-center items-center backface-hidden bg-blue-50 rotate-y-180 transition-all duration-500",
-            flipped ? "visible" : "invisible"
+            flipped ? "visible" : "invisible opacity-0"
           )}
         >
           <div className="text-center max-w-md">
@@ -127,7 +145,7 @@ const Flashcard = ({ cards, title, className, onComplete, isCompleted = false }:
           variant="outline" 
           size="sm"
           onClick={handlePrevCard}
-          disabled={currentCard === 0}
+          disabled={currentCard === 0 || isTransitioning}
           className="flex items-center gap-1"
         >
           <ChevronLeft size={16} />
@@ -143,7 +161,7 @@ const Flashcard = ({ cards, title, className, onComplete, isCompleted = false }:
           variant="outline"
           size="sm"
           onClick={handleNextCard}
-          disabled={currentCard === cards.length - 1}
+          disabled={currentCard === cards.length - 1 || isTransitioning}
           className="flex items-center gap-1"
         >
           Next
