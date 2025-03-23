@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { ChatMessage, Conversation } from '@/types/chat';
 import { sendChatMessage, getConversationMessages, getPaperConversations } from '@/lib/api/chat';
 import ConversationSidebar from './ConversationSidebar';
+import MarkdownRenderer from './MarkdownRenderer';
+import { LiveChatMessage } from '@/types/chat';
 
 interface ChatInterfaceProps {
   title?: string;
@@ -13,6 +15,26 @@ interface ChatInterfaceProps {
   paperTitle?: string;
   paperId: string;
 }
+
+// Helper function to get message text content
+const getMessageContent = (message: ChatMessage) => {
+  // For messages from the database
+  if ('query' in message && 'response' in message) {
+    return message.query || message.response;
+  }
+  // For live messages
+  return message.text;
+};
+
+// Helper function to determine message sender
+const getMessageSender = (message: ChatMessage): 'user' | 'bot' => {
+  // For messages from the database
+  if ('query' in message && 'response' in message) {
+    return message.query ? 'user' : 'bot';
+  }
+  // For live messages
+  return message.sender;
+};
 
 const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceProps) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -60,10 +82,10 @@ const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceP
         // No need to filter messages as we're now fetching only messages for the current conversation
         
         // Create welcome message
-        const welcomeMessage = {
+        const welcomeMessage: LiveChatMessage = {
           id: 'welcome',
           text: `Hello! I'm your AI research assistant. Ask me any questions about "${paperTitle || 'this research paper'}" and I'll do my best to help you understand it.`,
-          sender: 'bot' as const,
+          sender: 'bot',
           timestamp: new Date()
         };
         
@@ -77,12 +99,7 @@ const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceP
       } catch (err) {
         console.error('Error loading conversation history:', err);
         // If there's an error, still show the welcome message
-        setMessages([{
-          id: 'welcome',
-          text: `Hello! I'm your AI research assistant. Ask me any questions about "${paperTitle || 'this research paper'}" and I'll do my best to help you understand it.`,
-          sender: 'bot',
-          timestamp: new Date()
-        }]);
+        setMessages([welcomeMessage]);
       } finally {
         setIsLoadingHistory(false);
       }
@@ -133,7 +150,7 @@ const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceP
     if (!inputValue.trim()) return;
     
     // Add user message
-    const userMessage: ChatMessage = {
+    const userMessage: LiveChatMessage = {
       id: Date.now().toString(),
       text: inputValue,
       sender: 'user',
@@ -149,7 +166,7 @@ const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceP
     try {
       const response = await sendChatMessage(paperId, { query: userMessage.text }, currentConversationId || undefined);
       
-      const botMessage: ChatMessage = {
+      const botMessage: LiveChatMessage = {
         id: (Date.now() + 1).toString(),
         text: response.response,
         sender: 'bot',
@@ -238,22 +255,22 @@ const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceP
                   key={message.id} 
                   className={cn(
                     "flex",
-                    message.sender === 'user' ? "justify-end" : "justify-start"
+                    getMessageSender(message) === 'user' ? "justify-end" : "justify-start"
                   )}
                 >
                   <div 
                     className={cn(
                       "flex items-start gap-2 max-w-[80%]",
-                      message.sender === 'user' ? "flex-row-reverse" : "flex-row"
+                      getMessageSender(message) === 'user' ? "flex-row-reverse" : "flex-row"
                     )}
                   >
                     <div 
                       className={cn(
                         "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0",
-                        message.sender === 'user' ? "bg-blue-100" : "bg-gray-100"
+                        getMessageSender(message) === 'user' ? "bg-blue-100" : "bg-gray-100"
                       )}
                     >
-                      {message.sender === 'user' ? (
+                      {getMessageSender(message) === 'user' ? (
                         <User size={16} className="text-blue-600" />
                       ) : (
                         <Bot size={16} className="text-gray-600" />
@@ -264,16 +281,28 @@ const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceP
                       <div 
                         className={cn(
                           "py-2 px-3 rounded-lg",
-                          message.sender === 'user' 
+                          getMessageSender(message) === 'user' 
                             ? "bg-blue-600 text-white" 
                             : "bg-gray-100 text-gray-800"
                         )}
                       >
-                        <p className="text-sm whitespace-pre-wrap break-words">{message.text}</p>
+                        {getMessageSender(message) === 'user' ? (
+                          <p className="text-sm whitespace-pre-wrap break-words">{getMessageContent(message)}</p>
+                        ) : (
+                          <div className={getMessageSender(message) === 'user' ? 'text-white' : 'text-gray-800'}>
+                            <MarkdownRenderer 
+                              content={getMessageContent(message)} 
+                              className={cn(
+                                "text-sm !prose-sm max-w-none !prose-p:my-1 !prose-pre:my-1 !prose-headings:my-1 !prose-ul:my-1 !prose-ol:my-1",
+                                getMessageSender(message) === 'user' ? '!prose-invert' : ''
+                              )}
+                            />
+                          </div>
+                        )}
                         <span 
                           className={cn(
                             "text-xs block mt-1",
-                            message.sender === 'user' ? "text-blue-100" : "text-gray-500"
+                            getMessageSender(message) === 'user' ? "text-blue-100" : "text-gray-500"
                           )}
                         >
                           {formatTime(message.timestamp)}
