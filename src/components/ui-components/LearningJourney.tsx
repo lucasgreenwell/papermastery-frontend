@@ -29,37 +29,7 @@ const LearningJourney = ({
 }: LearningJourneyProps) => {
   // Debug step component types
   useEffect(() => {
-    console.log('[DEBUG] Component types check:');
-    steps.forEach((step, index) => {
-      const stepElement = step as React.ReactElement;
-      
-      // Check component type
-      const compType = stepElement.type;
-      const typeName = typeof compType !== 'string' ? (compType.name || '') : '';
-      const funcString = typeof compType === 'function' ? compType.toString() : '';
-      
-      // Alternative ways to detect component types
-      const hasSummaryInString = funcString.includes('Summary');
-      const hasVideoInString = funcString.includes('Video');
-      const hasQuizInString = funcString.includes('Quiz');
-      const hasFlashcardInString = funcString.includes('Flashcard');
-      const hasConsultingInString = funcString.includes('Consult');
-      
-      console.log(`[DEBUG] Step ${index} component:`, {
-        type: typeof compType,
-        isFunction: typeof compType === 'function',
-        name: typeName,
-        displayName: typeof compType !== 'string' ? (compType as any).displayName : 'none',
-        key: stepElement.key,
-        stringIncludes: {
-          summary: hasSummaryInString,
-          video: hasVideoInString,
-          quiz: hasQuizInString,
-          flashcard: hasFlashcardInString,
-          consulting: hasConsultingInString
-        }
-      });
-    });
+    // Removed debug logs
   }, [steps]);
 
   const [currentStep, setCurrentStep] = useState(0);
@@ -70,11 +40,7 @@ const LearningJourney = ({
   
   // Create a mapping between filtered steps and original steps
   useEffect(() => {
-    console.log(`[DEBUG] Filter changed to: ${activeFilter}`);
-    console.log(`[DEBUG] Steps length: ${steps.length}`);
-    
     if (activeFilter === 'all') {
-      console.log('[DEBUG] Setting all steps');
       setFilteredSteps(steps);
       // Reset the step map (1:1 mapping)
       const map: Record<number, number> = {};
@@ -83,14 +49,12 @@ const LearningJourney = ({
       });
       setStepMap(map);
     } else {
-      console.log(`[DEBUG] Filtering by: ${activeFilter}`);
       // Find steps that match the filter and create a mapping
       const filtered: React.ReactNode[] = [];
       const map: Record<number, number> = {};
       
       // For reading filter, we need to sort the steps in a specific order
       if (activeFilter === 'reading') {
-        console.log('[DEBUG] Processing reading filter');
         // First, collect all reading-related steps
         const readingSteps: Array<{step: React.ReactNode, index: number, type: string, order: number}> = [];
         
@@ -133,9 +97,6 @@ const LearningJourney = ({
                 stepTitle = findLearningStepCard(stepElement.props.children);
               }
             }
-            
-            // Debugging step element information
-            console.log(`[DEBUG] Step ${index} - Title: "${stepTitle}" Type: ${typeof stepElement.type === 'string' ? stepElement.type : (stepElement.type && typeof stepElement.type.name === 'string' ? stepElement.type.name : 'unknown')}`);
             
             // Helper function for case-insensitive includes check
             const containsIgnoreCase = (str: string, search: string): boolean => {
@@ -183,7 +144,6 @@ const LearningJourney = ({
             
             // Add to reading steps if it's a reading-related step
             if (['summary', 'concepts', 'methodology', 'results'].includes(stepType)) {
-              console.log(`[DEBUG] Adding reading step: ${stepType}`);
               readingSteps.push({ step, index, type: stepType, order });
             }
           } catch (error) {
@@ -193,7 +153,6 @@ const LearningJourney = ({
         
         // Sort reading steps by order
         readingSteps.sort((a, b) => a.order - b.order);
-        console.log(`[DEBUG] Reading steps found: ${readingSteps.length}`);
         
         // Add sorted reading steps to filtered steps
         readingSteps.forEach(item => {
@@ -201,7 +160,6 @@ const LearningJourney = ({
           filtered.push(item.step);
         });
       } else {
-        console.log(`[DEBUG] Processing non-reading filter: ${activeFilter}`);
         // For other filters, use the existing logic
         steps.forEach((step, index) => {
           // Extract the step element and look for title in children
@@ -279,12 +237,7 @@ const LearningJourney = ({
               containsIgnoreCase(compString, 'Consult') 
             );
             
-            // Debugging step element information for non-reading filters
-            console.log(`[DEBUG] Step ${index} - Title: "${stepTitle}" Key: "${keyString}"`);
-            console.log(`[DEBUG] Filter checks - video: ${isVideoStep}, quiz: ${isQuizStep}, flashcard: ${isFlashcardStep}, consulting: ${isConsultingStep}`);
-            
             if (isVideoStep || isQuizStep || isFlashcardStep || isConsultingStep) {
-              console.log(`[DEBUG] Adding step ${index} to filtered steps for ${activeFilter}`);
               map[filtered.length] = index;
               filtered.push(step);
             }
@@ -294,7 +247,6 @@ const LearningJourney = ({
         });
       }
       
-      console.log(`[DEBUG] Final filtered steps count: ${filtered.length}`);
       setFilteredSteps(filtered);
       setStepMap(map);
       
@@ -336,7 +288,6 @@ const LearningJourney = ({
   
   const handleFilterChange = (value: string) => {
     if (value) {
-      console.log(`[DEBUG] Filter change requested: ${value}`);
       setActiveFilter(value as ContentType);
     }
   };
