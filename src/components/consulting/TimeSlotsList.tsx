@@ -8,8 +8,10 @@ import {
   Loader2,
   CalendarCheck,
   X,
-  CreditCard
+  CreditCard,
+  Lock
 } from 'lucide-react';
+import { useSubscription } from '@/context/SubscriptionContext';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { 
@@ -64,7 +66,7 @@ const TimeSlotsList = ({
   selectedDate,
   selectedResearcher,
   onBookingConfirmed,
-  hasSubscription = true, // Default to true since we're assuming all users are subscribed
+  hasSubscription = true,
   onTimeSlotSelect,
   selectedTimeSlot: externalSelectedTimeSlot,
   paperId
@@ -73,14 +75,30 @@ const TimeSlotsList = ({
   const [bookingQuestions, setBookingQuestions] = useState('');
   const [isConfirming, setIsConfirming] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [subscriptionDialogOpen, setSubscriptionDialogOpen] = useState(false);
+  const { redirectToCheckout } = useSubscription();
+  const [isRedirectingToStripe, setIsRedirectingToStripe] = useState(false);
   
   // Update local state when props change
   useEffect(() => {
     setSelectedTimeSlot(externalSelectedTimeSlot);
   }, [externalSelectedTimeSlot]);
   
+  // Handler for subscription checkout redirect
+  const handleCheckoutRedirect = async () => {
+    setIsRedirectingToStripe(true);
+    await redirectToCheckout();
+    setIsRedirectingToStripe(false);
+  };
+  
   // Handler for slot selection
   const handleSelectTimeSlot = (timeSlot: TimeSlot) => {
+    // If user doesn't have a subscription, show subscription prompt
+    if (!hasSubscription) {
+      setSubscriptionDialogOpen(true);
+      return;
+    }
+    
     const newSelected = selectedTimeSlot?.id === timeSlot.id ? null : timeSlot;
     setSelectedTimeSlot(newSelected);
     onTimeSlotSelect(newSelected);
@@ -262,6 +280,14 @@ const TimeSlotsList = ({
         <CardDescription>
           {selectedDate ? format(selectedDate, 'MMMM d, yyyy') : 'Select a date to view times'}
         </CardDescription>
+        {!hasSubscription && (
+          <div className="bg-blue-50 border border-blue-100 rounded-md mt-3 p-2">
+            <div className="flex items-center text-xs text-blue-700 gap-1.5">
+              <Lock className="h-3.5 w-3.5" />
+              <span>Premium subscription required</span>
+            </div>
+          </div>
+        )}
       </CardHeader>
       <CardContent className="px-5 py-4 flex-grow overflow-auto">
         <div className="space-y-3">
@@ -286,6 +312,65 @@ const TimeSlotsList = ({
           ))}
         </div>
       </CardContent>
+      
+      {/* Premium Subscription Dialog */}
+      <Dialog open={subscriptionDialogOpen} onOpenChange={setSubscriptionDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Premium Feature</DialogTitle>
+            <DialogDescription>
+              Consulting sessions are available for premium subscribers.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+              <h4 className="font-medium text-blue-800 flex items-center gap-2">
+                <CreditCard className="h-4 w-4" />
+                <span>Premium Subscription Benefits</span>
+              </h4>
+              <ul className="mt-2 space-y-2 text-sm text-blue-700">
+                <li className="flex gap-2 items-start">
+                  <span className="bg-blue-100 text-blue-600 rounded-full h-5 w-5 flex items-center justify-center flex-shrink-0 mt-0.5">✓</span>
+                  <span>1-on-1 video consultations with domain experts</span>
+                </li>
+                <li className="flex gap-2 items-start">
+                  <span className="bg-blue-100 text-blue-600 rounded-full h-5 w-5 flex items-center justify-center flex-shrink-0 mt-0.5">✓</span>
+                  <span>Unlimited expert sessions per month</span>
+                </li>
+                <li className="flex gap-2 items-start">
+                  <span className="bg-blue-100 text-blue-600 rounded-full h-5 w-5 flex items-center justify-center flex-shrink-0 mt-0.5">✓</span>
+                  <span>Access to all other premium features</span>
+                </li>
+              </ul>
+              <p className="mt-3 text-sm font-medium text-blue-700">
+                $19.99/month - Cancel anytime
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="flex justify-between gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setSubscriptionDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCheckoutRedirect}
+              disabled={isRedirectingToStripe}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {isRedirectingToStripe ? (
+                <>
+                  <span className="animate-spin mr-2">◯</span>
+                  Redirecting...
+                </>
+              ) : (
+                <>Subscribe Now</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       
       {/* Booking confirmation dialog */}
       <Dialog 

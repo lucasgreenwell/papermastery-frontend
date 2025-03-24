@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { SubscriptionProvider } from "./context/SubscriptionContext";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -11,6 +12,8 @@ import PaperDetails from "./pages/PaperDetails";
 import NotFound from "./pages/NotFound";
 import Playground from "./pages/playground/Playground";
 import ConsultingBooking from "./pages/consulting/ConsultingBooking";
+import SubscriptionSuccess from "./pages/subscription/SubscriptionSuccess";
+import SubscriptionCancel from "./pages/subscription/SubscriptionCancel";
 
 const queryClient = new QueryClient();
 
@@ -66,6 +69,19 @@ const AppRoutes = () => {
         </ProtectedRoute>
       } />
       
+      {/* Subscription pages */}
+      <Route path="/subscription/success" element={
+        <ProtectedRoute>
+          <SubscriptionSuccess />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/subscription/cancel" element={
+        <ProtectedRoute>
+          <SubscriptionCancel />
+        </ProtectedRoute>
+      } />
+      
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
@@ -75,13 +91,15 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <BrowserRouter>
       <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <div className="min-h-screen bg-background">
-            <AppRoutes />
-          </div>
-        </TooltipProvider>
+        <SubscriptionProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <div className="min-h-screen bg-background">
+              <AppRoutes />
+            </div>
+          </TooltipProvider>
+        </SubscriptionProvider>
       </AuthProvider>
     </BrowserRouter>
   </QueryClientProvider>
