@@ -27,6 +27,41 @@ const LearningJourney = ({
   initialChatMode = false,
   onChatModeChange
 }: LearningJourneyProps) => {
+  // Debug step component types
+  useEffect(() => {
+    console.log('[DEBUG] Component types check:');
+    steps.forEach((step, index) => {
+      const stepElement = step as React.ReactElement;
+      
+      // Check component type
+      const compType = stepElement.type;
+      const typeName = typeof compType !== 'string' ? (compType.name || '') : '';
+      const funcString = typeof compType === 'function' ? compType.toString() : '';
+      
+      // Alternative ways to detect component types
+      const hasSummaryInString = funcString.includes('Summary');
+      const hasVideoInString = funcString.includes('Video');
+      const hasQuizInString = funcString.includes('Quiz');
+      const hasFlashcardInString = funcString.includes('Flashcard');
+      const hasConsultingInString = funcString.includes('Consult');
+      
+      console.log(`[DEBUG] Step ${index} component:`, {
+        type: typeof compType,
+        isFunction: typeof compType === 'function',
+        name: typeName,
+        displayName: typeof compType !== 'string' ? (compType as any).displayName : 'none',
+        key: stepElement.key,
+        stringIncludes: {
+          summary: hasSummaryInString,
+          video: hasVideoInString,
+          quiz: hasQuizInString,
+          flashcard: hasFlashcardInString,
+          consulting: hasConsultingInString
+        }
+      });
+    });
+  }, [steps]);
+
   const [currentStep, setCurrentStep] = useState(0);
   const [activeFilter, setActiveFilter] = useState<ContentType>('all');
   const [chatMode, setChatMode] = useState(initialChatMode);
@@ -35,7 +70,11 @@ const LearningJourney = ({
   
   // Create a mapping between filtered steps and original steps
   useEffect(() => {
+    console.log(`[DEBUG] Filter changed to: ${activeFilter}`);
+    console.log(`[DEBUG] Steps length: ${steps.length}`);
+    
     if (activeFilter === 'all') {
+      console.log('[DEBUG] Setting all steps');
       setFilteredSteps(steps);
       // Reset the step map (1:1 mapping)
       const map: Record<number, number> = {};
@@ -44,12 +83,14 @@ const LearningJourney = ({
       });
       setStepMap(map);
     } else {
+      console.log(`[DEBUG] Filtering by: ${activeFilter}`);
       // Find steps that match the filter and create a mapping
       const filtered: React.ReactNode[] = [];
       const map: Record<number, number> = {};
       
       // For reading filter, we need to sort the steps in a specific order
       if (activeFilter === 'reading') {
+        console.log('[DEBUG] Processing reading filter');
         // First, collect all reading-related steps
         const readingSteps: Array<{step: React.ReactNode, index: number, type: string, order: number}> = [];
         
@@ -57,8 +98,6 @@ const LearningJourney = ({
           // Extract the step element and look for title in children
           const stepElement = step as React.ReactElement;
           let stepTitle = '';
-          let stepType = '';
-          let order = 999; // Default high order for unknown types
           
           try {
             // Check if this is a React element with props
@@ -95,23 +134,56 @@ const LearningJourney = ({
               }
             }
             
-            // Determine step type and order based on title or component name
-            if (stepTitle.includes('Paper Summary') || (typeof stepElement.type !== 'string' && stepElement.type.name === 'SummaryStep')) {
+            // Debugging step element information
+            console.log(`[DEBUG] Step ${index} - Title: "${stepTitle}" Type: ${typeof stepElement.type === 'string' ? stepElement.type : (stepElement.type && typeof stepElement.type.name === 'string' ? stepElement.type.name : 'unknown')}`);
+            
+            // Helper function for case-insensitive includes check
+            const containsIgnoreCase = (str: string, search: string): boolean => {
+              return str.toLowerCase().includes(search.toLowerCase());
+            };
+            
+            // More robust component type detection for production
+            const compType = stepElement.type;
+            const compString = typeof compType === 'function' ? compType.toString() : '';
+            const keyString = stepElement.key ? String(stepElement.key) : '';
+            
+            // Determine step type and order based on title, key, or component string content
+            let stepType = '';
+            let order = 999; // Default high order for unknown types
+            
+            if (
+              containsIgnoreCase(stepTitle, 'Paper Summary') || 
+              containsIgnoreCase(keyString, 'summary') ||
+              containsIgnoreCase(compString, 'Summary')
+            ) {
               stepType = 'summary';
               order = 1;
-            } else if (stepTitle.includes('Key Concepts') || (typeof stepElement.type !== 'string' && stepElement.type.name === 'KeyConceptsStep')) {
+            } else if (
+              containsIgnoreCase(stepTitle, 'Key Concepts') || 
+              containsIgnoreCase(keyString, 'concepts') ||
+              containsIgnoreCase(compString, 'Concepts')
+            ) {
               stepType = 'concepts';
               order = 2;
-            } else if (stepTitle.includes('Methodology') || (typeof stepElement.type !== 'string' && stepElement.type.name === 'MethodologyStep')) {
+            } else if (
+              containsIgnoreCase(stepTitle, 'Methodology') || 
+              containsIgnoreCase(keyString, 'method') ||
+              containsIgnoreCase(compString, 'Method')
+            ) {
               stepType = 'methodology';
               order = 3;
-            } else if (stepTitle.includes('Results') || (typeof stepElement.type !== 'string' && stepElement.type.name === 'ResultsStep')) {
+            } else if (
+              containsIgnoreCase(stepTitle, 'Results') || 
+              containsIgnoreCase(keyString, 'results') ||
+              containsIgnoreCase(compString, 'Results')
+            ) {
               stepType = 'results';
               order = 4;
             }
             
             // Add to reading steps if it's a reading-related step
             if (['summary', 'concepts', 'methodology', 'results'].includes(stepType)) {
+              console.log(`[DEBUG] Adding reading step: ${stepType}`);
               readingSteps.push({ step, index, type: stepType, order });
             }
           } catch (error) {
@@ -121,6 +193,7 @@ const LearningJourney = ({
         
         // Sort reading steps by order
         readingSteps.sort((a, b) => a.order - b.order);
+        console.log(`[DEBUG] Reading steps found: ${readingSteps.length}`);
         
         // Add sorted reading steps to filtered steps
         readingSteps.forEach(item => {
@@ -128,6 +201,7 @@ const LearningJourney = ({
           filtered.push(item.step);
         });
       } else {
+        console.log(`[DEBUG] Processing non-reading filter: ${activeFilter}`);
         // For other filters, use the existing logic
         steps.forEach((step, index) => {
           // Extract the step element and look for title in children
@@ -168,22 +242,59 @@ const LearningJourney = ({
                 stepTitle = findLearningStepCard(stepElement.props.children);
               }
             }
+            
+            // Helper function for case-insensitive includes check
+            const containsIgnoreCase = (str: string, search: string): boolean => {
+              return str.toLowerCase().includes(search.toLowerCase());
+            };
+            
+            // More robust component type detection for production
+            const compType = stepElement.type;
+            const compString = typeof compType === 'function' ? compType.toString() : '';
+            const keyString = stepElement.key ? String(stepElement.key) : '';
+            
+            // Check component key (most reliable in production builds)
+            const isVideoStep = activeFilter === 'video' && (
+              containsIgnoreCase(stepTitle, 'Video Explanation') || 
+              containsIgnoreCase(keyString, 'video') ||
+              containsIgnoreCase(compString, 'Video')
+            );
+            
+            const isQuizStep = activeFilter === 'quiz' && (
+              containsIgnoreCase(stepTitle, 'Comprehension Quiz') || 
+              containsIgnoreCase(keyString, 'quiz') ||
+              containsIgnoreCase(compString, 'Quiz')
+            );
+            
+            const isFlashcardStep = activeFilter === 'flashcard' && (
+              containsIgnoreCase(stepTitle, 'Flashcards') || 
+              containsIgnoreCase(keyString, 'flashcard') ||
+              containsIgnoreCase(compString, 'Flashcard') ||
+              containsIgnoreCase(compString, 'Card')
+            );
+            
+            const isConsultingStep = activeFilter === 'consulting' && (
+              containsIgnoreCase(stepTitle, 'Expert Consulting') || 
+              containsIgnoreCase(keyString, 'consult') ||
+              containsIgnoreCase(compString, 'Consult') 
+            );
+            
+            // Debugging step element information for non-reading filters
+            console.log(`[DEBUG] Step ${index} - Title: "${stepTitle}" Key: "${keyString}"`);
+            console.log(`[DEBUG] Filter checks - video: ${isVideoStep}, quiz: ${isQuizStep}, flashcard: ${isFlashcardStep}, consulting: ${isConsultingStep}`);
+            
+            if (isVideoStep || isQuizStep || isFlashcardStep || isConsultingStep) {
+              console.log(`[DEBUG] Adding step ${index} to filtered steps for ${activeFilter}`);
+              map[filtered.length] = index;
+              filtered.push(step);
+            }
           } catch (error) {
             console.error('Error extracting title from step:', error);
-          }
-          
-          if (
-            (activeFilter === 'video' && (stepTitle.includes('Video Explanation') || (typeof stepElement.type !== 'string' && stepElement.type.name === 'VideoExplanationStep'))) ||
-            (activeFilter === 'quiz' && (stepTitle.includes('Comprehension Quiz') || (typeof stepElement.type !== 'string' && stepElement.type.name === 'QuizStep'))) ||
-            (activeFilter === 'flashcard' && (stepTitle.includes('Flashcards') || (typeof stepElement.type !== 'string' && stepElement.type.name === 'FlashcardsStep'))) ||
-            (activeFilter === 'consulting' && (stepTitle.includes('Expert Consulting') || (typeof stepElement.type !== 'string' && stepElement.type.name === 'ConsultingStep')))
-          ) {
-            map[filtered.length] = index;
-            filtered.push(step);
           }
         });
       }
       
+      console.log(`[DEBUG] Final filtered steps count: ${filtered.length}`);
       setFilteredSteps(filtered);
       setStepMap(map);
       
@@ -225,6 +336,7 @@ const LearningJourney = ({
   
   const handleFilterChange = (value: string) => {
     if (value) {
+      console.log(`[DEBUG] Filter change requested: ${value}`);
       setActiveFilter(value as ContentType);
     }
   };
