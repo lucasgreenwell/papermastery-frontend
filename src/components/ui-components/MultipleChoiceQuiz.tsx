@@ -21,6 +21,7 @@ interface MultipleChoiceQuizProps {
   className?: string;
   onComplete?: (score: number, total: number) => void;
   isCompleted?: boolean;
+  previousAnswers?: Record<string, QuizAnswer>;
 }
 
 const MultipleChoiceQuiz = ({ 
@@ -28,7 +29,8 @@ const MultipleChoiceQuiz = ({
   title, 
   className,
   onComplete,
-  isCompleted: initialIsCompleted = false
+  isCompleted: initialIsCompleted = false,
+  previousAnswers: providedPreviousAnswers
 }: MultipleChoiceQuizProps) => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedOptions, setSelectedOptions] = useState<number[]>(Array(questions.length).fill(-1));
@@ -36,12 +38,41 @@ const MultipleChoiceQuiz = ({
   const [isCompleted, setIsCompleted] = useState(initialIsCompleted);
   const { toast } = useToast();
   
-  // Get quiz history
+  // Get quiz history if not provided externally
   const { answers: userAnswers, isLoading: isLoadingHistory } = useQuizHistory();
-  const [previousAnswers, setPreviousAnswers] = useState<Record<string, QuizAnswer>>({});
+  const [previousAnswers, setPreviousAnswers] = useState<Record<string, QuizAnswer>>(providedPreviousAnswers || {});
+
+  // Reset current question when questions array changes
+  useEffect(() => {
+    setCurrentQuestion(0);
+    setSelectedOptions(Array(questions.length).fill(-1));
+    setShowResults(Array(questions.length).fill(false));
+  }, [questions]);
 
   // Process user answers to create a map of question ID to answer details
   useEffect(() => {
+    // If previous answers were provided directly, use those instead of fetching
+    if (providedPreviousAnswers) {
+      setPreviousAnswers(providedPreviousAnswers);
+      
+      // Pre-populate selected options and results from provided answers
+      const newSelections = Array(questions.length).fill(-1);
+      const newResults = Array(questions.length).fill(false);
+      
+      questions.forEach((question, index) => {
+        const previousAnswer = providedPreviousAnswers[question.id];
+        if (previousAnswer) {
+          newSelections[index] = previousAnswer.selected_answer;
+          newResults[index] = true;
+        }
+      });
+      
+      setSelectedOptions(newSelections);
+      setShowResults(newResults);
+      return;
+    }
+    
+    // Otherwise use the answers from the hook
     if (!userAnswers || userAnswers.length === 0) return;
     
     // Create a map of question IDs to answer details
@@ -55,8 +86,8 @@ const MultipleChoiceQuiz = ({
     setPreviousAnswers(answerMap);
     
     // Pre-populate selected options and results if we have previous answers
-    const newSelections = [...selectedOptions];
-    const newResults = [...showResults];
+    const newSelections = Array(questions.length).fill(-1);
+    const newResults = Array(questions.length).fill(false);
     
     questions.forEach((question, index) => {
       const previousAnswer = answerMap[question.id];
@@ -68,7 +99,7 @@ const MultipleChoiceQuiz = ({
     
     setSelectedOptions(newSelections);
     setShowResults(newResults);
-  }, [userAnswers]);
+  }, [userAnswers, providedPreviousAnswers, questions]);
 
   useEffect(() => {
     setIsCompleted(initialIsCompleted);
@@ -81,7 +112,16 @@ const MultipleChoiceQuiz = ({
         setSelectedOptions(defaultSelections);
       }
     }
-  }, [initialIsCompleted, questions.length]);
+  }, [initialIsCompleted, questions.length, questions, selectedOptions]);
+
+  // Early return if no questions
+  if (questions.length === 0) {
+    return (
+      <div className={cn("p-4 bg-white rounded-lg border border-gray-200", className)}>
+        <p className="text-gray-500 text-center">No questions available.</p>
+      </div>
+    );
+  }
 
   const handleSelectOption = (optionIndex: number) => {
     if (isCompleted) return;
@@ -151,12 +191,6 @@ const MultipleChoiceQuiz = ({
     if (onComplete) {
       onComplete(score, questions.length);
     }
-    
-    toast({
-      title: "Quiz completed!",
-      description: `You scored ${score} out of ${questions.length}.`,
-      variant: score / questions.length >= 0.7 ? "default" : "destructive"
-    });
   };
 
   const getResultIcon = (questionIndex: number, optionIndex: number) => {

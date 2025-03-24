@@ -16,10 +16,9 @@ export interface ChatResponse {
   paper_id: string;
 }
 
-export interface ChatMessage {
+// Base interface for common properties
+interface BaseChatMessage {
   id: string;
-  text: string;
-  sender: 'user' | 'bot';
   timestamp: Date;
   sources?: ChatSource[];
   conversation_id?: string;
@@ -27,6 +26,23 @@ export interface ChatMessage {
   highlighted_text?: string;
   highlight_source?: string;
 }
+
+// Interface for live messages
+interface LiveChatMessage extends BaseChatMessage {
+  text: string;
+  sender: 'user' | 'bot';
+}
+
+// Interface for database messages
+interface DatabaseChatMessage extends BaseChatMessage {
+  query: string;
+  response: string;
+  user_id: string;
+  paper_id: string;
+}
+
+// Union type for all possible message formats
+export type ChatMessage = LiveChatMessage | DatabaseChatMessage;
 
 export interface Conversation {
   id: string;

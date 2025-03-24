@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { toast } from '@/components/ui/use-toast';
 
 export interface FlashcardData {
   id: string;
@@ -23,6 +25,8 @@ const Flashcard = ({ cards, title, className, onComplete, isCompleted = false }:
   const [viewedCards, setViewedCards] = useState<string[]>([]);
   const [allCardsViewed, setAllCardsViewed] = useState(false);
   const [completed, setCompleted] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   useEffect(() => {
     setCompleted(isCompleted);
@@ -41,20 +45,34 @@ const Flashcard = ({ cards, title, className, onComplete, isCompleted = false }:
   }, [viewedCards, cards]);
 
   const handleFlip = () => {
-    setFlipped(!flipped);
+    if (!isTransitioning) {
+      setFlipped(!flipped);
+    }
   };
 
   const handleNextCard = () => {
-    if (currentCard < cards.length - 1) {
-      setCurrentCard(currentCard + 1);
+    if (currentCard < cards.length - 1 && !isTransitioning) {
+      setIsTransitioning(true);
+      
       setFlipped(false);
+      
+      setTimeout(() => {
+        setCurrentCard(currentCard + 1);
+        setIsTransitioning(false);
+      }, 300);
     }
   };
 
   const handlePrevCard = () => {
-    if (currentCard > 0) {
-      setCurrentCard(currentCard - 1);
+    if (currentCard > 0 && !isTransitioning) {
+      setIsTransitioning(true);
+      
       setFlipped(false);
+      
+      setTimeout(() => {
+        setCurrentCard(currentCard - 1);
+        setIsTransitioning(false);
+      }, 300);
     }
   };
 
@@ -62,6 +80,70 @@ const Flashcard = ({ cards, title, className, onComplete, isCompleted = false }:
     if (allCardsViewed) {
       setCompleted(true);
       if (onComplete) onComplete();
+    }
+  };
+
+  // Function to convert flashcards to TSV format
+  const convertToTSV = (cards: FlashcardData[]): string => {
+    // Add header row
+    let tsv = "Question\tAnswer\n";
+    
+    // Process each card
+    cards.forEach(card => {
+      // Escape tabs and newlines in content
+      const front = card.front.replace(/\t/g, ' ').replace(/\n/g, ' ');
+      const back = card.back.replace(/\t/g, ' ').replace(/\n/g, ' ');
+      
+      // Add to TSV
+      tsv += `${front}\t${back}\n`;
+    });
+    
+    return tsv;
+  };
+
+  // Handle download of flashcards as TSV
+  const handleDownload = () => {
+    if (cards.length === 0 || isDownloading) return;
+    
+    setIsDownloading(true);
+    
+    try {
+      // Convert cards to TSV format
+      const tsvContent = convertToTSV(cards);
+      
+      // Create blob with the TSV data
+      const blob = new Blob([tsvContent], { type: 'text/tab-separated-values' });
+      
+      // Create a download URL
+      const url = URL.createObjectURL(blob);
+      
+      // Create a temporary link and trigger download
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = title ? `${title.replace(/\s+/g, '_')}_flashcards.tsv` : 'flashcards.tsv';
+      document.body.appendChild(link);
+      link.click();
+      
+      // Clean up
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      // Show success toast
+      toast({
+        title: "Download Successful",
+        description: `${cards.length} flashcards downloaded as TSV file.`,
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error('Error downloading flashcards:', error);
+      toast({
+        title: "Download Failed",
+        description: "Failed to download flashcards. Please try again.",
+        variant: "destructive",
+        duration: 3000,
+      });
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -93,11 +175,13 @@ const Flashcard = ({ cards, title, className, onComplete, isCompleted = false }:
       <div 
         className={cn(
           "relative cursor-pointer w-full h-60 md:h-80 perspective-1000 transition-transform duration-300 mb-4",
-          flipped ? "rotate-y-180" : ""
+          flipped ? "rotate-y-180" : "",
+          isTransitioning ? "pointer-events-none" : ""
         )}
         onClick={handleFlip}
       >
         <div 
+          key={`front-${currentCard}`}
           className={cn(
             "absolute w-full h-full rounded-lg border border-gray-200 p-4 flex flex-col justify-center items-center backface-hidden transition-all duration-500",
             flipped ? "rotate-y-180 invisible" : "bg-white"
@@ -110,9 +194,10 @@ const Flashcard = ({ cards, title, className, onComplete, isCompleted = false }:
         </div>
         
         <div 
+          key={`back-${currentCard}`}
           className={cn(
             "absolute w-full h-full rounded-lg border border-gray-200 p-4 flex flex-col justify-center items-center backface-hidden bg-blue-50 rotate-y-180 transition-all duration-500",
-            flipped ? "visible" : "invisible"
+            flipped ? "visible" : "invisible opacity-0"
           )}
         >
           <div className="text-center max-w-md">
@@ -127,7 +212,7 @@ const Flashcard = ({ cards, title, className, onComplete, isCompleted = false }:
           variant="outline" 
           size="sm"
           onClick={handlePrevCard}
-          disabled={currentCard === 0}
+          disabled={currentCard === 0 || isTransitioning}
           className="flex items-center gap-1"
         >
           <ChevronLeft size={16} />
@@ -143,7 +228,7 @@ const Flashcard = ({ cards, title, className, onComplete, isCompleted = false }:
           variant="outline"
           size="sm"
           onClick={handleNextCard}
-          disabled={currentCard === cards.length - 1}
+          disabled={currentCard === cards.length - 1 || isTransitioning}
           className="flex items-center gap-1"
         >
           Next
@@ -151,12 +236,12 @@ const Flashcard = ({ cards, title, className, onComplete, isCompleted = false }:
         </Button>
       </div>
       
-      <div className="flex justify-center">
+      <div className="flex justify-between items-center">
         <Button 
           onClick={handleComplete}
           disabled={!allCardsViewed || completed}
           className={cn(
-            "w-full",
+            "flex-1 mr-2",
             completed && "bg-green-600 hover:bg-green-700"
           )}
         >
@@ -166,6 +251,26 @@ const Flashcard = ({ cards, title, className, onComplete, isCompleted = false }:
               ? "Mark All Flashcards as Completed" 
               : `View All Flashcards to Complete (${viewedCount}/${totalCards})`}
         </Button>
+        
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDownload}
+                disabled={isDownloading || cards.length === 0}
+                className="flex items-center gap-1"
+              >
+                <Download size={16} className={isDownloading ? "animate-bounce" : ""} />
+                Export Anki Format
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Download flashcards in Anki-compatible TSV format</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
     </div>
   );

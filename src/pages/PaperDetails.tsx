@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
-import { ArrowLeft, Brain } from 'lucide-react';
+import { ArrowLeft, Brain, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import EnhancedPdfHighlighter from '@/components/ui-components/EnhancedPdfHighlighter';
 import PdfViewerCard from '@/components/ui-components/PdfViewerCard';
@@ -24,6 +24,9 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { papersAPI } from '@/services/papersAPI';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useQuizHistory } from '@/hooks/useQuizHistory';
+import { formatCitation } from '@/utils/citationUtils';
+import { useToast } from '@/hooks/use-toast';
 
 const PaperDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -63,8 +66,20 @@ const PaperDetails = () => {
     // Check if any video items are completed
     if (completedItems.some(id => videoItems.some(item => item.id === id))) completedSteps++;
     
-    // Check if any quiz items are completed
-    if (completedItems.some(id => quizItems.some(item => item.id === id))) completedSteps++;
+    // Check if any quiz items are completed OR if the user has answered any quiz questions
+    const quizCompletionValue = quizAnswers && quizAnswers.length > 0 ? 
+      Math.min(1, quizAnswers.length / Math.max(5, totalQuizQuestions)) : 0;
+    
+    const hasCompletedQuizItems = completedItems.some(id => quizItems.some(item => item.id === id));
+    
+    // If any quiz is fully completed OR if the user has answered enough questions, count the step as completed
+    if (hasCompletedQuizItems || quizCompletionValue >= 0.5) {
+      completedSteps++;
+    } 
+    // If they've answered some questions but not enough for full completion, give partial credit
+    else if (quizCompletionValue > 0) {
+      completedSteps += quizCompletionValue;
+    }
     
     // Check if any flashcard items are completed
     if (completedItems.some(id => flashcardItems.some(item => item.id === id))) completedSteps++;
@@ -79,27 +94,63 @@ const PaperDetails = () => {
     return Math.floor((completedSteps / totalSteps) * 100);
   };
   
+  // Fetch quiz history for this paper to track answered questions
+  const { answers: quizAnswers, isLoading: isLoadingAnswers } = useQuizHistory(id);
+  
+  // Calculate total number of quiz questions available
+  const [totalQuizQuestions, setTotalQuizQuestions] = useState(0);
+  
+  // Count total quiz questions available
+  useEffect(() => {
+    const fetchQuizQuestionCount = async () => {
+      if (!id || quizItems.length === 0) return;
+      
+      try {
+        // Get all item IDs from quizItems
+        const itemIds = quizItems.map(item => item.id);
+
+        // Fetch questions count from the questions table
+        const { count, error } = await supabase
+          .from('questions')
+          .select('*', { count: 'exact', head: true })
+          .in('item_id', itemIds);
+
+        if (error) throw error;
+        
+        if (count !== null) {
+          setTotalQuizQuestions(count);
+        }
+      } catch (err) {
+        console.error('Error counting quiz questions:', err);
+      }
+    };
+
+    fetchQuizQuestionCount();
+  }, [id, quizItems]);
+  
   // Set the initial skill level based on progress data
   const initialSkillLevel = useMemo(() => {
-    return isLoadingProgress ? 0 : calculateSkillLevel();
-  }, [isLoadingProgress, completedItems, summaryCompleted, relatedPapersCompleted, isPaperCompleted]);
+    return isLoadingProgress || isLoadingAnswers ? 0 : calculateSkillLevel();
+  }, [isLoadingProgress, isLoadingAnswers, completedItems, summaryCompleted, relatedPapersCompleted, isPaperCompleted, quizAnswers, totalQuizQuestions]);
   
   // Set up skill level with initial value
   const { skillLevel, handleStepComplete } = useSkillLevel(initialSkillLevel);
   
   // Update skill level when progress changes
   useEffect(() => {
-    if (!isLoadingProgress) {
+    if (!isLoadingProgress && !isLoadingAnswers) {
       const currentSkillLevel = calculateSkillLevel();
       handleStepComplete(currentSkillLevel);
     }
-  }, [completedItems, summaryCompleted, relatedPapersCompleted, isPaperCompleted, isLoadingProgress]);
+  }, [completedItems, summaryCompleted, relatedPapersCompleted, isPaperCompleted, isLoadingProgress, isLoadingAnswers, quizAnswers, totalQuizQuestions]);
   
   const [showPdf, setShowPdf] = useState(true);
   
   // Add state for cached content
   const [cachedContent, setCachedContent] = useState<string | File | null>(null);
   const [contentType, setContentType] = useState<'url' | 'file' | null>(null);
+
+  const { toast } = useToast();
 
   useEffect(() => {
     // Check if we have cached content from navigation state
@@ -396,6 +447,33 @@ const PaperDetails = () => {
     };
   }, [id]);
   
+  // Function to copy citation to clipboard
+  const handleCopyCitation = async () => {
+    if (!paper) return;
+    
+    try {
+      const citation = formatCitation(paper);
+      await navigator.clipboard.writeText(citation);
+      
+      // Show success toast notification
+      toast({
+        title: "Citation Copied",
+        description: "The citation has been copied to your clipboard.",
+        duration: 3000,
+      });
+    } catch (error) {
+      console.error('Failed to copy citation:', error);
+      
+      // Show error toast notification
+      toast({
+        title: "Copy Failed",
+        description: "Failed to copy citation. Please try again.",
+        variant: "destructive",
+        duration: 3000,
+      });
+    }
+  };
+
   if (isLoading && !cachedContent) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
@@ -424,8 +502,20 @@ const PaperDetails = () => {
             </Link>
           </div>
           
-          <h1 className="text-sm sm:text-lg font-bold truncate text-center flex-1 mx-2">
+          <h1 className="text-sm sm:text-lg font-bold truncate text-center flex-1 mx-2 flex items-center justify-center">
             {paper?.title || "Processing..."}
+            {paper && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleCopyCitation}
+                className="ml-6 flex-shrink-0 flex items-center gap-1 text-xs" 
+                title="Copy citation"
+              >
+                <Copy size={14} />
+                <span className="hidden sm:inline">Cite</span>
+              </Button>
+            )}
           </h1>
           
           <div className="md:hidden flex-shrink-0">

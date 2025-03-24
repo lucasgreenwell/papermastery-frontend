@@ -9,6 +9,8 @@ import { paperHighlightAPI } from '@/lib/api/paperHighlight';
 import ConversationSidebar from './ConversationSidebar';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import MarkdownRenderer from './MarkdownRenderer';
+import { LiveChatMessage } from '@/types/chat';
 
 interface ChatInterfaceProps {
   title?: string;
@@ -16,6 +18,26 @@ interface ChatInterfaceProps {
   paperTitle?: string;
   paperId: string;
 }
+
+// Helper function to get message text content
+const getMessageContent = (message: ChatMessage) => {
+  // For messages from the database
+  if ('query' in message && 'response' in message) {
+    return message.query || message.response;
+  }
+  // For live messages
+  return message.text;
+};
+
+// Helper function to determine message sender
+const getMessageSender = (message: ChatMessage): 'user' | 'bot' => {
+  // For messages from the database
+  if ('query' in message && 'response' in message) {
+    return message.query ? 'user' : 'bot';
+  }
+  // For live messages
+  return message.sender;
+};
 
 const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceProps) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -141,10 +163,10 @@ const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceP
         });
         
         // Create welcome message
-        const welcomeMessage = {
+        const welcomeMessage: LiveChatMessage = {
           id: 'welcome',
           text: `Hello! I'm your AI research assistant. Ask me any questions about "${paperTitle || 'this research paper'}" and I'll do my best to help you understand it.`,
-          sender: 'bot' as const,
+          sender: 'bot',
           timestamp: new Date()
         };
         
@@ -161,12 +183,7 @@ const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceP
       } catch (err) {
         console.error('Error loading conversation history:', err);
         // If there's an error, still show the welcome message
-        setMessages([{
-          id: 'welcome',
-          text: `Hello! I'm your AI research assistant. Ask me any questions about "${paperTitle || 'this research paper'}" and I'll do my best to help you understand it.`,
-          sender: 'bot',
-          timestamp: new Date()
-        }]);
+        setMessages([welcomeMessage]);
       } finally {
         setIsLoadingHistory(false);
       }
@@ -588,7 +605,7 @@ const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceP
     if (!inputValue.trim()) return;
     
     // Add user message
-    const userMessage: ChatMessage = {
+    const userMessage: LiveChatMessage = {
       id: Date.now().toString(),
       text: inputValue,
       sender: 'user',
@@ -604,7 +621,7 @@ const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceP
     try {
       const response = await sendChatMessage(paperId, { query: userMessage.text }, currentConversationId || undefined);
       
-      const botMessage: ChatMessage = {
+      const botMessage: LiveChatMessage = {
         id: (Date.now() + 1).toString(),
         text: response.response,
         sender: 'bot',
@@ -703,7 +720,8 @@ const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceP
                   <div 
                     className={cn(
                       "flex gap-3 items-start",
-                      index === 0 && "mt-6",
+                      index 
+                        0 && "mt-6",
                       message.sender === 'user' ? "justify-end" : "justify-start"
                     )}
                   >
@@ -712,8 +730,7 @@ const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceP
                         <div 
                           className={cn(
                             "py-2 px-3 rounded-lg",
-                            "bg-blue-600 text-white"
-                          )}
+                            "bg-blue-600 text-white"                          )}
                         >
                           <p className="text-sm whitespace-pre-wrap break-words">
                             {message.text || "(No message content)"}
