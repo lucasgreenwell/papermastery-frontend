@@ -720,8 +720,7 @@ const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceP
                   <div 
                     className={cn(
                       "flex gap-3 items-start",
-                      index 
-                        0 && "mt-6",
+                      index === 0 && "mt-6",
                       message.sender === 'user' ? "justify-end" : "justify-start"
                     )}
                   >
