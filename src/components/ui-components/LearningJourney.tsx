@@ -176,7 +176,7 @@ const LearningJourney = ({
             (activeFilter === 'video' && (stepTitle.includes('Video Explanation') || (typeof stepElement.type !== 'string' && stepElement.type.name === 'VideoExplanationStep'))) ||
             (activeFilter === 'quiz' && (stepTitle.includes('Comprehension Quiz') || (typeof stepElement.type !== 'string' && stepElement.type.name === 'QuizStep'))) ||
             (activeFilter === 'flashcard' && (stepTitle.includes('Flashcards') || (typeof stepElement.type !== 'string' && stepElement.type.name === 'FlashcardsStep'))) ||
-            (activeFilter === 'consulting' && (stepTitle.includes('Expert Consulting') || typeof stepElement.type !== 'string' && stepElement.type.name === 'ConsultingStep'))
+            (activeFilter === 'consulting' && (stepTitle.includes('Expert Consulting') || (typeof stepElement.type !== 'string' && stepElement.type.name === 'ConsultingStep')))
           ) {
             map[filtered.length] = index;
             filtered.push(step);
