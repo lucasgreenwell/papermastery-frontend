@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { CheckCircle } from 'lucide-react';
@@ -8,6 +8,7 @@ import { useSubscription } from '@/context/SubscriptionContext';
 export default function SubscriptionSuccess() {
   const location = useLocation();
   const { checkSubscriptionStatus } = useSubscription();
+  const statusCheckDone = useRef(false);
   
   // Get the session ID from the URL query parameters
   const searchParams = new URLSearchParams(location.search);
@@ -15,6 +16,9 @@ export default function SubscriptionSuccess() {
 
   // When the page loads, check the subscription status to update the context
   useEffect(() => {
+    // Prevent multiple status checks
+    if (statusCheckDone.current) return;
+    
     const updateSubscriptionStatus = async () => {
       // Check for "mock" in sessionId, which indicates we're using the mock success flow
       if (sessionId?.includes('mock')) {
@@ -36,11 +40,15 @@ export default function SubscriptionSuccess() {
         }
       }
       
-      // Check subscription status regardless of whether we created a test subscription
+      // Check subscription status exactly once
+      console.log('Checking subscription status after payment');
       await checkSubscriptionStatus();
+      statusCheckDone.current = true;
     };
     
     updateSubscriptionStatus();
+    
+    // Clean up function not needed since we're using a ref to track status
   }, [checkSubscriptionStatus, sessionId]);
 
   return (
