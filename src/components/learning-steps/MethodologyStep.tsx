@@ -7,9 +7,10 @@ import { learningAPI } from '@/services/learningAPI';
 import { toast } from '@/components/ui/use-toast';
 
 interface MethodologyStepProps {
-  onComplete: () => void;
   data?: LearningItem;
-  isLoading?: boolean;
+  isLoading: boolean;
+  onComplete: () => void;
+  isCompleted?: boolean;
 }
 
 const MethodologyStep: React.FC<MethodologyStepProps> = ({ 

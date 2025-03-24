@@ -9,6 +9,7 @@ import { toast } from '@/components/ui/use-toast';
 interface RelatedPapersStepProps {
   paper: PaperResponse | null;
   onComplete: () => void;
+  isCompleted?: boolean;
 }
 
 const RelatedPapersStep: React.FC<RelatedPapersStepProps> = ({ paper, onComplete }) => {

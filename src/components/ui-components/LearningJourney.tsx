@@ -11,15 +11,25 @@ interface LearningJourneyProps {
   onCompleteStep?: (index: number) => void;
   paperTitle?: string;
   paperId: string;
+  initialChatMode?: boolean;
+  onChatModeChange?: (chatMode: boolean) => void;
 }
 
 // Define content types for filtering
 type ContentType = 'all' | 'reading' | 'video' | 'quiz' | 'flashcard' | 'slides' | 'consulting';
 
-const LearningJourney = ({ steps, className, onCompleteStep, paperTitle, paperId }: LearningJourneyProps) => {
+const LearningJourney = ({ 
+  steps, 
+  className, 
+  onCompleteStep, 
+  paperTitle, 
+  paperId,
+  initialChatMode = false,
+  onChatModeChange
+}: LearningJourneyProps) => {
   const [currentStep, setCurrentStep] = useState(0);
-  const [chatMode, setChatMode] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<ContentType>('reading');
+  const [activeFilter, setActiveFilter] = useState<ContentType>('all');
+  const [chatMode, setChatMode] = useState(initialChatMode);
   const [filteredSteps, setFilteredSteps] = useState(steps);
   const [stepMap, setStepMap] = useState<Record<number, number>>({});
   
@@ -184,6 +194,11 @@ const LearningJourney = ({ steps, className, onCompleteStep, paperTitle, paperId
     }
   }, [activeFilter, steps]);
   
+  // Effect to sync chat mode with initialChatMode prop
+  useEffect(() => {
+    setChatMode(initialChatMode);
+  }, [initialChatMode]);
+  
   const goToNextStep = () => {
     if (currentStep < filteredSteps.length - 1) {
       setCurrentStep(currentStep + 1);
@@ -201,7 +216,11 @@ const LearningJourney = ({ steps, className, onCompleteStep, paperTitle, paperId
   };
 
   const toggleChatMode = () => {
-    setChatMode(!chatMode);
+    const newChatMode = !chatMode;
+    setChatMode(newChatMode);
+    if (onChatModeChange) {
+      onChatModeChange(newChatMode);
+    }
   };
   
   const handleFilterChange = (value: string) => {
