@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import LearningStepCard from '@/components/ui-components/LearningStepCard';
 import { learningAPI } from '@/services/learningAPI';
 import { toast } from '@/components/ui/use-toast';
+import { LearningItem } from '@/services/types';
 
 interface Concept {
   key_concept: string;
@@ -20,9 +21,10 @@ interface KeyConceptsData {
 }
 
 interface KeyConceptsStepProps {
+  data?: LearningItem;
+  isLoading: boolean;
   onComplete: () => void;
-  data?: KeyConceptsData;
-  isLoading?: boolean;
+  isCompleted?: boolean;
 }
 
 const KeyConceptsStep: React.FC<KeyConceptsStepProps> = ({ 

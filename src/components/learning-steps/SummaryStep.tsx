@@ -10,6 +10,7 @@ import { toast } from '@/components/ui/use-toast';
 interface SummaryStepProps {
   paper: PaperResponse | null;
   onComplete: () => void;
+  isCompleted?: boolean;
 }
 
 const SummaryStep: React.FC<SummaryStepProps> = ({ paper, onComplete }) => {

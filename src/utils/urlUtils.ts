@@ -33,5 +33,10 @@ export function validateAndSanitizeUrl(url: string): string {
  * @returns True if the URL is an arXiv URL, false otherwise
  */
 export function isArxivUrl(url: string): boolean {
-  return url.startsWith('https://arxiv.org/abs/') || url.startsWith('https://arxiv.org/pdf/');
+  // Check for various arXiv URL patterns
+  return url.includes('arxiv.org') && (
+    url.includes('/abs/') || 
+    url.includes('/pdf/') || 
+    url.match(/\d+\.\d+/) !== null
+  );
 } 
