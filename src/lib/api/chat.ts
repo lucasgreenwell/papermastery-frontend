@@ -20,7 +20,13 @@ export async function sendChatMessage(
   message: { query: string },
   conversationId?: string
 ) {
-  return chatAPI.sendMessage(paperId, message, conversationId);
+  // Include conversation_id in the message object if it exists
+  const requestData: ChatRequest = {
+    query: message.query,
+    ...(conversationId ? { conversation_id: conversationId } : {})
+  };
+  
+  return chatAPI.sendMessage(paperId, requestData);
 }
 
 /**

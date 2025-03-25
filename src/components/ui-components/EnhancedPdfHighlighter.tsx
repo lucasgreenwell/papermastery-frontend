@@ -508,6 +508,26 @@ const tipPlugin = {
 const SelectionTooltip: React.FC = () => {
   console.log('SelectionTooltip rendering');
   
+  // Add useEffect to ensure text is loaded into the tooltip
+  useEffect(() => {
+    // Try to update the selected text display
+    setTimeout(() => {
+      const selection = window.getSelection();
+      const text = selection?.toString() || '';
+      
+      console.log('Selection tooltip text check:', text ? text.substring(0, 30) + '...' : 'none');
+      
+      // If there's text but the tooltip text isn't set, try to set it
+      if (text && text.trim()) {
+        const textElement = document.getElementById('selected-text');
+        if (textElement && (!textElement.textContent || textElement.textContent.trim() === '')) {
+          console.log('Updating tooltip text element with selection text');
+          textElement.textContent = text;
+        }
+      }
+    }, 50);
+  }, []);
+  
   return (
     <div className="Tip" style={{ 
       background: 'white', 
@@ -542,13 +562,30 @@ const SelectionTooltip: React.FC = () => {
             const textElement = document.getElementById('selected-text');
             const selectedText = textElement?.textContent || '';
             
-            console.log('Explain button clicked for text:', selectedText);
+            // If no text in the tooltip element, grab from selection
+            let textToExplain = selectedText;
+            if (!textToExplain || textToExplain.trim() === '') {
+              const selection = window.getSelection();
+              textToExplain = selection?.toString() || '';
+              
+              // Log selection issue for troubleshooting
+              console.log('Tooltip text element was empty, using selection instead:', 
+                textToExplain ? textToExplain.substring(0, 30) + '...' : 'none found');
+            }
+            
+            if (!textToExplain || textToExplain.trim() === '') {
+              console.error('No text to explain');
+              toast.error('No text selected to explain');
+              return;
+            }
+            
+            console.log('Explain button clicked for text:', textToExplain.substring(0, 50) + '...');
             
             // Dispatch the custom event for handling the explain action
             const customEvent = new CustomEvent('highlight-action', {
               detail: {
                 type: 'explain',
-                text: selectedText
+                text: textToExplain
               },
               bubbles: true
             });
@@ -572,13 +609,30 @@ const SelectionTooltip: React.FC = () => {
             const textElement = document.getElementById('selected-text');
             const selectedText = textElement?.textContent || '';
             
-            console.log('Summarize button clicked for text:', selectedText);
+            // If no text in the tooltip element, grab from selection
+            let textToSummarize = selectedText;
+            if (!textToSummarize || textToSummarize.trim() === '') {
+              const selection = window.getSelection();
+              textToSummarize = selection?.toString() || '';
+              
+              // Log selection issue for troubleshooting
+              console.log('Tooltip text element was empty, using selection instead:', 
+                textToSummarize ? textToSummarize.substring(0, 30) + '...' : 'none found');
+            }
+            
+            if (!textToSummarize || textToSummarize.trim() === '') {
+              console.error('No text to summarize');
+              toast.error('No text selected to summarize');
+              return;
+            }
+            
+            console.log('Summarize button clicked for text:', textToSummarize.substring(0, 50) + '...');
             
             // Dispatch the custom event for handling the summarize action
             const customEvent = new CustomEvent('highlight-action', {
               detail: {
                 type: 'summarize',
-                text: selectedText
+                text: textToSummarize
               },
               bubbles: true
             });
@@ -637,6 +691,38 @@ const EnhancedPdfHighlighterBase = forwardRef<EnhancedPdfHighlighterRef, Enhance
     }
   }, []);
   
+  // Add a focus management effect
+  useEffect(() => {
+    // Function to handle when focus returns to the PDF viewer
+    const handleFocus = () => {
+      console.log('Focus returned to document');
+      // Reset processing state to allow new selections to trigger the tooltip
+      setIsProcessingHighlight(false);
+      setTooltipManuallyClosed(false);
+    };
+
+    // Function to handle when the window is clicked
+    const handleWindowClick = (e: MouseEvent) => {
+      // If we're clicking within the PDF container after having interacted with chat,
+      // reset the selection/tooltip state to allow new selections
+      if (pdfContainerRef.current?.contains(e.target as Node)) {
+        if (isProcessingHighlight || tooltipManuallyClosed) {
+          console.log('Click detected in PDF after chat interaction, resetting tooltip state');
+          setIsProcessingHighlight(false);
+          setTooltipManuallyClosed(false);
+        }
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('click', handleWindowClick);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('click', handleWindowClick);
+    };
+  }, [isProcessingHighlight, tooltipManuallyClosed]);
+
   // Set up a custom event listener for highlight actions
   useEffect(() => {
     const handleHighlightAction = (event: Event) => {
@@ -692,6 +778,24 @@ const EnhancedPdfHighlighterBase = forwardRef<EnhancedPdfHighlighterRef, Enhance
   // Add document click listener to clear selection when clicking outside
   useEffect(() => {
     const handleDocumentClick = (e: MouseEvent) => {
+      // Skip handling if clicking inside:
+      // 1. Chat input field
+      // 2. Any textarea or input element
+      // 3. Elements with chat-container or chat-input-container class
+      const target = e.target as HTMLElement;
+      
+      // Check if click is within chat components
+      const isInChat = 
+        target.closest('.chat-container') || 
+        target.closest('.chat-input-container') ||
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA';
+      
+      // Don't handle clicks in chat areas
+      if (isInChat) {
+        return;
+      }
+      
       // If clicking outside the PDF container or if a highlight is being processed,
       // clear any selection
       if (
@@ -758,8 +862,19 @@ const EnhancedPdfHighlighterBase = forwardRef<EnhancedPdfHighlighterRef, Enhance
     // Set flag that tooltip was manually closed
     setTooltipManuallyClosed(true);
     
-    // More aggressive cleanup to ensure tooltip closes
-    window.getSelection()?.removeAllRanges();
+    // Only clear selections within the PDF container
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      const container = range.commonAncestorContainer;
+      
+      // Only clear if the selection is within our PDF container
+      if (pdfContainerRef.current && 
+         (pdfContainerRef.current === container || 
+          pdfContainerRef.current.contains(container as Node))) {
+        selection.removeAllRanges();
+      }
+    }
     
     // Use setTimeout to ensure this runs after any click events
     setTimeout(() => {
@@ -805,9 +920,31 @@ const EnhancedPdfHighlighterBase = forwardRef<EnhancedPdfHighlighterRef, Enhance
       return;
     }
 
-    // First, aggressively clear tooltip and selection
+    console.log(`Starting ${action.type} action with text:`, action.text.substring(0, 40) + (action.text.length > 40 ? '...' : ''));
+
+    // First, clear tooltip but be careful with selections
     handleCloseTooltip();
-    window.getSelection()?.removeAllRanges();
+    
+    // Only clear PDF selections, not chat selections
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      const container = range.commonAncestorContainer;
+      
+      // Only clear if the selection is within our PDF container
+      if (pdfContainerRef.current && 
+         (pdfContainerRef.current === container || 
+          pdfContainerRef.current.contains(container as Node))) {
+        selection.removeAllRanges();
+      }
+    }
+    
+    // Make sure we're not already processing an action (prevents double-processing)
+    if (isProcessingHighlight) {
+      console.log('Already processing a highlight action, returning early');
+      toast.info('Already processing a request, please wait');
+      return;
+    }
     
     // Set processing state to prevent tooltip from showing and block duplicate requests
     setIsProcessingHighlight(true);
@@ -828,8 +965,24 @@ const EnhancedPdfHighlighterBase = forwardRef<EnhancedPdfHighlighterRef, Enhance
     
     console.log(`Processing ${action.type} action with text:`, action.text.substring(0, 100) + (action.text.length > 100 ? '...' : ''));
     
+    // Clear any existing action before setting the new one
+    try {
+      sessionStorage.removeItem('highlight_action');
+    } catch (error) {
+      console.error('Error clearing cached highlight action:', error);
+    }
+    
     // Store in session storage to communicate with ChatInterface
     sessionStorage.setItem('highlight_action', JSON.stringify(highlightAction));
+    
+    // Dispatch a custom event to notify ChatInterface about the new highlight action
+    // This helps ensure the action is processed even if ChatInterface is already mounted
+    try {
+      console.log('Dispatching highlight-action-added event');
+      window.dispatchEvent(new CustomEvent('highlight-action-added'));
+    } catch (error) {
+      console.error('Error dispatching highlight action event:', error);
+    }
     
     // Trigger the callback to open the chat view immediately
     if (onHighlightAction) {
@@ -867,11 +1020,8 @@ const EnhancedPdfHighlighterBase = forwardRef<EnhancedPdfHighlighterRef, Enhance
             hasResponse: !!response.response
           });
           
-          // No need to show toast here, ChatInterface will do this
-          
         } catch (apiError) {
           console.error("Direct API call to explain text failed:", apiError);
-          // Only show error toast if it's a direct error
           toast.error("Failed to get explanation. Please try again.");
         }
       } else {
@@ -886,28 +1036,41 @@ const EnhancedPdfHighlighterBase = forwardRef<EnhancedPdfHighlighterRef, Enhance
             hasResponse: !!response.response
           });
           
-          // No need to show toast here, ChatInterface will do this
-          
         } catch (apiError) {
           console.error("Direct API call to summarize text failed:", apiError);
-          // Only show error toast if it's a direct error
           toast.error("Failed to get summary. Please try again.");
         }
       }
     } catch (error) {
       console.error(`Error during direct ${action.type} operation:`, error);
+    } finally {
+      // Reset state variables after a delay, regardless of API call outcome
+      setTimeout(() => {
+        setIsProcessingHighlight(false);
+        setSelectedText('');
+        setGhostHighlight(null);
+        setLastActionTaken(null);
+        
+        // Reset tooltip flags
+        setTooltipManuallyClosed(false);
+      }, 1000);
     }
 
     // Force clearing selection one more time after a short delay
     setTimeout(() => {
-      window.getSelection()?.removeAllRanges();
-      setSelectedText('');
-      setGhostHighlight(null);
-      
-      // Reset processing state after a longer delay to ensure tooltip doesn't reappear
-      setTimeout(() => {
-        setIsProcessingHighlight(false);
-      }, 300);
+      // Only clear PDF selections, not chat selections
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        const container = range.commonAncestorContainer;
+        
+        // Only clear if the selection is within our PDF container
+        if (pdfContainerRef.current && 
+           (pdfContainerRef.current === container || 
+            pdfContainerRef.current.contains(container as Node))) {
+          selection.removeAllRanges();
+        }
+      }
     }, 50);
   };
   

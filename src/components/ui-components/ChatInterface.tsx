@@ -10,7 +10,6 @@ import ConversationSidebar from './ConversationSidebar';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import MarkdownRenderer from './MarkdownRenderer';
-import { LiveChatMessage } from '@/types/chat';
 
 interface ChatInterfaceProps {
   title?: string;
@@ -108,6 +107,14 @@ const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceP
       console.log(`Loading conversation history for paper ${paperId} and conversation ${currentConversationId}`);
       setIsLoadingHistory(true);
       
+      // Create welcome message here so it's in scope for the whole function
+      const welcomeMessage: ChatMessage = {
+        id: 'welcome',
+        text: `Hello! I'm your AI research assistant. Ask me any questions about "${paperTitle || 'this research paper'}" and I'll do my best to help you understand it.`,
+        sender: 'bot',
+        timestamp: new Date()
+      };
+      
       try {
         const conversationMessages = await getConversationMessages(paperId, currentConversationId);
         
@@ -140,11 +147,11 @@ const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceP
         explainMessages.forEach((msg, i) => {
           console.log(`Explain message ${i + 1}:`, {
             id: msg.id,
-            sender: msg.sender,
+            sender: getMessageSender(msg),
             highlight_type: msg.highlight_type,
             has_highlighted_text: !!msg.highlighted_text,
-            text_preview: msg.text ? msg.text.substring(0, 50) + (msg.text.length > 50 ? '...' : '') : 'NO TEXT',
-            text_length: msg.text ? msg.text.length : 0,
+            text_preview: getMessageContent(msg) ? getMessageContent(msg).substring(0, 50) + (getMessageContent(msg).length > 50 ? '...' : '') : 'NO TEXT',
+            text_length: getMessageContent(msg) ? getMessageContent(msg).length : 0,
             timestamp: msg.timestamp,
           });
         });
@@ -153,22 +160,14 @@ const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceP
         summarizeMessages.forEach((msg, i) => {
           console.log(`Summary message ${i + 1}:`, {
             id: msg.id,
-            sender: msg.sender,
+            sender: getMessageSender(msg),
             highlight_type: msg.highlight_type,
             has_highlighted_text: !!msg.highlighted_text,
-            text_preview: msg.text ? msg.text.substring(0, 50) + (msg.text.length > 50 ? '...' : '') : 'NO TEXT',
-            text_length: msg.text ? msg.text.length : 0,
+            text_preview: getMessageContent(msg) ? getMessageContent(msg).substring(0, 50) + (getMessageContent(msg).length > 50 ? '...' : '') : 'NO TEXT',
+            text_length: getMessageContent(msg) ? getMessageContent(msg).length : 0,
             timestamp: msg.timestamp,
           });
         });
-        
-        // Create welcome message
-        const welcomeMessage: LiveChatMessage = {
-          id: 'welcome',
-          text: `Hello! I'm your AI research assistant. Ask me any questions about "${paperTitle || 'this research paper'}" and I'll do my best to help you understand it.`,
-          sender: 'bot',
-          timestamp: new Date()
-        };
         
         if (processedMessages.length > 0) {
           // Always prepend the welcome message to the conversation history
@@ -422,6 +421,26 @@ const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceP
     
     // Run the check when the component mounts and whenever paperId changes
     checkForHighlightAction();
+    
+    // Set up an interval to periodically check for highlight actions
+    // This ensures we catch highlight actions even when the component is already mounted
+    const intervalId = setInterval(checkForHighlightAction, 1000);
+    
+    // Create a custom event listener to immediately check for highlight actions
+    // This can be triggered by EnhancedPdfHighlighter when a highlight action occurs
+    const handleHighlightActionEvent = () => {
+      console.log('Highlight action event received in ChatInterface, checking for actions');
+      checkForHighlightAction();
+    };
+    
+    // Listen for a custom event that can be dispatched when a highlight action occurs
+    window.addEventListener('highlight-action-added', handleHighlightActionEvent);
+    
+    // Clean up
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('highlight-action-added', handleHighlightActionEvent);
+    };
   }, [paperId, currentConversationId]);
 
   // Replace the existing real-time subscription with the more robust version
@@ -443,16 +462,59 @@ const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceP
           const newMessage = payload.new as any;
           
           if (newMessage) {
-            // Check if this message is already in our state
-            const isDuplicate = messages.some(msg => msg.id === newMessage.id);
+            // More robust duplicate detection - check ID, content, and timestamp proximity
+            const isDuplicate = messages.some(msg => {
+              // Check by exact ID
+              if (msg.id === newMessage.id) return true;
+              
+              // Extract content from messages
+              const msgContent = getMessageContent(msg);
+              const newMsgContent = newMessage.text || newMessage.content || newMessage.query || newMessage.response || '';
+              
+              // Extract sender info
+              const msgSender = getMessageSender(msg);
+              const newMsgSender = newMessage.sender || (newMessage.query ? 'user' : 'bot');
+              
+              // For user messages, be more aggressive with duplicate detection
+              if (newMsgSender === 'user' || msgSender === 'user') {
+                // For user messages, just check content similarity
+                // This prevents duplication when server returns the saved user message
+                const contentMatch = 
+                  (msgContent && newMsgContent) && 
+                  (msgContent.trim() === newMsgContent.trim() || 
+                   msgContent.includes(newMsgContent) || 
+                   newMsgContent.includes(msgContent));
+                 
+                if (contentMatch && msgSender === 'user' && newMsgSender === 'user') {
+                  console.log('Detected duplicate USER message by content:', {
+                    existing: msgContent.substring(0, 30),
+                    new: newMsgContent.substring(0, 30)
+                  });
+                  return true;
+                }
+              }
+              
+              // Check if content and sender match for non-user messages
+              const contentAndSenderMatch = 
+                msgContent === newMsgContent && 
+                msgSender === newMsgSender;
+              
+              // Check if timestamps are close (within 5 seconds)
+              const msgTime = msg.timestamp instanceof Date ? msg.timestamp : new Date(msg.timestamp);
+              const newMsgTime = new Date(newMessage.created_at || newMessage.timestamp || Date.now());
+              const timeDiff = Math.abs(msgTime.getTime() - newMsgTime.getTime());
+              const isRecentDuplicate = timeDiff < 5000; // 5 seconds
+              
+              return contentAndSenderMatch && isRecentDuplicate;
+            });
             
             if (!isDuplicate) {
               // Convert the new message to our ChatMessage format
               const chatMessage: ChatMessage = {
                 id: newMessage.id,
                 text: newMessage.text || newMessage.content || '',
-                sender: newMessage.sender,
-                timestamp: new Date(newMessage.created_at || newMessage.timestamp),
+                sender: newMessage.sender || (newMessage.query ? 'user' : 'bot'),
+                timestamp: new Date(newMessage.created_at || newMessage.timestamp || Date.now()),
                 conversation_id: newMessage.conversation_id,
                 highlight_type: newMessage.highlight_type,
                 highlighted_text: newMessage.highlighted_text,
@@ -493,13 +555,18 @@ const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceP
                 });
               }
             } else {
+              console.log('Detected duplicate message, not adding to state:', {
+                id: newMessage.id,
+                content: (newMessage.text || newMessage.content || newMessage.query || newMessage.response || '').substring(0, 30) + '...'
+              });
+              
               // Even if it's a duplicate, update it in case the content changed
               setMessages(prevMessages => 
                 prevMessages.map(msg => 
                   msg.id === newMessage.id 
                     ? {
                         ...msg, 
-                        text: newMessage.text || newMessage.content || msg.text,
+                        text: newMessage.text || newMessage.content || (newMessage.response ? newMessage.response : newMessage.query) || msg.text,
                         highlight_type: newMessage.highlight_type || msg.highlight_type,
                         sources: newMessage.sources || msg.sources
                       } 
@@ -525,7 +592,7 @@ const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceP
       console.log('Cleaning up real-time message subscription');
       subscription.unsubscribe();
     };
-  }, [paperId, currentConversationId]);
+  }, [paperId, currentConversationId, messages]);
 
   // Also set up a subscription to the highlights table if relevant
   useEffect(() => {
@@ -604,13 +671,17 @@ const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceP
     
     if (!inputValue.trim()) return;
     
+    // Use a stable ID format that will be consistent with what comes back from the server
+    const clientMsgId = `client-${Date.now()}`;
+    
     // Add user message
-    const userMessage: LiveChatMessage = {
-      id: Date.now().toString(),
+    const userMessage: ChatMessage = {
+      id: clientMsgId,
       text: inputValue,
       sender: 'user',
       timestamp: new Date(),
-      conversation_id: currentConversationId || undefined
+      conversation_id: currentConversationId || undefined,
+      clientGeneratedId: true // Flag to indicate this was generated client-side
     };
     
     setMessages(prevMessages => [...prevMessages, userMessage]);
@@ -621,16 +692,38 @@ const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceP
     try {
       const response = await sendChatMessage(paperId, { query: userMessage.text }, currentConversationId || undefined);
       
-      const botMessage: LiveChatMessage = {
-        id: (Date.now() + 1).toString(),
+      // The response might not have an ID directly, but we can use a unique client ID
+      const botMsgId = `client-bot-${Date.now()}`;
+      
+      const botMessage: ChatMessage = {
+        id: botMsgId,
         text: response.response,
         sender: 'bot',
         timestamp: new Date(),
         sources: response.sources,
-        conversation_id: currentConversationId || undefined
+        conversation_id: currentConversationId || undefined,
+        clientGeneratedId: true // Flag to indicate this was generated client-side
       };
       
-      setMessages(prevMessages => [...prevMessages, botMessage]);
+      // Update our messages state, replacing the temporary user message with the server version if needed
+      setMessages(prevMessages => {
+        // First, find if we have any messages with clientGeneratedId flag
+        // that match our user message (by content)
+        const updatedMessages = prevMessages.map(msg => {
+          if (msg.id === clientMsgId && msg.clientGeneratedId) {
+            // If we find our temporary user message, use the original ID
+            // The server will assign its own ID that we'll get from realtime updates
+            return { 
+              ...msg, 
+              clientGeneratedId: false
+            };
+          }
+          return msg;
+        });
+        
+        // Then add the bot response
+        return [...updatedMessages, botMessage];
+      });
       
       // Refresh conversations list after sending a message
       // This ensures we have the latest conversations
@@ -721,18 +814,19 @@ const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceP
                     className={cn(
                       "flex gap-3 items-start",
                       index === 0 && "mt-6",
-                      message.sender === 'user' ? "justify-end" : "justify-start"
+                      getMessageSender(message) === 'user' ? "justify-end" : "justify-start"
                     )}
                   >
-                    {message.sender === 'user' ? (
+                    {getMessageSender(message) === 'user' ? (
                       <div className="flex flex-col gap-2 max-w-[75%]">
                         <div 
                           className={cn(
                             "py-2 px-3 rounded-lg",
-                            "bg-blue-600 text-white"                          )}
+                            "bg-blue-600 text-white"
+                          )}
                         >
                           <p className="text-sm whitespace-pre-wrap break-words">
-                            {message.text || "(No message content)"}
+                            {getMessageContent(message) || "(No message content)"}
                           </p>
                           <span 
                             className={cn(
@@ -763,7 +857,7 @@ const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceP
                             )}
                           >
                             <p className="text-sm whitespace-pre-wrap break-words">
-                              {message.text || "(No content available)"}
+                              {getMessageContent(message) || "(No content available)"}
                             </p>
                             <span 
                               className={cn(
@@ -790,6 +884,12 @@ const ChatInterface = ({ title, className, paperTitle, paperId }: ChatInterfaceP
                                     </span>
                                   </div>
                                 )}
+                                <div>
+                                  <span className="text-gray-500">Sender: </span>
+                                  <span className="font-mono">
+                                    {getMessageSender(message)}
+                                  </span>
+                                </div>
                                 {message.highlighted_text && (
                                   <span className="block text-gray-500 mt-1 truncate" title={message.highlighted_text}>
                                     <span>Excerpt: </span>
