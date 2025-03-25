@@ -53,7 +53,9 @@ export default function ConsultingStep({ paperId, onComplete }: ConsultingStepPr
   // Handle subscription checkout redirect
   const handleCheckoutRedirect = async () => {
     setIsRedirectingToStripe(true);
-    await redirectToCheckout();
+    // Create a return URL that will redirect back to this paper's consulting page
+    const returnUrl = window.location.origin + `/papers/${paperId}/consulting`;
+    await redirectToCheckout(returnUrl);
     setIsRedirectingToStripe(false);
   };
 
@@ -181,7 +183,7 @@ export default function ConsultingStep({ paperId, onComplete }: ConsultingStepPr
                 </li>
               </ul>
               <p className="mt-3 text-sm font-medium text-blue-700">
-                $19.99/month - Cancel anytime
+                $10.00/month - Cancel anytime
               </p>
             </div>
           </div>

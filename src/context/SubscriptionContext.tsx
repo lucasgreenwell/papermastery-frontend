@@ -1,12 +1,21 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import { stripeApi } from '@/api/stripe-api';
+import { useToast } from '@/hooks/use-toast';
+
+interface CancelSubscriptionResult {
+  success: boolean;
+  message: string;
+  end_date?: string;
+}
 
 interface SubscriptionContextType {
   hasActiveSubscription: boolean;
   isLoading: boolean;
   checkSubscriptionStatus: () => Promise<void>;
-  redirectToCheckout: () => Promise<void>;
+  redirectToCheckout: (returnUrl?: string) => Promise<void>;
+  cancelSubscription: () => Promise<CancelSubscriptionResult>;
+  isCancelling: boolean;
 }
 
 const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined);
@@ -30,6 +39,7 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const { user } = useAuth();
   const [hasActiveSubscription, setHasActiveSubscription] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isCancelling, setIsCancelling] = useState<boolean>(false);
   const statusCheckRef = useRef<boolean>(false);
 
   // Function to check subscription status
@@ -71,12 +81,44 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }, [user, checkSubscriptionStatusImpl]);
 
   // Function to redirect to Stripe checkout
-  const redirectToCheckout = async () => {
+  const redirectToCheckout = async (returnUrl?: string) => {
     try {
-      const { url } = await stripeApi.createCheckoutSession('premium_subscription');
+      const { url } = await stripeApi.createCheckoutSession('premium_subscription', returnUrl);
       window.location.href = url;
     } catch (error) {
       console.error('Error redirecting to checkout:', error);
+    }
+  };
+
+  // Function to cancel subscription
+  const cancelSubscription = async (): Promise<CancelSubscriptionResult> => {
+    if (!hasActiveSubscription) {
+      return {
+        success: false,
+        message: 'No active subscription to cancel'
+      };
+    }
+    
+    setIsCancelling(true);
+    try {
+      const result = await stripeApi.cancelSubscription();
+      
+      if (result.success) {
+        // If successful, refresh the subscription status after a short delay
+        setTimeout(() => {
+          checkSubscriptionStatus();
+        }, 1000);
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('Error cancelling subscription:', error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'An unexpected error occurred'
+      };
+    } finally {
+      setIsCancelling(false);
     }
   };
 
@@ -85,7 +127,9 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
       hasActiveSubscription,
       isLoading,
       checkSubscriptionStatus: checkSubscriptionStatus, // Use the debounced version to prevent excessive API calls
-      redirectToCheckout
+      redirectToCheckout,
+      cancelSubscription,
+      isCancelling
     }}>
       {children}
     </SubscriptionContext.Provider>
