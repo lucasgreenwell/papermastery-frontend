@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, memo } from 'react';
 import { FileText, Maximize, Minimize, RotateCw, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
@@ -18,7 +18,39 @@ interface PdfViewerCardProps {
   onHighlightAction?: (actionType: 'explain' | 'summarize', text: string) => void;
 }
 
-const PdfViewerCard = ({
+// Render the PDF highlighter only when necessary props change
+const StablePdfHighlighter = memo(({ 
+  pdfUrl, 
+  paperId, 
+  onHighlightAction,
+  pdfHighlighterRef
+}: { 
+  pdfUrl: string | null; 
+  paperId?: string; 
+  onHighlightAction?: (actionType: 'explain' | 'summarize', text: string) => void;
+  pdfHighlighterRef: React.RefObject<any>;
+}) => {
+  return (
+    <EnhancedPdfHighlighter 
+      ref={pdfHighlighterRef}
+      pdfUrl={pdfUrl} 
+      className="h-full" 
+      paperId={paperId}
+      onHighlightAction={onHighlightAction}
+    />
+  );
+}, (prevProps, nextProps) => {
+  // Only re-render when essential props change
+  return (
+    prevProps.pdfUrl === nextProps.pdfUrl && 
+    prevProps.paperId === nextProps.paperId
+  );
+});
+
+StablePdfHighlighter.displayName = 'StablePdfHighlighter';
+
+// Use React.memo to prevent unnecessary re-renders
+const PdfViewerCard = memo(({
   pdfUrl,
   paperId,
   title = "PDF Viewer",
@@ -28,6 +60,10 @@ const PdfViewerCard = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [hasError, setHasError] = useState(false);
+  // Create a ref for the PDF highlighter component
+  const pdfHighlighterRef = useRef<{
+    processPdfUrl: () => Promise<void>;
+  } | null>(null);
   
   // Normalize arXiv URLs before passing to the PDF component
   const normalizedPdfUrl = useMemo(() => {
@@ -87,11 +123,28 @@ const PdfViewerCard = ({
     setIsFullscreen(!isFullscreen);
   };
   
-  // Force the PDF viewer to reload by incrementing the key
+  // Manually trigger the PDF reload by calling the component's processPdfUrl method
   const handleRetry = () => {
-    setRetryCount(prev => prev + 1);
+    if (pdfHighlighterRef.current && pdfHighlighterRef.current.processPdfUrl) {
+      pdfHighlighterRef.current.processPdfUrl();
+      console.log('Manually triggered PDF reload');
+    } else {
+      console.warn('PDF Highlighter ref not available for reload');
+      // Fallback to the old method if the ref approach doesn't work
+      setRetryCount(prev => prev + 1);
+    }
     setHasError(false); // Reset error state on retry
   };
+
+  // Use useMemo to create a single stable instance of the PDF highlighter
+  const pdfHighlighter = useMemo(() => (
+    <StablePdfHighlighter
+      pdfUrl={normalizedPdfUrl}
+      paperId={paperId}
+      onHighlightAction={onHighlightAction}
+      pdfHighlighterRef={pdfHighlighterRef}
+    />
+  ), [normalizedPdfUrl, paperId, onHighlightAction]);
 
   return (
     <Card className={cn(
@@ -152,16 +205,13 @@ const PdfViewerCard = ({
         </div>
       </div>
       <div className="flex-1 overflow-hidden">
-        <EnhancedPdfHighlighter 
-          pdfUrl={normalizedPdfUrl} 
-          className="h-full" 
-          paperId={paperId}
-          onHighlightAction={onHighlightAction}
-          key={`pdf-highlighter-${paperId || 'none'}-${retryCount}`}
-        />
+        {pdfHighlighter}
       </div>
     </Card>
   );
-};
+});
+
+// Display name for React DevTools
+PdfViewerCard.displayName = 'PdfViewerCard';
 
 export default PdfViewerCard; 

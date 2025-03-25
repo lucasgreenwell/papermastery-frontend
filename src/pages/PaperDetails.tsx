@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { ArrowLeft, Brain, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,7 @@ import { useQuizHistory } from '@/hooks/useQuizHistory';
 import { formatCitation } from '@/utils/citationUtils';
 import { useToast } from '@/hooks/use-toast';
 import { getCachedPdf, clearCachedPdf } from '@/utils/cacheUtils';
+import { RealtimeChannel } from '@supabase/supabase-js';
 
 const PaperDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -317,15 +318,22 @@ const PaperDetails = () => {
     };
   }, [contentType, pdfSource]);
   
+  const [screenWidth, setScreenWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 0);
+  
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth < 768) {
+      const newWidth = window.innerWidth;
+      setScreenWidth(newWidth);
+      
+      // Update showPdf state based on screen width
+      if (newWidth < 768) {
         setShowPdf(false);
       } else {
         setShowPdf(true);
       }
     };
     
+    // Set initial values
     handleResize();
     
     window.addEventListener('resize', handleResize);
@@ -335,6 +343,8 @@ const PaperDetails = () => {
     };
   }, []);
   
+  const isWideScreen = screenWidth >= 768;
+
   const togglePdfView = () => {
     setShowPdf(!showPdf);
   };
@@ -410,7 +420,7 @@ const PaperDetails = () => {
   const [chatMode, setChatMode] = useState(false);
   
   // Function to activate chat mode with specific highlight action
-  const activateChatWithHighlight = (actionType: 'explain' | 'summarize', text: string) => {
+  const activateChatWithHighlight = useCallback((actionType: 'explain' | 'summarize', text: string) => {
     // Set chat mode to active immediately
     setChatMode(true);
     
@@ -442,11 +452,11 @@ const PaperDetails = () => {
     }
     
     console.log(`Activated chat mode with ${actionType} action for text: "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`);
-  };
+  }, [id, isMobile, showPdf, setChatMode]);
 
   // Add state for tracking real-time updates
-  const [paperRealtimeSubscription, setPaperRealtimeSubscription] = useState<any>(null);
-  const [learningItemRealtimeSubscription, setLearningItemRealtimeSubscription] = useState<any>(null);
+  const [paperRealtimeSubscription, setPaperRealtimeSubscription] = useState<RealtimeChannel | null>(null);
+  const [learningItemRealtimeSubscription, setLearningItemRealtimeSubscription] = useState<RealtimeChannel | null>(null);
   const [lastRefreshTime, setLastRefreshTime] = useState<number>(Date.now());
   
   // Set up real-time subscription to paper updates
@@ -478,12 +488,13 @@ const PaperDetails = () => {
         // Only refresh if it's been at least 5 seconds since the last refresh
         // This prevents too many refreshes for rapid updates
         if (timeSinceLastRefresh > 5000) {
-          toast.info('Paper updated', {
-            description: 'New content is available for this paper'
+          toast({
+            title: "Paper updated",
+            description: "New content is available for this paper"
           });
           
           // Refresh the paper data
-          papersAPI.getPaperById(id)
+          papersAPI.getPaper(id)
             .then(() => {
               console.log('Paper data refreshed successfully');
               setLastRefreshTime(Date.now());
@@ -532,8 +543,9 @@ const PaperDetails = () => {
         
         // Only refresh if it's been at least 5 seconds since the last refresh
         if (timeSinceLastRefresh > 5000) {
-          toast.info('New learning content available', {
-            description: 'The learning journey has been updated with new content'
+          toast({
+            title: "New learning content available",
+            description: "The learning journey has been updated with new content"
           });
           
           // The learning items will be refreshed by the usePaperDetails hook
@@ -587,7 +599,11 @@ const PaperDetails = () => {
         return {
           index,
           key: stepEl.key,
-          type: stepEl.type.name || typeof stepEl.type,
+          type: typeof stepEl.type === 'function' 
+            ? (stepEl.type as React.FC).displayName || 
+              (stepEl.type as React.ComponentType).name || 
+              'FunctionComponent'
+            : typeof stepEl.type,
           props: Object.keys(stepEl.props || {})
         };
       })
@@ -610,6 +626,32 @@ const PaperDetails = () => {
       console.warn('FlashcardsStep not found in learningJourneySteps');
     }
   }, [learningJourneySteps]);
+
+  // Create separate divs for both panels that are always rendered but toggled with CSS
+  const pdfViewerPanel = useMemo(() => (
+    <div className="h-full w-full">
+      <PdfViewerCard 
+        pdfUrl={pdfSource} 
+        paperId={id} 
+        onHighlightAction={activateChatWithHighlight}
+        title={paper?.title?.substring(0, 60) + (paper?.title && paper.title.length > 60 ? "..." : "") + " (PDF)"}
+      />
+    </div>
+  ), [pdfSource, id, paper?.title, activateChatWithHighlight]);
+
+  const learningJourneyPanel = useMemo(() => (
+    <div className="h-full w-full">
+      <LearningJourney
+        steps={learningJourneySteps}
+        onCompleteStep={handleStepComplete}
+        paperTitle={paper?.title || "Processing..."}
+        paperId={id || ''}
+        className="h-full"
+        initialChatMode={chatMode}
+        onChatModeChange={setChatMode}
+      />
+    </div>
+  ), [learningJourneySteps, paper?.title, id, chatMode, handleStepComplete]);
 
   if (isLoading && !cachedContent) {
     return (
@@ -677,35 +719,19 @@ const PaperDetails = () => {
       
       <main className="w-full overflow-hidden">
         <div className="grid grid-cols-1 md:grid-cols-[1fr,auto,1fr] h-[calc(100vh-12rem)] overflow-hidden">
-          {(showPdf || window.innerWidth >= 768) && (
-            <div className={`h-full p-2 sm:p-4 ${!showPdf ? 'hidden md:block' : ''} `}>
-              <PdfViewerCard 
-                pdfUrl={pdfSource} 
-                paperId={id} 
-                onHighlightAction={activateChatWithHighlight}
-                title={paper?.title?.substring(0, 60) + (paper?.title && paper.title.length > 60 ? "..." : "") + " (PDF)"}
-              />
-            </div>
-          )}
+          {/* Always render both panels but toggle visibility with CSS */}
+          <div className={`h-full p-2 sm:p-4 ${!showPdf && !isWideScreen ? 'hidden' : ''}`}>
+            {pdfViewerPanel}
+          </div>
           
           {/* Vertical Divider - only visible on md screens and above */}
           <div className="hidden md:flex flex-col justify-center items-center">
             <div className="w-[1px] bg-gray-200 h-[calc(100%-2rem)] rounded-full shadow-sm"></div>
           </div>
           
-          {(!showPdf || window.innerWidth >= 768) && (
-            <div className={`h-full p-2 sm:p-4 flex flex-col overflow-hidden ${showPdf ? 'hidden md:block' : ''}`}>
-              <LearningJourney
-                steps={learningJourneySteps}
-                onCompleteStep={handleStepComplete}
-                paperTitle={paper?.title || "Processing..."}
-                paperId={id || ''}
-                className="h-full"
-                initialChatMode={chatMode}
-                onChatModeChange={setChatMode}
-              />
-            </div>
-          )}
+          <div className={`h-full p-2 sm:p-4 flex flex-col overflow-hidden ${showPdf && !isWideScreen ? 'hidden' : ''}`}>
+            {learningJourneyPanel}
+          </div>
         </div>
       </main>
     </div>

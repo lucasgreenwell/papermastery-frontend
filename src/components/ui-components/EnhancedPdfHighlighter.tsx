@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo, ReactNode } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo, ReactNode, forwardRef, useImperativeHandle, memo } from 'react';
 import {
   PdfHighlighter,
   PdfLoader,
   AreaHighlight as PdfAreaHighlight,
-  IHighlightPopupProps,
 } from 'react-pdf-highlighter-extended';
-import type { Highlight as PdfHighlightType, IGetHighlightHandlerParams } from 'react-pdf-highlighter-extended';
+import type { Highlight as PdfHighlightType } from 'react-pdf-highlighter-extended';
 import { PDFDocumentProxy } from 'pdfjs-dist';
 import { GlobalWorkerOptions } from 'pdfjs-dist';
 import { cn } from '@/lib/utils';
@@ -289,13 +288,25 @@ const HighlightContainer: React.FC<{
 // Define the Supabase storage bucket for papers
 const PAPERS_BUCKET = 'papers';
 
-const EnhancedPdfHighlighter = ({ 
+// Export the interface for the ref
+export interface EnhancedPdfHighlighterRef {
+  processPdfUrl: () => Promise<void>;
+}
+
+// Define a proper interface for the utils object
+interface PdfHighlighterUtils {
+  scrollTo?: (highlight: PdfHighlightType) => void;
+  [key: string]: any; // Allow other properties we might not know about
+}
+
+// Properly combine forwardRef and memo
+const EnhancedPdfHighlighterBase = forwardRef<EnhancedPdfHighlighterRef, EnhancedPdfHighlighterProps>(({ 
   pdfUrl, 
   className, 
   paperId,
   onHighlightAction,
   onAddHighlight
-}: EnhancedPdfHighlighterProps) => {
+}, ref) => {
   const [highlights, setHighlights] = useState<IHighlight[]>([]);
   const scrollViewerTo = useRef<(highlight: PdfHighlightType) => void>(() => {});
   const [ghostHighlight, setGhostHighlight] = useState<PdfHighlightType | null>(null);
@@ -312,20 +323,24 @@ const EnhancedPdfHighlighter = ({
   const [retryAttempt, setRetryAttempt] = useState(0);
   const pdfScaleValue = "page-width";
   
-  // Move the useCallback outside the render to avoid React hook nesting error
-  const utilsCallback = useCallback((utils: { scrollTo?: (highlight: PdfHighlightType) => void }) => {
+  // Use the interface in the callback
+  const utilsCallback = useCallback((utils: PdfHighlighterUtils) => {
     // Store the scrollViewerTo function if it exists
     if (utils && utils.scrollTo) {
       scrollViewerTo.current = utils.scrollTo;
     }
   }, []);
   
-  // Update the selectionTipComponent to have the correct type
-  const selectionTipComponent = useMemo(() => {
-    const tipComponent = (content: string, trigger: () => void, hide: () => void): ReactNode => (
+  // Create a proper tip component for selection highlights
+  // The library expects a function that returns JSX, not a component
+  const renderTip = useCallback((props: { onConfirm: () => void; content: { text: string } }) => {
+    const { onConfirm, content } = props;
+    const text = content.text;
+    
+    return (
       <div className="bg-white p-3 rounded-md shadow-lg border border-gray-200">
         <p className="mt-1 italic line-clamp-2 text-sm text-gray-600 mb-3">
-          {content}
+          {text}
         </p>
         <div className="flex space-x-2">
           <Button
@@ -333,9 +348,9 @@ const EnhancedPdfHighlighter = ({
             variant="outline"
             onClick={() => {
               if (onHighlightAction) {
-                onHighlightAction('explain', content);
+                onHighlightAction('explain', text);
               }
-              hide();
+              onConfirm();
             }}
           >
             Explain
@@ -345,9 +360,9 @@ const EnhancedPdfHighlighter = ({
             variant="outline"
             onClick={() => {
               if (onHighlightAction) {
-                onHighlightAction('summarize', content);
+                onHighlightAction('summarize', text);
               }
-              hide();
+              onConfirm();
             }}
           >
             Summarize
@@ -355,7 +370,6 @@ const EnhancedPdfHighlighter = ({
         </div>
       </div>
     );
-    return tipComponent;
   }, [onHighlightAction]);
   
   // Function to scroll to a highlight based on URL hash
@@ -752,7 +766,7 @@ const EnhancedPdfHighlighter = ({
               // Cache the proxy URL if we have a paper ID
               if (paperId) {
                 console.log(`[${proxyRequestId}] Caching proxy URL for paper ${paperId}`);
-                await cachePdf(fullProxyUrl, paperId, 'url' as 'url' | 'file');
+                await cachePdf(fullProxyUrl, paperId, "url" as const);
               }
               
               setLoadingState({ state: 'success', message: 'PDF loaded successfully' });
@@ -789,6 +803,11 @@ const EnhancedPdfHighlighter = ({
       });
     }
   }, [pdfUrl, paperId, setProcessedPdfUrl]);
+
+  // Expose the processPdfUrl method to parent components via ref
+  useImperativeHandle(ref, () => ({
+    processPdfUrl
+  }), [processPdfUrl]);
 
   // Process the PDF URL when the component mounts or when the URL changes
   useEffect(() => {
@@ -844,7 +863,7 @@ const EnhancedPdfHighlighter = ({
           // Cache the proxy URL if we have a paper ID
           if (paperId) {
             console.log(`[${retryRequestId}] Caching proxy URL for paper ${paperId}`);
-            await cachePdf(proxyUrl, paperId, 'url' as 'url' | 'file');
+            await cachePdf(proxyUrl, paperId, "url" as const);
           }
           
           setLoadingState({ state: 'success', message: 'PDF loaded successfully' });
@@ -899,6 +918,44 @@ const EnhancedPdfHighlighter = ({
     window.location.hash = highlight.id;
   }, []);
 
+  // Memoize the document configuration to prevent unnecessary reloads
+  const documentConfig = useMemo(() => ({
+    url: processedPdfUrl ? (
+      processedPdfUrl.startsWith('/') 
+        ? `${env.API_URL}${processedPdfUrl}` 
+        : processedPdfUrl
+    ) : '',
+    withCredentials: false, // Don't send cookies with cross-origin requests
+    cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/cmaps/',
+    cMapPacked: true,
+  }), [processedPdfUrl, env.API_URL]);
+
+  // Memoize the loading component to prevent recreation on every render
+  const loadingComponent = useCallback(() => (
+    <div className="flex flex-col items-center justify-center h-full">
+      <Loader2 className="h-8 w-8 text-blue-500 animate-spin mb-4" />
+      <p className="text-gray-600">Loading PDF document...</p>
+    </div>
+  ), []);
+
+  // Memoize the error component
+  const errorComponent = useCallback((error: Error) => (
+    <div className="flex flex-col items-center justify-center h-full p-4">
+      <AlertTriangle className="h-12 w-12 text-amber-500 mb-4" />
+      <h3 className="text-lg font-semibold text-gray-900 mb-2">PDF Loading Error</h3>
+      <p className="text-gray-600 text-center mb-4 max-w-md">
+        The PDF document couldn't be loaded. It may be corrupted or in an unsupported format.
+      </p>
+      <Button 
+        onClick={handleRetry}
+        className="bg-blue-500 hover:bg-blue-600 text-white font-medium"
+      >
+        <RefreshCw className="h-4 w-4 mr-2" />
+        Retry with Different Method
+      </Button>
+    </div>
+  ), [handleRetry]);
+
   if (loadingState.state === 'loading') {
     return (
       <div className={cn("flex flex-col h-full bg-white rounded-xl shadow-md border border-gray-100", className)}>
@@ -946,93 +1003,73 @@ const EnhancedPdfHighlighter = ({
   
   return (
     <div className={cn("flex flex-col h-full overflow-hidden", className)}>
-      <PdfLoader 
-        document={{
-          url: processedPdfUrl.startsWith('/') 
-            ? `${env.API_URL}${processedPdfUrl}` 
-            : processedPdfUrl,
-          withCredentials: false, // Don't send cookies with cross-origin requests
-          cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/cmaps/',
-          cMapPacked: true,
-        }}
-        beforeLoad={() => (
-          <div className="flex flex-col items-center justify-center h-full">
-            <Loader2 className="h-8 w-8 text-blue-500 animate-spin mb-4" />
-            <p className="text-gray-600">Loading PDF document...</p>
-          </div>
-        )}
-        errorMessage={(error) => (
-          <div className="flex flex-col items-center justify-center h-full p-4">
-            <AlertTriangle className="h-12 w-12 text-amber-500 mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">PDF Loading Error</h3>
-            <p className="text-gray-600 text-center mb-4 max-w-md">
-              The PDF document couldn't be loaded. It may be corrupted or in an unsupported format.
-            </p>
-            <Button 
-              onClick={handleRetry}
-              className="bg-blue-500 hover:bg-blue-600 text-white font-medium"
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Retry with Different Method
-            </Button>
-          </div>
-        )}
-      >
-        {(pdfDocument) => (
-          <PdfHighlighter
-            pdfDocument={pdfDocument}
-            enableAreaSelection={(event) => event.altKey}
-            onScrollAway={resetHash}
-            pdfScaleValue={pdfScaleValue}
-            utilsRef={utilsCallback}
-            // Add a selection tip component
-            selectionTip={selectionTipComponent}
-            onSelection={(selection) => {
-              // Call our highlight action handler for the selected text
-              console.log('Text selected:', selection.content.text);
-              return null;
-            }}
-            highlightTransform={(
-              highlight,
-              index,
-              setTip,
-              hideTip,
-              viewportToScaled,
-              screenshot,
-              isScrolledTo
-            ) => {
-              // Ignore the screenshot param which isn't needed
-              return (
-                <PdfAreaHighlight
-                  isScrolledTo={isScrolledTo}
-                  highlight={highlight}
-                  onChange={() => {
-                    // Dummy onChange function for AreaHighlight
-                    // We're not allowing edits in this implementation
-                  }}
-                  onContextMenu={() => {
-                    // Handle click via context menu instead
-                    handleHighlightClick(highlight as IHighlight);
-                  }}
-                />
-              );
-            }}
-            highlights={highlights.map(highlight => ({
-              ...highlight,
-              position: {
-                ...highlight.position,
-                // Ensure rects have pageNumber property required by the library
-                rects: highlight.position.rects.map(rect => ({
-                  ...rect,
-                  pageNumber: highlight.position.pageNumber
-                }))
-              }
-            }))}
-          />
-        )}
-      </PdfLoader>
+      {processedPdfUrl && isValidUrl(processedPdfUrl) ? (
+        <PdfLoader 
+          document={documentConfig}
+          beforeLoad={loadingComponent}
+          errorMessage={errorComponent}
+        >
+          {(pdfDocument) => (
+            <PdfHighlighter
+              pdfDocument={pdfDocument}
+              enableAreaSelection={(event) => event.altKey}
+              onScrollAway={resetHash}
+              pdfScaleValue={pdfScaleValue}
+              utilsRef={utilsCallback}
+              selectionTip={renderTip}
+              onSelection={(selection) => {
+                // Call our highlight action handler for the selected text
+                console.log('Text selected:', selection.content.text);
+                return null;
+              }}
+              highlightTransform={(
+                highlight,
+                index,
+                setTip,
+                hideTip,
+                viewportToScaled,
+                screenshot,
+                isScrolledTo
+              ) => {
+                // Ignore the screenshot param which isn't needed
+                return (
+                  <PdfAreaHighlight
+                    isScrolledTo={isScrolledTo}
+                    highlight={highlight}
+                    onChange={() => {
+                      // Dummy onChange function for AreaHighlight
+                      // We're not allowing edits in this implementation
+                    }}
+                    onContextMenu={() => {
+                      // Handle click via context menu instead
+                      handleHighlightClick(highlight as IHighlight);
+                    }}
+                  />
+                );
+              }}
+              highlights={highlights.map(highlight => ({
+                ...highlight,
+                position: {
+                  ...highlight.position,
+                  // Ensure rects have pageNumber property required by the library
+                  rects: highlight.position.rects.map(rect => ({
+                    ...rect,
+                    pageNumber: highlight.position.pageNumber
+                  }))
+                }
+              }))}
+            />
+          )}
+        </PdfLoader>
+      ) : null}
     </div>
   );
-};
+});
+
+// Apply memo to the base component
+const EnhancedPdfHighlighter = memo(EnhancedPdfHighlighterBase);
+
+// Add display name for debugging
+EnhancedPdfHighlighter.displayName = 'EnhancedPdfHighlighter';
 
 export default EnhancedPdfHighlighter; 
