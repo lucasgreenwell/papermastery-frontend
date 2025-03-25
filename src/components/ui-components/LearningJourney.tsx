@@ -224,11 +224,12 @@ const LearningJourney = ({
               containsIgnoreCase(compString, 'Quiz')
             );
             
+            // Improved flashcard step detection logic
             const isFlashcardStep = activeFilter === 'flashcard' && (
               containsIgnoreCase(stepTitle, 'Flashcards') || 
               containsIgnoreCase(keyString, 'flashcard') ||
-              containsIgnoreCase(compString, 'Flashcard') ||
-              containsIgnoreCase(compString, 'Card')
+              containsIgnoreCase(compString, 'FlashcardsStep') ||
+              (typeof compType === 'function' && compType.name === 'FlashcardsStep')
             );
             
             const isConsultingStep = activeFilter === 'consulting' && (
@@ -236,6 +237,21 @@ const LearningJourney = ({
               containsIgnoreCase(keyString, 'consult') ||
               containsIgnoreCase(compString, 'Consult') 
             );
+            
+            // Add debugging for flashcard steps
+            if (activeFilter === 'flashcard') {
+              console.log('Checking if step is a flashcard step:', {
+                stepTitle,
+                keyString,
+                compStringPreview: compString.substring(0, 100),
+                compTypeName: typeof compType === 'function' ? compType.name : 'not a function',
+                isFlashcardStep,
+                matchTitle: containsIgnoreCase(stepTitle, 'Flashcards'),
+                matchKey: containsIgnoreCase(keyString, 'flashcard'),
+                matchCompString: containsIgnoreCase(compString, 'FlashcardsStep'),
+                matchCompName: typeof compType === 'function' && compType.name === 'FlashcardsStep'
+              });
+            }
             
             if (isVideoStep || isQuizStep || isFlashcardStep || isConsultingStep) {
               map[filtered.length] = index;
@@ -288,6 +304,19 @@ const LearningJourney = ({
   
   const handleFilterChange = (value: string) => {
     if (value) {
+      console.log(`Filter changed to: ${value}`);
+      
+      if (value === 'flashcard') {
+        console.log('Steps before filtering:', steps.map((step, index) => {
+          const stepEl = step as React.ReactElement;
+          return {
+            index,
+            key: stepEl.key,
+            type: typeof stepEl.type === 'function' ? stepEl.type.name : typeof stepEl.type
+          };
+        }));
+      }
+      
       setActiveFilter(value as ContentType);
     }
   };
@@ -362,17 +391,34 @@ const LearningJourney = ({
         ) : (
           <div className="h-full overflow-y-auto">
             {filteredSteps.length > 0 ? (
-              filteredSteps.map((step, index) => (
-                <div 
-                  key={index} 
-                  className={cn(
-                    "transition-all duration-500 ease-in-out w-full",
-                    index === currentStep ? "block" : "hidden"
-                  )}
-                >
-                  {step}
-                </div>
-              ))
+              filteredSteps.map((step, index) => {
+                // Get original step index from step map
+                const originalIndex = stepMap[index];
+                const stepElement = step as React.ReactElement;
+                const keyString = stepElement.key ? String(stepElement.key) : '';
+                
+                // Log when a step becomes visible
+                if (index === currentStep) {
+                  console.log('Currently displaying step:', {
+                    filteredIndex: index,
+                    originalIndex,
+                    key: keyString,
+                    isVisible: index === currentStep
+                  });
+                }
+                
+                return (
+                  <div 
+                    key={index} 
+                    className={cn(
+                      "transition-all duration-500 ease-in-out w-full",
+                      index === currentStep ? "block" : "hidden"
+                    )}
+                  >
+                    {step}
+                  </div>
+                );
+              })
             ) : (
               <div className="flex h-full items-center justify-center text-gray-500">
                 No content matches the selected filter

@@ -474,6 +474,38 @@ const PaperDetails = () => {
     }
   };
 
+  // Debug learningJourneySteps
+  useEffect(() => {
+    console.log('Learning Journey Steps:', 
+      learningJourneySteps.map((step, index) => {
+        const stepEl = step as React.ReactElement;
+        return {
+          index,
+          key: stepEl.key,
+          type: stepEl.type.name || typeof stepEl.type,
+          props: Object.keys(stepEl.props || {})
+        };
+      })
+    );
+    
+    // Check specifically if FlashcardsStep is properly configured
+    const flashcardStep = learningJourneySteps.find(step => {
+      const stepEl = step as React.ReactElement;
+      return stepEl.key === 'flashcards-step';
+    });
+    
+    if (flashcardStep) {
+      const flashcardEl = flashcardStep as React.ReactElement;
+      console.log('FlashcardsStep configuration:', {
+        itemCount: flashcardEl.props.flashcardItems?.length,
+        isLoading: flashcardEl.props.isLoading,
+        completedCount: flashcardEl.props.completedItemIds?.length
+      });
+    } else {
+      console.warn('FlashcardsStep not found in learningJourneySteps');
+    }
+  }, [learningJourneySteps]);
+
   if (isLoading && !cachedContent) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
