@@ -29,7 +29,7 @@ const Landing = () => {
           With Confidence
         </h1>
         <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-10 animate-fade-in" style={{ animationDelay: "0.1s" }}>
-          Upload any arXiv paper and we'll guide you through it step by step, from fundamentals to mastery, with an AI-powered learning journey tailored just for you.
+          Upload any research paper link or PDF and we'll guide you through it step by step, from fundamentals to mastery, with an AI-powered learning journey tailored just for you.
         </p>
         <div className="flex justify-center animate-fade-in" style={{ animationDelay: "0.2s" }}>
           <Link to="/auth">
@@ -67,7 +67,7 @@ const Landing = () => {
               </div>
               <h3 className="text-xl font-semibold mb-3 text-gray-800">Share Paper</h3>
               <p className="text-gray-600">
-                Simply paste an arXiv link, and we'll analyze the paper for you using advanced AI.
+                Simply paste a research paper link or upload a PDF, and we'll analyze the paper for you using advanced AI.
               </p>
             </div>
             
