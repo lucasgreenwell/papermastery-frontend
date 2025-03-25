@@ -521,7 +521,8 @@ const SelectionTooltip: React.FC = () => {
         fontStyle: 'italic', 
         fontSize: '0.875rem', 
         color: 'rgba(75, 85, 99, 1)', 
-        marginBottom: '0.75rem',
+        marginTop: '0rem',
+        marginBottom: '0.5rem',
         display: '-webkit-box',
         WebkitLineClamp: 2,
         WebkitBoxOrient: 'vertical',
@@ -529,7 +530,12 @@ const SelectionTooltip: React.FC = () => {
       }}>
         <span id="selected-text"></span>
       </p>
-      <div style={{ display: 'flex', gap: '0.5rem' }}>
+      <div style={{ 
+        display: 'flex', 
+        gap: '0.5rem',
+        marginTop: '-0.25rem',
+        marginBottom: '0.25rem'
+      }}>
         <button
           onClick={() => {
             // Get the selected text from the DOM (library should have set this)
