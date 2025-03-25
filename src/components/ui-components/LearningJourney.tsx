@@ -11,15 +11,30 @@ interface LearningJourneyProps {
   onCompleteStep?: (index: number) => void;
   paperTitle?: string;
   paperId: string;
+  initialChatMode?: boolean;
+  onChatModeChange?: (chatMode: boolean) => void;
 }
 
 // Define content types for filtering
 type ContentType = 'all' | 'reading' | 'video' | 'quiz' | 'flashcard' | 'slides' | 'consulting';
 
-const LearningJourney = ({ steps, className, onCompleteStep, paperTitle, paperId }: LearningJourneyProps) => {
+const LearningJourney = ({ 
+  steps, 
+  className, 
+  onCompleteStep, 
+  paperTitle, 
+  paperId,
+  initialChatMode = false,
+  onChatModeChange
+}: LearningJourneyProps) => {
+  // Debug step component types
+  useEffect(() => {
+    // Removed debug logs
+  }, [steps]);
+
   const [currentStep, setCurrentStep] = useState(0);
-  const [chatMode, setChatMode] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<ContentType>('reading');
+  const [activeFilter, setActiveFilter] = useState<ContentType>('all');
+  const [chatMode, setChatMode] = useState(initialChatMode);
   const [filteredSteps, setFilteredSteps] = useState(steps);
   const [stepMap, setStepMap] = useState<Record<number, number>>({});
   
@@ -47,8 +62,6 @@ const LearningJourney = ({ steps, className, onCompleteStep, paperTitle, paperId
           // Extract the step element and look for title in children
           const stepElement = step as React.ReactElement;
           let stepTitle = '';
-          let stepType = '';
-          let order = 999; // Default high order for unknown types
           
           try {
             // Check if this is a React element with props
@@ -85,17 +98,46 @@ const LearningJourney = ({ steps, className, onCompleteStep, paperTitle, paperId
               }
             }
             
-            // Determine step type and order based on title or component name
-            if (stepTitle.includes('Paper Summary') || (typeof stepElement.type !== 'string' && stepElement.type.name === 'SummaryStep')) {
+            // Helper function for case-insensitive includes check
+            const containsIgnoreCase = (str: string, search: string): boolean => {
+              return str.toLowerCase().includes(search.toLowerCase());
+            };
+            
+            // More robust component type detection for production
+            const compType = stepElement.type;
+            const compString = typeof compType === 'function' ? compType.toString() : '';
+            const keyString = stepElement.key ? String(stepElement.key) : '';
+            
+            // Determine step type and order based on title, key, or component string content
+            let stepType = '';
+            let order = 999; // Default high order for unknown types
+            
+            if (
+              containsIgnoreCase(stepTitle, 'Paper Summary') || 
+              containsIgnoreCase(keyString, 'summary') ||
+              containsIgnoreCase(compString, 'Summary')
+            ) {
               stepType = 'summary';
               order = 1;
-            } else if (stepTitle.includes('Key Concepts') || (typeof stepElement.type !== 'string' && stepElement.type.name === 'KeyConceptsStep')) {
+            } else if (
+              containsIgnoreCase(stepTitle, 'Key Concepts') || 
+              containsIgnoreCase(keyString, 'concepts') ||
+              containsIgnoreCase(compString, 'Concepts')
+            ) {
               stepType = 'concepts';
               order = 2;
-            } else if (stepTitle.includes('Methodology') || (typeof stepElement.type !== 'string' && stepElement.type.name === 'MethodologyStep')) {
+            } else if (
+              containsIgnoreCase(stepTitle, 'Methodology') || 
+              containsIgnoreCase(keyString, 'method') ||
+              containsIgnoreCase(compString, 'Method')
+            ) {
               stepType = 'methodology';
               order = 3;
-            } else if (stepTitle.includes('Results') || (typeof stepElement.type !== 'string' && stepElement.type.name === 'ResultsStep')) {
+            } else if (
+              containsIgnoreCase(stepTitle, 'Results') || 
+              containsIgnoreCase(keyString, 'results') ||
+              containsIgnoreCase(compString, 'Results')
+            ) {
               stepType = 'results';
               order = 4;
             }
@@ -158,18 +200,49 @@ const LearningJourney = ({ steps, className, onCompleteStep, paperTitle, paperId
                 stepTitle = findLearningStepCard(stepElement.props.children);
               }
             }
+            
+            // Helper function for case-insensitive includes check
+            const containsIgnoreCase = (str: string, search: string): boolean => {
+              return str.toLowerCase().includes(search.toLowerCase());
+            };
+            
+            // More robust component type detection for production
+            const compType = stepElement.type;
+            const compString = typeof compType === 'function' ? compType.toString() : '';
+            const keyString = stepElement.key ? String(stepElement.key) : '';
+            
+            // Check component key (most reliable in production builds)
+            const isVideoStep = activeFilter === 'video' && (
+              containsIgnoreCase(stepTitle, 'Video Explanation') || 
+              containsIgnoreCase(keyString, 'video') ||
+              containsIgnoreCase(compString, 'Video')
+            );
+            
+            const isQuizStep = activeFilter === 'quiz' && (
+              containsIgnoreCase(stepTitle, 'Comprehension Quiz') || 
+              containsIgnoreCase(keyString, 'quiz') ||
+              containsIgnoreCase(compString, 'Quiz')
+            );
+            
+            const isFlashcardStep = activeFilter === 'flashcard' && (
+              containsIgnoreCase(stepTitle, 'Flashcards') || 
+              containsIgnoreCase(keyString, 'flashcard') ||
+              containsIgnoreCase(compString, 'Flashcard') ||
+              containsIgnoreCase(compString, 'Card')
+            );
+            
+            const isConsultingStep = activeFilter === 'consulting' && (
+              containsIgnoreCase(stepTitle, 'Expert Consulting') || 
+              containsIgnoreCase(keyString, 'consult') ||
+              containsIgnoreCase(compString, 'Consult') 
+            );
+            
+            if (isVideoStep || isQuizStep || isFlashcardStep || isConsultingStep) {
+              map[filtered.length] = index;
+              filtered.push(step);
+            }
           } catch (error) {
             console.error('Error extracting title from step:', error);
-          }
-          
-          if (
-            (activeFilter === 'video' && (stepTitle.includes('Video Explanation') || (typeof stepElement.type !== 'string' && stepElement.type.name === 'VideoExplanationStep'))) ||
-            (activeFilter === 'quiz' && (stepTitle.includes('Comprehension Quiz') || (typeof stepElement.type !== 'string' && stepElement.type.name === 'QuizStep'))) ||
-            (activeFilter === 'flashcard' && (stepTitle.includes('Flashcards') || (typeof stepElement.type !== 'string' && stepElement.type.name === 'FlashcardsStep'))) ||
-            (activeFilter === 'consulting' && (stepTitle.includes('Expert Consulting') || typeof stepElement.type !== 'string' && stepElement.type.name === 'ConsultingStep'))
-          ) {
-            map[filtered.length] = index;
-            filtered.push(step);
           }
         });
       }
@@ -183,6 +256,11 @@ const LearningJourney = ({ steps, className, onCompleteStep, paperTitle, paperId
       }
     }
   }, [activeFilter, steps]);
+  
+  // Effect to sync chat mode with initialChatMode prop
+  useEffect(() => {
+    setChatMode(initialChatMode);
+  }, [initialChatMode]);
   
   const goToNextStep = () => {
     if (currentStep < filteredSteps.length - 1) {
@@ -201,7 +279,11 @@ const LearningJourney = ({ steps, className, onCompleteStep, paperTitle, paperId
   };
 
   const toggleChatMode = () => {
-    setChatMode(!chatMode);
+    const newChatMode = !chatMode;
+    setChatMode(newChatMode);
+    if (onChatModeChange) {
+      onChatModeChange(newChatMode);
+    }
   };
   
   const handleFilterChange = (value: string) => {

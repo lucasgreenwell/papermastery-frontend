@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { ArrowLeft, Brain, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import PdfViewer from '@/components/ui-components/PdfViewer';
+import EnhancedPdfHighlighter from '@/components/ui-components/EnhancedPdfHighlighter';
+import PdfViewerCard from '@/components/ui-components/PdfViewerCard';
 import SkillLevelSidebar from '@/components/ui-components/SkillLevelSidebar';
 import LearningJourney from '@/components/ui-components/LearningJourney';
 import {
@@ -19,14 +20,18 @@ import {
 } from '@/components/learning-steps';
 import { usePaperDetails } from '@/hooks/usePaperDetails';
 import { useSkillLevel } from '@/hooks/useSkillLevel';
-import { useQuizHistory } from '@/hooks/useQuizHistory';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { papersAPI } from '@/services/papersAPI';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { useQuizHistory } from '@/hooks/useQuizHistory';
 import { formatCitation } from '@/utils/citationUtils';
 import { useToast } from '@/hooks/use-toast';
 
 const PaperDetails = () => {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
+  const isMobile = useIsMobile();
   
   const { 
     paper, 
@@ -174,7 +179,17 @@ const PaperDetails = () => {
         localStorage.removeItem(`paper_${id}_content`);
         localStorage.removeItem(`paper_${id}_content_type`);
       }
-      return paper.pdf_url || paper.source_url;
+      
+      // Use the pdf_url if available, otherwise use source_url
+      const url = paper.pdf_url || paper.source_url;
+      
+      // If it's an ArXiv URL, we might need to use our proxy in dev mode to avoid CORS issues
+      if (url && url.includes('arxiv.org') && process.env.NODE_ENV === 'development') {
+        // EnhancedPdfHighlighter will handle this, but we'll log for clarity
+        console.log('Using ArXiv URL that will be processed for CORS:', url);
+      }
+      
+      return url;
     } else if (cachedContent) {
       // Paper is still processing, use cached content
       if (contentType === 'url') {
@@ -287,6 +302,151 @@ const PaperDetails = () => {
     />,
   ];
 
+  const [chatMode, setChatMode] = useState(false);
+  
+  // Function to activate chat mode with specific highlight action
+  const activateChatWithHighlight = (actionType: 'explain' | 'summarize', text: string) => {
+    // Set chat mode to active immediately
+    setChatMode(true);
+    
+    // Create a standardized highlight action object
+    const highlightAction = {
+      type: actionType,
+      text: text,
+      paperId: id,
+      timestamp: Date.now(),
+      // Explicitly include these fields to match what ChatInterface expects
+      highlighted_text: text,
+      highlight_type: actionType
+    };
+    
+    // Store the highlight action in session storage
+    console.log('Storing highlight action in session storage:', {
+      type: actionType,
+      paperId: id,
+      textLength: text.length,
+      textPreview: text.substring(0, 50) + (text.length > 50 ? '...' : '')
+    });
+    
+    // Store in session storage with the standardized format
+    sessionStorage.setItem('highlight_action', JSON.stringify(highlightAction));
+    
+    // Force the mobile view to show the right pane if we're in mobile mode
+    if (isMobile && showPdf) {
+      setShowPdf(false);
+    }
+    
+    console.log(`Activated chat mode with ${actionType} action for text: "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`);
+  };
+
+  // Add state for tracking real-time updates
+  const [paperRealtimeSubscription, setPaperRealtimeSubscription] = useState<any>(null);
+  const [learningItemRealtimeSubscription, setLearningItemRealtimeSubscription] = useState<any>(null);
+  const [lastRefreshTime, setLastRefreshTime] = useState<number>(Date.now());
+  
+  // Set up real-time subscription to paper updates
+  useEffect(() => {
+    if (!id) return;
+    
+    console.log(`Setting up real-time subscription for paper ${id}`);
+    
+    // Clean up any existing subscription
+    if (paperRealtimeSubscription) {
+      paperRealtimeSubscription.unsubscribe();
+    }
+    
+    // Subscribe to changes on the papers table
+    const subscription = supabase
+      .channel(`paper-updates-${id}`)
+      .on('postgres_changes', {
+        event: '*', // Listen for all events (INSERT, UPDATE, DELETE)
+        schema: 'public',
+        table: 'papers',
+        filter: `id=eq.${id}`,
+      }, (payload) => {
+        console.log('Real-time paper update received:', payload);
+        
+        // Determine if we should refresh the paper data
+        const currentTime = Date.now();
+        const timeSinceLastRefresh = currentTime - lastRefreshTime;
+        
+        // Only refresh if it's been at least 5 seconds since the last refresh
+        // This prevents too many refreshes for rapid updates
+        if (timeSinceLastRefresh > 5000) {
+          toast.info('Paper updated', {
+            description: 'New content is available for this paper'
+          });
+          
+          // Refresh the paper data
+          papersAPI.getPaperById(id)
+            .then(() => {
+              console.log('Paper data refreshed successfully');
+              setLastRefreshTime(Date.now());
+            })
+            .catch(err => {
+              console.error('Error refreshing paper data:', err);
+            });
+        }
+      })
+      .subscribe();
+    
+    setPaperRealtimeSubscription(subscription);
+    
+    // Clean up subscription on unmount or id change
+    return () => {
+      console.log('Cleaning up paper real-time subscription');
+      subscription.unsubscribe();
+    };
+  }, [id]);
+  
+  // Set up real-time subscription to learning items
+  useEffect(() => {
+    if (!id) return;
+    
+    console.log(`Setting up real-time subscription for learning items of paper ${id}`);
+    
+    // Clean up any existing subscription
+    if (learningItemRealtimeSubscription) {
+      learningItemRealtimeSubscription.unsubscribe();
+    }
+    
+    // Subscribe to changes on the learning_items table
+    const subscription = supabase
+      .channel(`learning-items-${id}`)
+      .on('postgres_changes', {
+        event: '*', // Listen for all events
+        schema: 'public',
+        table: 'learning_items', // Adjust this to match your actual table name
+        filter: `paper_id=eq.${id}`,
+      }, (payload) => {
+        console.log('Real-time learning item update received:', payload);
+        
+        // Determine if we should refresh the learning items
+        const currentTime = Date.now();
+        const timeSinceLastRefresh = currentTime - lastRefreshTime;
+        
+        // Only refresh if it's been at least 5 seconds since the last refresh
+        if (timeSinceLastRefresh > 5000) {
+          toast.info('New learning content available', {
+            description: 'The learning journey has been updated with new content'
+          });
+          
+          // The learning items will be refreshed by the usePaperDetails hook
+          // We just need to trigger a re-render
+          setLastRefreshTime(Date.now());
+        }
+      })
+      .subscribe();
+    
+    setLearningItemRealtimeSubscription(subscription);
+    
+    // Clean up subscription on unmount or id change
+    return () => {
+      console.log('Cleaning up learning items real-time subscription');
+      subscription.unsubscribe();
+    };
+  }, [id]);
+  
   // Function to copy citation to clipboard
   const handleCopyCitation = async () => {
     if (!paper) return;
@@ -381,8 +541,13 @@ const PaperDetails = () => {
       <main className="w-full overflow-hidden">
         <div className="grid grid-cols-1 md:grid-cols-2 h-[calc(100vh-12rem)] overflow-hidden">
           {(showPdf || window.innerWidth >= 768) && (
-            <div className={`h-full ${!showPdf ? 'hidden md:block' : ''}`}>
-              <PdfViewer pdfUrl={pdfSource} className="h-full" />
+            <div className={`h-full p-2 sm:p-4 ${!showPdf ? 'hidden md:block' : ''} `}>
+              <PdfViewerCard 
+                pdfUrl={pdfSource} 
+                paperId={id} 
+                onHighlightAction={activateChatWithHighlight}
+                title={paper?.title?.substring(0, 60) + (paper?.title && paper.title.length > 60 ? "..." : "") + " (PDF)"}
+              />
             </div>
           )}
           
@@ -394,6 +559,8 @@ const PaperDetails = () => {
                 paperTitle={paper?.title || "Processing..."}
                 paperId={id || ''}
                 className="h-full"
+                initialChatMode={chatMode}
+                onChatModeChange={setChatMode}
               />
             </div>
           )}

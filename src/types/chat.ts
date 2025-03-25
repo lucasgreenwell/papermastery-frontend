@@ -22,6 +22,9 @@ interface BaseChatMessage {
   timestamp: Date;
   sources?: ChatSource[];
   conversation_id?: string;
+  highlight_type?: 'explain' | 'summarize' | 'explanation' | 'summary' | 'loading' | 'error';
+  highlighted_text?: string;
+  highlight_source?: string;
 }
 
 // Interface for live messages

@@ -5,6 +5,7 @@ import LearningStepCard from '@/components/ui-components/LearningStepCard';
 
 interface MasteryStepProps {
   onComplete: () => void;
+  isCompleted?: boolean;
 }
 
 const MasteryStep: React.FC<MasteryStepProps> = ({ onComplete }) => {
