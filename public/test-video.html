@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        video {
+            width: 100%;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        h1 {
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <h1>Video Test Page</h1>
+    <p>If the video appears below, then it's properly accessible:</p>
+    
+    <video controls autoplay muted>
+        <source src="/demo.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
+    
+    <div style="margin-top: 20px;">
+        <p>Direct link to video: <a href="/demo.mp4" target="_blank">/demo.mp4</a></p>
+    </div>
+
+    <script>
+        // Log any video errors
+        document.querySelector('video').addEventListener('error', function(e) {
+            console.error('Video error:', e);
+            document.body.innerHTML += '<div style="color: red; margin-top: 20px;">Error loading video. Check console for details.</div>';
+        });
+        
+        // Log success
+        document.querySelector('video').addEventListener('loadeddata', function() {
+            console.log('Video loaded successfully');
+            document.body.innerHTML += '<div style="color: green; margin-top: 20px;">Video loaded successfully!</div>';
+        });
+    </script>
+</body>
+</html> 

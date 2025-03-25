@@ -41,17 +41,35 @@ const Landing = () => {
         </div>
         
         <div className="mt-16 rounded-2xl bg-white/50 backdrop-blur-sm shadow-xl overflow-hidden border border-blue-100 max-w-5xl mx-auto animate-fade-in" style={{ animationDelay: "0.3s" }}>
-          <video 
-            src="/demo.mp4" 
-            controls
-            autoPlay
-            muted
-            loop
-            className="w-full h-auto"
-            poster="/og-image.png"
-          >
-            Your browser does not support the video tag.
-          </video>
+          <div className="relative w-full" style={{ minHeight: "300px" }}>
+            <video 
+              key="demo-video"
+              src="/demo.mp4" 
+              controls
+              autoPlay
+              muted
+              loop
+              preload="auto"
+              className="w-full h-auto"
+              poster="/og-image.png"
+              style={{ display: 'block', width: '100%', objectFit: 'contain' }}
+              onError={(e) => {
+                console.error("Video loading error:", e);
+                // Add fallback image if video fails
+                const target = e.target as HTMLVideoElement;
+                target.style.display = 'none';
+                
+                // Try to reload once
+                setTimeout(() => {
+                  target.load();
+                  target.style.display = 'block';
+                }, 1000);
+              }}
+            >
+              <source src="/demo.mp4" type="video/mp4" />
+              Your browser does not support the video tag.
+            </video>
+          </div>
         </div>
       </section>
 
