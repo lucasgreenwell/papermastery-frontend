@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo, ReactNode } from 'react';
 import {
   PdfHighlighter,
   PdfLoader,
   AreaHighlight as PdfAreaHighlight,
+  IHighlightPopupProps,
 } from 'react-pdf-highlighter-extended';
-import type { Highlight as PdfHighlightType } from 'react-pdf-highlighter-extended';
+import type { Highlight as PdfHighlightType, IGetHighlightHandlerParams } from 'react-pdf-highlighter-extended';
 import { PDFDocumentProxy } from 'pdfjs-dist';
 import { GlobalWorkerOptions } from 'pdfjs-dist';
 import { cn } from '@/lib/utils';
@@ -312,16 +313,16 @@ const EnhancedPdfHighlighter = ({
   const pdfScaleValue = "page-width";
   
   // Move the useCallback outside the render to avoid React hook nesting error
-  const utilsCallback = useCallback((utils: any) => {
+  const utilsCallback = useCallback((utils: { scrollTo?: (highlight: PdfHighlightType) => void }) => {
     // Store the scrollViewerTo function if it exists
     if (utils && utils.scrollTo) {
       scrollViewerTo.current = utils.scrollTo;
     }
   }, []);
   
-  // Create our custom selection tip as a memoized component to avoid rerenders
+  // Update the selectionTipComponent to have the correct type
   const selectionTipComponent = useMemo(() => {
-    return (content: string, trigger: () => void, hide: () => void) => (
+    const tipComponent = (content: string, trigger: () => void, hide: () => void): ReactNode => (
       <div className="bg-white p-3 rounded-md shadow-lg border border-gray-200">
         <p className="mt-1 italic line-clamp-2 text-sm text-gray-600 mb-3">
           {content}
@@ -354,6 +355,7 @@ const EnhancedPdfHighlighter = ({
         </div>
       </div>
     );
+    return tipComponent;
   }, [onHighlightAction]);
   
   // Function to scroll to a highlight based on URL hash
@@ -701,9 +703,17 @@ const EnhancedPdfHighlighter = ({
       }
 
       // Determine if we should use the server proxy
-      // For arXiv URLs, we usually need the server proxy to avoid CORS issues
-      const useServerProxy = isArxivUrl(normalizedUrl) || 
-                             !normalizedUrl.startsWith('http');
+      // Check if URL is external (not relative or from our domain)
+      const isExternalUrl = normalizedUrl.startsWith('http') && 
+                            !normalizedUrl.includes(window.location.hostname);
+      
+      // Always use server proxy for external URLs (to avoid CORS issues) or relative URLs
+      const useServerProxy = isExternalUrl || !normalizedUrl.startsWith('http');
+      
+      // Log which URLs we'll proxy
+      if (isExternalUrl) {
+        console.log('Using server proxy for external URL:', normalizedUrl);
+      }
       
       // If we decide to use the server proxy, send the request
       if (useServerProxy) {
@@ -742,7 +752,7 @@ const EnhancedPdfHighlighter = ({
               // Cache the proxy URL if we have a paper ID
               if (paperId) {
                 console.log(`[${proxyRequestId}] Caching proxy URL for paper ${paperId}`);
-                await cachePdf(fullProxyUrl, paperId, 'url');
+                await cachePdf(fullProxyUrl, paperId, 'url' as 'url' | 'file');
               }
               
               setLoadingState({ state: 'success', message: 'PDF loaded successfully' });
@@ -834,7 +844,7 @@ const EnhancedPdfHighlighter = ({
           // Cache the proxy URL if we have a paper ID
           if (paperId) {
             console.log(`[${retryRequestId}] Caching proxy URL for paper ${paperId}`);
-            await cachePdf(proxyUrl, paperId, 'url');
+            await cachePdf(proxyUrl, paperId, 'url' as 'url' | 'file');
           }
           
           setLoadingState({ state: 'success', message: 'PDF loaded successfully' });
