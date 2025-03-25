@@ -41,11 +41,17 @@ const Landing = () => {
         </div>
         
         <div className="mt-16 rounded-2xl bg-white/50 backdrop-blur-sm shadow-xl overflow-hidden border border-blue-100 max-w-5xl mx-auto animate-fade-in" style={{ animationDelay: "0.3s" }}>
-          <img 
-            src="https://placehold.co/1200x600/e9f2ff/1d4ed8?text=Paper+Mastery+Demo" 
-            alt="Paper Mastery app screenshot" 
+          <video 
+            src="/demo.mp4" 
+            controls
+            autoPlay
+            muted
+            loop
             className="w-full h-auto"
-          />
+            poster="/og-image.png"
+          >
+            Your browser does not support the video tag.
+          </video>
         </div>
       </section>
 
