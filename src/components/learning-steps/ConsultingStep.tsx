@@ -9,10 +9,20 @@ import {
   Clock, 
   Video, 
   MessageSquare, 
-  ChevronRight 
+  ChevronRight,
+  CreditCard
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';
 import { useAuth } from '../../context/AuthContext';
+import { useSubscription } from '../../context/SubscriptionContext';
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface ConsultingStepProps {
   paperId: string;
@@ -21,7 +31,10 @@ interface ConsultingStepProps {
 
 export default function ConsultingStep({ paperId, onComplete }: ConsultingStepProps) {
   const { user } = useAuth();
+  const { hasActiveSubscription, redirectToCheckout, isLoading: checkingSubscription } = useSubscription();
   const [hasViewedInfo, setHasViewedInfo] = useState(false);
+  const [isSubscriptionDialogOpen, setIsSubscriptionDialogOpen] = useState(false);
+  const [isRedirectingToStripe, setIsRedirectingToStripe] = useState(false);
   
   // Mark as completed when user views consulting info
   const handleViewInfo = () => {
@@ -29,6 +42,21 @@ export default function ConsultingStep({ paperId, onComplete }: ConsultingStepPr
       setHasViewedInfo(true);
       onComplete();
     }
+
+    // If user has no active subscription, show subscription prompt dialog
+    if (!hasActiveSubscription && !checkingSubscription) {
+      setIsSubscriptionDialogOpen(true);
+      return;
+    }
+  };
+
+  // Handle subscription checkout redirect
+  const handleCheckoutRedirect = async () => {
+    setIsRedirectingToStripe(true);
+    // Create a return URL that will redirect back to this paper's consulting page
+    const returnUrl = window.location.origin + `/papers/${paperId}/consulting`;
+    await redirectToCheckout(returnUrl);
+    setIsRedirectingToStripe(false);
   };
 
   return (
@@ -76,16 +104,26 @@ export default function ConsultingStep({ paperId, onComplete }: ConsultingStepPr
           </div>
         </CardContent>
         <CardFooter className="pt-0">
-          <Button 
-            className="w-full" 
-            size="lg"
-            onClick={handleViewInfo}
-            asChild
-          >
-            <Link to={`/papers/${paperId}/consulting`}>
+          {hasActiveSubscription ? (
+            <Button 
+              className="w-full" 
+              size="lg"
+              onClick={handleViewInfo}
+              asChild
+            >
+              <Link to={`/papers/${paperId}/consulting`}>
+                Book a Session <ChevronRight className="h-4 w-4 ml-1" />
+              </Link>
+            </Button>
+          ) : (
+            <Button 
+              className="w-full" 
+              size="lg"
+              onClick={handleViewInfo}
+            >
               Book a Session <ChevronRight className="h-4 w-4 ml-1" />
-            </Link>
-          </Button>
+            </Button>
+          )}
         </CardFooter>
       </Card>
       
@@ -114,6 +152,65 @@ export default function ConsultingStep({ paperId, onComplete }: ConsultingStepPr
           </div>
         </div>
       </div>
+
+      {/* Subscription Dialog */}
+      <Dialog open={isSubscriptionDialogOpen} onOpenChange={setIsSubscriptionDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Premium Feature</DialogTitle>
+            <DialogDescription>
+              Consulting sessions are available for premium subscribers.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+              <h4 className="font-medium text-blue-800 flex items-center gap-2">
+                <CreditCard className="h-4 w-4" />
+                <span>Premium Subscription Benefits</span>
+              </h4>
+              <ul className="mt-2 space-y-2 text-sm text-blue-700">
+                <li className="flex gap-2 items-start">
+                  <span className="bg-blue-100 text-blue-600 rounded-full h-5 w-5 flex items-center justify-center flex-shrink-0 mt-0.5">✓</span>
+                  <span>1-on-1 video consultations with domain experts</span>
+                </li>
+                <li className="flex gap-2 items-start">
+                  <span className="bg-blue-100 text-blue-600 rounded-full h-5 w-5 flex items-center justify-center flex-shrink-0 mt-0.5">✓</span>
+                  <span>Unlimited expert sessions per month</span>
+                </li>
+                <li className="flex gap-2 items-start">
+                  <span className="bg-blue-100 text-blue-600 rounded-full h-5 w-5 flex items-center justify-center flex-shrink-0 mt-0.5">✓</span>
+                  <span>Access to all other premium features</span>
+                </li>
+              </ul>
+              <p className="mt-3 text-sm font-medium text-blue-700">
+                $10.00/month - Cancel anytime
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="flex justify-between gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setIsSubscriptionDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCheckoutRedirect}
+              disabled={isRedirectingToStripe}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {isRedirectingToStripe ? (
+                <>
+                  <span className="animate-spin mr-2">◯</span>
+                  Redirecting...
+                </>
+              ) : (
+                <>Subscribe Now</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 } 

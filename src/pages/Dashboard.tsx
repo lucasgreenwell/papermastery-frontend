@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useSubscription } from '@/context/SubscriptionContext';
 import { Button } from '@/components/ui/button';
-import { Brain, LogOut, Search, Upload, Network, ListFilter, Loader2, ArrowDown } from 'lucide-react';
+import { Brain, LogOut, Search, Upload, Network, ListFilter, Loader2, ArrowDown, CreditCard } from 'lucide-react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import PaperCard from '@/components/ui-components/PaperCard';
 import PaperUploadForm from '@/components/ui-components/PaperUploadForm';
@@ -15,6 +16,238 @@ import { papersAPI } from '@/services/papersAPI';
 import { PaperResponse } from '@/services/types';
 import { isArxivUrl } from '@/utils/urlUtils';
 import { usePaperSearch } from '@/hooks/usePaperSearch';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+
+// Subscription Actions Component
+const SubscriptionActions: React.FC = () => {
+  const { hasActiveSubscription, redirectToCheckout, cancelSubscription, isCancelling } = useSubscription();
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const [isManageSubscriptionOpen, setIsManageSubscriptionOpen] = useState(false);
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [isFinalConfirmOpen, setIsFinalConfirmOpen] = useState(false);
+  const [cancellationResult, setCancellationResult] = useState<{ success: boolean; message: string } | null>(null);
+  const { toast } = useToast();
+  const accountMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (accountMenuRef.current && !accountMenuRef.current.contains(event.target as Node)) {
+        setIsAccountMenuOpen(false);
+      }
+    };
+    
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  const handleCancelSubscription = async () => {
+    try {
+      const result = await cancelSubscription();
+      setCancellationResult(result);
+      
+      if (result.success) {
+        toast({
+          title: "Subscription Canceled",
+          description: "Your subscription has been canceled successfully. You'll have access until the end of your billing period.",
+        });
+        setIsFinalConfirmOpen(false);
+        setIsCancelDialogOpen(false);
+        setIsManageSubscriptionOpen(false);
+      }
+    } catch (error) {
+      console.error('Error canceling subscription:', error);
+      setCancellationResult({
+        success: false,
+        message: error instanceof Error ? error.message : 'An unexpected error occurred'
+      });
+    }
+  };
+
+  return (
+    <>
+      {/* Account Dropdown Trigger */}
+      <div className="relative" ref={accountMenuRef}>
+        <Button 
+          variant="ghost"
+          size="sm" 
+          onClick={() => setIsAccountMenuOpen(!isAccountMenuOpen)}
+          className="flex items-center gap-1"
+        >
+          <span>Account</span>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" 
+            className={`transition-transform ${isAccountMenuOpen ? 'rotate-180' : ''}`}>
+            <path d="M2 4L6 8L10 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </Button>
+        
+        {/* Account Dropdown Menu */}
+        {isAccountMenuOpen && (
+          <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10 border border-gray-200">
+            <button 
+              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              onClick={() => {
+                setIsManageSubscriptionOpen(true);
+                setIsAccountMenuOpen(false);
+              }}
+            >
+              Manage Account
+            </button>
+            
+            {/* Add other account options here */}
+          </div>
+        )}
+      </div>
+      
+      {/* Account Management Dialog */}
+      <Dialog open={isManageSubscriptionOpen} onOpenChange={setIsManageSubscriptionOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Account Management</DialogTitle>
+          </DialogHeader>
+          
+          <div className="py-4 space-y-4">
+            <div className="border rounded-md p-4">
+              <h3 className="font-medium mb-2">Subscription Status</h3>
+              {hasActiveSubscription ? (
+                <>
+                  <p className="text-sm text-green-600 mb-4">
+                    You have an active Premium subscription.
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="text-gray-600"
+                    onClick={() => {
+                      setIsCancelDialogOpen(true);
+                      setIsManageSubscriptionOpen(false);
+                    }}
+                  >
+                    Manage Subscription
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-gray-600 mb-4">
+                    You don't have an active Premium subscription.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                    onClick={() => redirectToCheckout()}
+                  >
+                    Subscribe ($10/mo)
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsManageSubscriptionOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Subscription Cancellation Dialog */}
+      <Dialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Manage Subscription</DialogTitle>
+          </DialogHeader>
+          
+          <div className="py-4 space-y-4">
+            <div className="bg-gray-50 p-4 rounded-md">
+              <h3 className="font-medium mb-2">Current Plan</h3>
+              <p className="text-sm text-gray-600 mb-1">Premium Subscription</p>
+              <p className="text-sm text-gray-600">$10/month</p>
+            </div>
+            
+            <div className="border-t pt-4">
+              <h4 className="text-sm text-gray-500 mb-4">Subscription Options</h4>
+              <Button 
+                variant="outline" 
+                className="text-red-600 border-gray-200"
+                onClick={() => {
+                  setIsFinalConfirmOpen(true);
+                  setIsCancelDialogOpen(false);
+                }}
+              >
+                Cancel Subscription
+              </Button>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsCancelDialogOpen(false)}>
+              Back
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Final Cancellation Confirmation Dialog */}
+      <Dialog open={isFinalConfirmOpen} onOpenChange={setIsFinalConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel Subscription</DialogTitle>
+            <DialogDescription>
+              Are you absolutely sure you want to cancel your Premium subscription?
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <p className="text-sm text-gray-500 mb-2">
+              This action cannot be undone. Your subscription will be canceled, but:
+            </p>
+            <ul className="text-sm text-gray-500 space-y-1 list-disc ml-5">
+              <li>You'll continue to have access until the end of your current billing period</li>
+              <li>You won't be charged again after this period ends</li>
+              <li>You can resubscribe at any time</li>
+            </ul>
+          </div>
+          
+          {cancellationResult && !cancellationResult.success && (
+            <div className="bg-red-50 text-red-700 p-3 rounded-md text-sm mb-4">
+              Error: {cancellationResult.message}
+            </div>
+          )}
+          
+          <DialogFooter className="flex justify-between">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setIsFinalConfirmOpen(false);
+                setIsCancelDialogOpen(true);
+              }}
+            >
+              Keep Subscription
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={handleCancelSubscription}
+              disabled={isCancelling}
+            >
+              {isCancelling ? 'Cancelling...' : 'Yes, Cancel Subscription'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+};
 
 // Sample arXiv URLs for quick testing
 const SAMPLE_ARXIV_URLS = [
@@ -185,6 +418,9 @@ const Dashboard = () => {
           </Link>
 
           <div className="flex items-center space-x-4">
+            {/* Use subscription context for subscription actions */}
+            <SubscriptionActions />
+            
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>

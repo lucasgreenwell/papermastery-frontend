@@ -193,6 +193,53 @@ export type Database = {
           },
         ]
       }
+      highlights: {
+        Row: {
+          created_at: string
+          explanation: string | null
+          id: string
+          paper_id: string
+          position: Json
+          summary: string | null
+          text: string
+          type: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          explanation?: string | null
+          id: string
+          paper_id: string
+          position: Json
+          summary?: string | null
+          text: string
+          type?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          explanation?: string | null
+          id?: string
+          paper_id?: string
+          position?: Json
+          summary?: string | null
+          text?: string
+          type?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "highlights_paper_id_fkey"
+            columns: ["paper_id"]
+            isOneToOne: false
+            referencedRelation: "papers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       items: {
         Row: {
           category: string | null
@@ -238,6 +285,9 @@ export type Database = {
         Row: {
           conversation_id: string
           created_at: string | null
+          highlight_source: string | null
+          highlight_type: string | null
+          highlighted_text: string | null
           id: string
           paper_id: string | null
           sender: string
@@ -248,6 +298,9 @@ export type Database = {
         Insert: {
           conversation_id: string
           created_at?: string | null
+          highlight_source?: string | null
+          highlight_type?: string | null
+          highlighted_text?: string | null
           id?: string
           paper_id?: string | null
           sender?: string
@@ -258,6 +311,9 @@ export type Database = {
         Update: {
           conversation_id?: string
           created_at?: string | null
+          highlight_source?: string | null
+          highlight_type?: string | null
+          highlighted_text?: string | null
           id?: string
           paper_id?: string | null
           sender?: string

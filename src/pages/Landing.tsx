@@ -1,18 +1,9 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Brain, FileText, Lightbulb, GraduationCap, ChevronRight, ArrowRight } from 'lucide-react';
-import WaitingListModal from '@/components/WaitingListModal';
+import { Link } from 'react-router-dom';
 
 const Landing = () => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
-  const openModal = () => {
-    setIsModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setIsModalOpen(false);
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-white">
@@ -23,9 +14,11 @@ const Landing = () => {
           <span className="font-bold text-xl bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Paper Mastery</span>
         </div>
         <div className="space-x-4">
-          <Button className="bg-blue-600 hover:bg-blue-700" onClick={openModal}>
-            Join Waiting List
-          </Button>
+          <Link to="/auth">
+            <Button className="bg-blue-600 hover:bg-blue-700">
+              Login / Sign Up
+            </Button>
+          </Link>
         </div>
       </header>
 
@@ -39,10 +32,12 @@ const Landing = () => {
           Upload any arXiv paper and we'll guide you through it step by step, from fundamentals to mastery, with an AI-powered learning journey tailored just for you.
         </p>
         <div className="flex justify-center animate-fade-in" style={{ animationDelay: "0.2s" }}>
-          <Button size="lg" className="bg-blue-600 hover:bg-blue-700" onClick={openModal}>
-            Join Waiting List
-            <ArrowRight className="ml-2 h-5 w-5" />
-          </Button>
+          <Link to="/auth">
+            <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
+              Get Started Now
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
+          </Link>
         </div>
         
         <div className="mt-16 rounded-2xl bg-white/50 backdrop-blur-sm shadow-xl overflow-hidden border border-blue-100 max-w-5xl mx-auto animate-fade-in" style={{ animationDelay: "0.3s" }}>
@@ -92,10 +87,12 @@ const Landing = () => {
           </div>
           
           <div className="text-center mt-12">
-            <Button size="lg" className="bg-blue-600 hover:bg-blue-700" onClick={openModal}>
-              Join Waiting List
-              <ChevronRight className="ml-1 h-4 w-4" />
-            </Button>
+            <Link to="/auth">
+              <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
+                Sign Up Free
+                <ChevronRight className="ml-1 h-4 w-4" />
+              </Button>
+            </Link>
           </div>
         </div>
       </section>
@@ -115,8 +112,7 @@ const Landing = () => {
         </div>
       </footer>
 
-      {/* Waiting List Modal */}
-      <WaitingListModal isOpen={isModalOpen} onClose={closeModal} />
+      {/* No waiting list modal needed anymore */}
     </div>
   );
 };

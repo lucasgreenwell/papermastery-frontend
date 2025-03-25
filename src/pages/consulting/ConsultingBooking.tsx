@@ -8,6 +8,7 @@ import {
   FileText,
   ExternalLink
 } from 'lucide-react';
+import { useSubscription } from '@/context/SubscriptionContext';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -64,8 +65,8 @@ export default function ConsultingBooking() {
     isConfirmationOpen: false
   });
   
-  // State for subscription status - always true for now
-  const [hasSubscription, setHasSubscription] = useState(true);
+  // State for subscription status from the subscription context
+  const { hasActiveSubscription } = useSubscription();
   
   // Fetch researchers
   useEffect(() => {
@@ -400,7 +401,7 @@ export default function ConsultingBooking() {
               selectedResearcher={bookingState.selectedResearcher?.id || null}
               onSelectResearcher={handleSelectResearcher}
               paper={paper}
-              hasSubscription={hasSubscription}
+              hasSubscription={hasActiveSubscription}
             />
           </div>
           
@@ -425,7 +426,7 @@ export default function ConsultingBooking() {
               selectedTimeSlot={bookingState.selectedTimeSlot}
               onTimeSlotSelect={handleTimeSlotSelect}
               onBookingConfirmed={handleBookingConfirmed}
-              hasSubscription={hasSubscription}
+              hasSubscription={hasActiveSubscription}
             />
           </div>
         </div>
