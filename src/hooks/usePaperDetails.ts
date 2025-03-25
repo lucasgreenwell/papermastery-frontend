@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { PaperResponse, LearningItem } from '@/services/types';
 import { 
@@ -6,6 +6,7 @@ import {
   useLearningItemsSubscription, 
   useProgressSubscription 
 } from './useSupabaseSubscription';
+import { getCachedPdf } from '@/utils/cacheUtils';
 
 interface UsePaperDetailsReturn {
   paper: PaperResponse | null;

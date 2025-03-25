@@ -2,9 +2,10 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
   PdfHighlighter,
   PdfLoader,
-  AreaHighlight as PdfAreaHighlight
+  AreaHighlight as PdfAreaHighlight,
 } from 'react-pdf-highlighter-extended';
 import type { Highlight as PdfHighlightType } from 'react-pdf-highlighter-extended';
+import { PDFDocumentProxy } from 'pdfjs-dist';
 import { GlobalWorkerOptions } from 'pdfjs-dist';
 import { cn } from '@/lib/utils';
 import ErrorBoundary from './ErrorBoundary';
@@ -12,12 +13,31 @@ import { Button } from '@/components/ui/button';
 import { paperHighlightAPI } from '@/lib/api/paperHighlight';
 import { toast } from 'sonner';
 import { papersAPI } from '@/services/papersAPI';
+import { supabase } from '@/integrations/supabase/client';
+import { Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
+import { getCachedPdf, cachePdf } from '@/utils/cacheUtils';
+import { isArxivUrl } from '@/utils/urlUtils';
+import { env } from '@/config/env';
+import { createRoot } from 'react-dom/client';
+
+// Helper function to check if a URL is valid
+const isValidUrl = (url: string): boolean => {
+  try {
+    // Handle relative URLs (starting with /) by prepending a dummy origin
+    const urlToTest = url.startsWith('/') ? `http://example.com${url}` : url;
+    new URL(urlToTest);
+    return true;
+  } catch (e) {
+    return false;
+  }
+};
 
 interface EnhancedPdfHighlighterProps {
   pdfUrl: string | null;
   className?: string;
   paperId?: string;
   onHighlightAction?: (actionType: 'explain' | 'summarize', text: string) => void;
+  onAddHighlight?: (highlight: IHighlight) => void;
 }
 
 // Define custom types to match the expected structure
@@ -82,20 +102,25 @@ const Highlight: React.FC<{
   );
 };
 
-// Custom Popup component for highlights
+// Simple component for popup 
 const Popup: React.FC<{
   children: React.ReactNode;
   popupContent: React.ReactNode;
-  onMouseOver: (content: React.ReactNode) => void;
-  onMouseOut: () => void;
-}> = ({ children, popupContent, onMouseOver, onMouseOut }) => {
+  onMouseDown?: (event: React.MouseEvent) => boolean;
+  onTouchStart?: (event: React.TouchEvent) => boolean;
+  hideTipAndSelection?: () => void;
+}> = ({ children, popupContent, onMouseDown, onTouchStart, hideTipAndSelection }) => {
   return (
-    <div
-      className="relative"
-      onMouseOver={() => onMouseOver(popupContent)}
-      onMouseOut={onMouseOut}
-    >
-      {children}
+    <div className="relative">
+      <div className="absolute bottom-0 left-0 rounded shadow-lg z-10 bg-white">
+        {popupContent}
+      </div>
+      <div
+        onMouseDown={onMouseDown ? (e) => onMouseDown(e) && false : undefined}
+        onTouchStart={onTouchStart ? (e) => onTouchStart(e) && false : undefined}
+      >
+        {children}
+      </div>
     </div>
   );
 };
@@ -145,17 +170,17 @@ const resetHash = () => {
   window.location.hash = "";
 };
 
-// Highlight popup component
-const HighlightPopup = ({ comment }: { comment?: { text: string; emoji?: string } }) => {
-  if (!comment || !comment.text) return null;
-  
-  return (
-    <div className="p-2 bg-white rounded-md shadow-md border border-gray-200 max-w-sm">
-      {comment.emoji && <span className="mr-1">{comment.emoji}</span>}
-      <span>{comment.text}</span>
-    </div>
-  );
-};
+// Simple component for highlight popup
+const HighlightPopup = ({ onConfirm }: { onConfirm: () => void }) => (
+  <div className="p-2">
+    <Button
+      onClick={() => onConfirm()}
+      className="bg-blue-500 hover:bg-blue-600 text-white text-xs px-2 py-1"
+    >
+      Save
+    </Button>
+  </div>
+);
 
 // Custom Tip component - the library doesn't export this component
 const PdfTip: React.FC<{
@@ -260,11 +285,15 @@ const HighlightContainer: React.FC<{
   );
 };
 
+// Define the Supabase storage bucket for papers
+const PAPERS_BUCKET = 'papers';
+
 const EnhancedPdfHighlighter = ({ 
   pdfUrl, 
   className, 
   paperId,
-  onHighlightAction 
+  onHighlightAction,
+  onAddHighlight
 }: EnhancedPdfHighlighterProps) => {
   const [highlights, setHighlights] = useState<IHighlight[]>([]);
   const scrollViewerTo = useRef<(highlight: PdfHighlightType) => void>(() => {});
@@ -277,25 +306,85 @@ const EnhancedPdfHighlighter = ({
   const [isLoadingPdf, setIsLoadingPdf] = useState(false);
   const pdfContainerRef = useRef<HTMLDivElement>(null);
   const [tooltipManuallyClosed, setTooltipManuallyClosed] = useState(false);
+  const [isCheckingCache, setIsCheckingCache] = useState(false);
+  const [loadingState, setLoadingState] = useState({ state: 'idle', message: '' });
+  const [retryAttempt, setRetryAttempt] = useState(0);
+  const pdfScaleValue = "page-width";
+  
+  // Move the useCallback outside the render to avoid React hook nesting error
+  const utilsCallback = useCallback((utils: any) => {
+    // Store the scrollViewerTo function if it exists
+    if (utils && utils.scrollTo) {
+      scrollViewerTo.current = utils.scrollTo;
+    }
+  }, []);
+  
+  // Create our custom selection tip as a memoized component to avoid rerenders
+  const selectionTipComponent = useMemo(() => {
+    return (content: string, trigger: () => void, hide: () => void) => (
+      <div className="bg-white p-3 rounded-md shadow-lg border border-gray-200">
+        <p className="mt-1 italic line-clamp-2 text-sm text-gray-600 mb-3">
+          {content}
+        </p>
+        <div className="flex space-x-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              if (onHighlightAction) {
+                onHighlightAction('explain', content);
+              }
+              hide();
+            }}
+          >
+            Explain
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              if (onHighlightAction) {
+                onHighlightAction('summarize', content);
+              }
+              hide();
+            }}
+          >
+            Summarize
+          </Button>
+        </div>
+      </div>
+    );
+  }, [onHighlightAction]);
   
   // Function to scroll to a highlight based on URL hash
   const scrollToHighlightFromHash = useCallback(() => {
-    const highlightId = parseIdFromHash();
-    if (!highlightId) return;
+    const hash = window.location.hash?.substring(1);
+    if (!hash || !highlights) return;
     
-    const highlight = highlights.find(h => h.id === highlightId);
-    if (highlight) {
-      scrollViewerTo.current(highlight as unknown as PdfHighlightType);
+    const highlight = highlights.find(h => h.id === hash);
+    if (highlight && scrollViewerTo.current) {
+      // Convert our highlight type to the format the library expects
+      const convertedHighlight = {
+        ...highlight,
+        position: {
+          ...highlight.position,
+          // Ensure rects have pageNumber property required by the library
+          rects: highlight.position.rects.map(rect => ({
+            ...rect,
+            pageNumber: highlight.position.pageNumber
+          }))
+        }
+      };
+      scrollViewerTo.current(convertedHighlight as PdfHighlightType);
     }
   }, [highlights]);
   
-  // Listen for hash changes to scroll to the right highlight
-  useEffect(() => {
-    window.addEventListener("hashchange", scrollToHighlightFromHash, false);
-    return () => {
-      window.removeEventListener("hashchange", scrollToHighlightFromHash, false);
-    };
-  }, [scrollToHighlightFromHash]);
+  // Reset URL hash when user scrolls away from a highlight
+  const resetHash = useCallback(() => {
+    if (window.location.hash) {
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+  }, []);
   
   // Add document click listener to clear selection when clicking outside
   useEffect(() => {
@@ -519,195 +608,419 @@ const EnhancedPdfHighlighter = ({
     }, 50);
   };
   
-  // Function to process ArXiv URLs and avoid CORS issues
-  useEffect(() => {
-    const processPdfUrl = async () => {
-      if (!pdfUrl) return;
-      
-      try {
-        // Check if it's an ArXiv URL that needs to be processed
-        if (pdfUrl.includes('arxiv.org')) {
-          console.log('Processing ArXiv URL to avoid CORS:', pdfUrl);
-          setIsLoadingPdf(true);
-          
-          try {
-            // Use the existing API to get a CORS-friendly URL
-            const response = await papersAPI.getPdfUrl(pdfUrl);
-            
-            if (response.pdf_url) {
-              console.log('Using proxy URL for ArXiv PDF:', response.pdf_url);
-              setProcessedPdfUrl(response.pdf_url);
-            } else if (response.url) {
-              console.log('Using proxy URL for ArXiv PDF:', response.url);
-              setProcessedPdfUrl(response.url);
-            } else {
-              // Fallback to direct URL but warn about CORS issues
-              console.warn('No proxy URL returned, using direct URL (CORS issues likely):', pdfUrl);
-              setProcessedPdfUrl(pdfUrl);
-            }
-          } catch (error) {
-            console.error('Error getting proxy URL for ArXiv PDF:', error);
-            // Fall back to direct URL as a last resort
-            setProcessedPdfUrl(pdfUrl);
-          } finally {
-            setIsLoadingPdf(false);
-          }
-        } else {
-          // For non-ArXiv URLs, use directly
-          setProcessedPdfUrl(pdfUrl);
-        }
-      } catch (error) {
-        console.error('Error processing PDF URL:', error);
-        setProcessedPdfUrl(pdfUrl);
-        setIsLoadingPdf(false);
-      }
-    };
-    
-    processPdfUrl();
-  }, [pdfUrl]);
-  
-  // Simple validation of the URL
-  const isValidUrl = useMemo(() => {
-    if (!processedPdfUrl) return false;
-    
+  /**
+   * Tests if a URL is accessible and returns a valid PDF
+   */
+  const testPdfUrlAccessibility = async (url: string): Promise<boolean> => {
     try {
-      new URL(processedPdfUrl);
-      return true;
-    } catch (e) {
-      console.error('Invalid PDF URL:', e);
+      const uniqueId = Math.random().toString(36).substring(2, 10);
+      console.log(`[PDF-Test-${uniqueId}] Testing PDF URL accessibility: ${url}`);
+      
+      // For static file paths from our backend, use GET and check for PDF signature
+      if (url.includes('/static/proxied_pdfs/')) {
+        try {
+          // Make sure we're using the correct port for backend URLs
+          let urlToTest = url;
+          
+          // Check if the URL contains localhost with a port that's not 8000
+          if (url.includes('localhost:') && !url.includes('localhost:8000') && url.includes('/static/proxied_pdfs/')) {
+            // Replace the port with 8000 (backend port)
+            urlToTest = url.replace(/localhost:\d+/, 'localhost:8000');
+            console.log(`[PDF-Test-${uniqueId}] Corrected URL port to backend port: ${urlToTest}`);
+          }
+          
+          // Get the first few bytes to check for PDF signature
+          const response = await fetch(urlToTest, {
+            method: 'GET',
+            headers: { 'Range': 'bytes=0-8' }
+          });
+          
+          if (!response.ok) {
+            console.warn(`[PDF-Test-${uniqueId}] URL fetch failed with status: ${response.status}`);
+            return false;
+          }
+          
+          // Get the buffer and check for PDF signature
+          const buffer = await response.arrayBuffer();
+          const bytes = new Uint8Array(buffer);
+          // PDF signature is "%PDF-1." (in hex: 25 50 44 46 2D 31 2E)
+          const isPdf = bytes.length >= 7 && 
+                         bytes[0] === 0x25 && bytes[1] === 0x50 && 
+                         bytes[2] === 0x44 && bytes[3] === 0x46 && 
+                         bytes[4] === 0x2D && bytes[5] === 0x31 && 
+                         bytes[6] === 0x2E;
+          
+          console.log(`[PDF-Test-${uniqueId}] URL test result:`, {
+            status: response.status,
+            isPdf: isPdf,
+            bytesReceived: bytes.length
+          });
+          
+          return isPdf;
+        } catch (err) {
+          console.error(`[PDF-Test-${uniqueId}] Error checking PDF signature:`, err);
+          return false;
+        }
+      } else {
+        // For external URLs, try HEAD request first
+        const response = await fetch(url, { method: 'HEAD' });
+        const contentType = response.headers.get('Content-Type') || '';
+        
+        console.log(`[PDF-Test-${uniqueId}] URL test result:`, {
+          status: response.status,
+          contentType: contentType
+        });
+        
+        return response.ok && /pdf|octet-stream/.test(contentType.toLowerCase());
+      }
+    } catch (error) {
+      console.error('Error testing URL accessibility:', error);
       return false;
     }
-  }, [processedPdfUrl]);
+  };
+
+  // Function to handle the PDF processing
+  const processPdfUrl = useCallback(async () => {
+    if (!pdfUrl) {
+      console.error('No PDF URL provided');
+      setLoadingState({ state: 'error', message: 'No PDF URL provided' });
+      return;
+    }
+
+    try {
+      // Start with loading state
+      setLoadingState({ state: 'loading', message: 'Processing PDF URL...' });
+      console.log('Processing PDF URL:', pdfUrl);
+
+      // Normalize the URL (e.g., arXiv abstract URL to PDF URL)
+      let normalizedUrl = pdfUrl;
+      if (isArxivUrl(pdfUrl) && pdfUrl.includes('arxiv.org/abs/')) {
+        const arxivId = pdfUrl.split('arxiv.org/abs/')[1].split(/[?#]/)[0];
+        normalizedUrl = `https://arxiv.org/pdf/${arxivId}.pdf`;
+        console.log('Normalized arXiv URL:', normalizedUrl);
+      }
+
+      // Determine if we should use the server proxy
+      // For arXiv URLs, we usually need the server proxy to avoid CORS issues
+      const useServerProxy = isArxivUrl(normalizedUrl) || 
+                             !normalizedUrl.startsWith('http');
+      
+      // If we decide to use the server proxy, send the request
+      if (useServerProxy) {
+        try {
+          setLoadingState({ state: 'loading', message: 'Fetching from server proxy...' });
+          const processStartTime = Date.now();
+          const proxyRequestId = Math.random().toString(36).substring(2, 8);
+          
+          console.log(`[${proxyRequestId}] Sending to server proxy:`, { 
+            normalizedUrl, paperId 
+          });
+          
+          // Send the normalized URL to the server proxy
+          const proxyResponse = await papersAPI.getServerProxyPdfUrl(normalizedUrl, paperId);
+          
+          // Check if proxy response contains a valid URL
+          if (proxyResponse && proxyResponse.url) {
+            const proxyUrl = proxyResponse.url;
+            console.log(`[${proxyRequestId}] Server proxy returned URL:`, proxyUrl);
+            
+            // Convert relative URLs to absolute URLs if needed
+            let fullProxyUrl = proxyUrl;
+            if (proxyUrl.startsWith('/')) {
+              // Use backend URL from environment config, not window.location.origin
+              fullProxyUrl = `${env.API_URL}${proxyUrl}`;
+              console.log(`[${proxyRequestId}] Converted relative URL to absolute using backend URL:`, fullProxyUrl);
+            }
+            
+            // Test if the proxy URL is accessible and returns a valid PDF
+            const isAccessible = await testPdfUrlAccessibility(fullProxyUrl);
+            
+            if (isAccessible) {
+              console.log(`[${proxyRequestId}] Proxy URL is accessible and valid, using it`);
+              setProcessedPdfUrl(fullProxyUrl);
+              
+              // Cache the proxy URL if we have a paper ID
+              if (paperId) {
+                console.log(`[${proxyRequestId}] Caching proxy URL for paper ${paperId}`);
+                await cachePdf(fullProxyUrl, paperId, 'url');
+              }
+              
+              setLoadingState({ state: 'success', message: 'PDF loaded successfully' });
+              const processEndTime = Date.now();
+              console.log(`[${proxyRequestId}] PDF processing completed in ${processEndTime - processStartTime}ms`);
+              return;
+            } else {
+              console.warn(`[${proxyRequestId}] Proxy URL is not accessible or not a valid PDF, falling back to cached URL`);
+            }
+          }
+          
+          // If we get here, the proxy failed or returned an invalid URL
+          console.warn(`[${proxyRequestId}] Server proxy failed or returned invalid URL, using cached URL`);
+          setProcessedPdfUrl(normalizedUrl);
+          setLoadingState({ state: 'success', message: 'Using direct URL' });
+          
+        } catch (error) {
+          console.error('Error using server proxy:', error);
+          // Set the PDF URL to the cached URL as a fallback
+          setProcessedPdfUrl(normalizedUrl);
+          setLoadingState({ state: 'success', message: 'Using direct URL after error' });
+        }
+      } else {
+        // Use the cached URL directly
+        console.log('Using cached PDF URL directly:', normalizedUrl);
+        setProcessedPdfUrl(normalizedUrl);
+        setLoadingState({ state: 'success', message: 'Using direct URL' });
+      }
+    } catch (error) {
+      console.error('Error processing PDF URL:', error);
+      setLoadingState({ 
+        state: 'error', 
+        message: `Failed to process PDF URL: ${error instanceof Error ? error.message : String(error)}`
+      });
+    }
+  }, [pdfUrl, paperId, setProcessedPdfUrl]);
+
+  // Process the PDF URL when the component mounts or when the URL changes
+  useEffect(() => {
+    processPdfUrl();
+  }, [processPdfUrl]);
+
+  // Handle retry for loading a PDF
+  const handleRetry = async () => {
+    if (!processedPdfUrl) {
+      console.error('No PDF URL to retry');
+      return;
+    }
+
+    // Normalize URL if it's an arXiv abstract
+    let urlToUse = processedPdfUrl;
+    if (isArxivUrl(processedPdfUrl) && processedPdfUrl.includes('arxiv.org/abs/')) {
+      const arxivId = processedPdfUrl.split('arxiv.org/abs/')[1].split(/[?#]/)[0];
+      urlToUse = `https://arxiv.org/pdf/${arxivId}.pdf`;
+      console.log('Normalized arXiv URL for retry:', urlToUse);
+    }
+    
+    try {
+      setLoadingState({ state: 'loading', message: 'Retrying with server proxy...' });
+      const retryRequestId = Math.random().toString(36).substring(2, 8);
+      
+      console.log(`[${retryRequestId}] Retrying with server proxy:`, {
+        urlToUse,
+        paperId,
+        attempt: retryAttempt + 1
+      });
+      
+      // Always try the server proxy on retry
+      const proxyResponse = await papersAPI.getServerProxyPdfUrl(urlToUse, paperId);
+      
+      if (proxyResponse && proxyResponse.url) {
+        let proxyUrl = proxyResponse.url;
+        console.log(`[${retryRequestId}] Server proxy returned URL:`, proxyUrl);
+        
+        // Convert relative URLs to absolute URLs if needed
+        if (proxyUrl.startsWith('/')) {
+          // Use backend URL from environment config, not window.location.origin
+          proxyUrl = `${env.API_URL}${proxyUrl}`;
+          console.log(`[${retryRequestId}] Converted relative URL to absolute using backend URL:`, proxyUrl);
+        }
+        
+        // Test if the proxy URL is accessible and returns a valid PDF
+        const isAccessible = await testPdfUrlAccessibility(proxyUrl);
+        
+        if (isAccessible) {
+          console.log(`[${retryRequestId}] Proxy URL is accessible and valid, using it`);
+          setProcessedPdfUrl(proxyUrl);
+          
+          // Cache the proxy URL if we have a paper ID
+          if (paperId) {
+            console.log(`[${retryRequestId}] Caching proxy URL for paper ${paperId}`);
+            await cachePdf(proxyUrl, paperId, 'url');
+          }
+          
+          setLoadingState({ state: 'success', message: 'PDF loaded successfully' });
+          setRetryAttempt(retryAttempt + 1);
+          return;
+        } else {
+          console.warn(`[${retryRequestId}] Proxy URL is not accessible or not a valid PDF, trying fallback methods`);
+        }
+      }
+      
+      // If server proxy fails, try using CORS proxy as fallback
+      const corsProxyUrl = `https://corsproxy.io/?${encodeURIComponent(urlToUse)}`;
+      console.log(`[${retryRequestId}] Using CORS proxy fallback:`, corsProxyUrl);
+      
+      setProcessedPdfUrl(corsProxyUrl);
+      setLoadingState({ state: 'success', message: 'Using CORS proxy' });
+      setRetryAttempt(retryAttempt + 1);
+      
+    } catch (error) {
+      console.error('Retry failed:', error);
+      
+      // Last resort - use a public CORS proxy
+      const corsProxyUrl = `https://corsproxy.io/?${encodeURIComponent(urlToUse)}`;
+      console.log('Using public CORS proxy as last resort:', corsProxyUrl);
+      
+      setProcessedPdfUrl(corsProxyUrl);
+      setLoadingState({ state: 'success', message: 'Using fallback CORS proxy' });
+      setRetryAttempt(retryAttempt + 1);
+    }
+  };
   
-  if (isLoadingPdf) {
+  // Add document click listener to clear selection when clicking outside
+  useEffect(() => {
+    // Listen for hash changes to scroll to the right highlight
+    window.addEventListener("hashchange", scrollToHighlightFromHash, false);
+
+    return () => {
+      window.removeEventListener("hashchange", scrollToHighlightFromHash, false);
+    };
+  }, [scrollToHighlightFromHash]);
+
+  // Handle adding a new highlight
+  const handleAddHighlight = useCallback((highlight: IHighlight) => {
+    if (onAddHighlight) {
+      onAddHighlight(highlight);
+    }
+  }, [onAddHighlight]);
+
+  // Handle clicking on a highlight
+  const handleHighlightClick = useCallback((highlight: IHighlight) => {
+    // Update URL hash to reference this highlight
+    window.location.hash = highlight.id;
+  }, []);
+
+  if (loadingState.state === 'loading') {
     return (
       <div className={cn("flex flex-col h-full bg-white rounded-xl shadow-md border border-gray-100", className)}>
-        <div className="flex-1 overflow-auto p-4 bg-gray-50 flex items-center justify-center">
-          <p className="text-gray-500">Processing PDF URL to avoid CORS issues...</p>
+        <div className="flex-1 overflow-auto p-4 bg-gray-50 flex flex-col items-center justify-center">
+          <Loader2 className="h-8 w-8 text-blue-500 animate-spin mb-4" />
+          <p className="text-gray-600 font-medium">{loadingState.message}</p>
+          <p className="text-xs text-gray-500 mt-1">This may take a moment</p>
         </div>
       </div>
     );
   }
   
-  if (!processedPdfUrl || !isValidUrl) {
+  if (!processedPdfUrl || !isValidUrl(processedPdfUrl)) {
     return (
       <div className={cn("flex flex-col h-full bg-white rounded-xl shadow-md border border-gray-100", className)}>
-        <div className="flex-1 overflow-auto p-4 bg-gray-50 flex items-center justify-center">
-          <p className="text-gray-500">
-            {!processedPdfUrl ? 'No PDF available' : 'Invalid PDF URL'}
+        <div className="flex-1 overflow-auto p-4 bg-gray-50 flex flex-col items-center justify-center">
+          <AlertTriangle className="h-12 w-12 text-amber-500 mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Unable to load PDF</h3>
+          <p className="text-gray-600 text-center mb-4 max-w-md">
+            We encountered an error while trying to load the PDF. 
+            The URL might be invalid or the source may be unavailable.
           </p>
+          <div className="text-sm text-gray-500 bg-gray-100 p-2 rounded-md mb-4 w-full max-w-md overflow-hidden">
+            <strong>URL:</strong> {
+              processedPdfUrl?.startsWith('/') 
+                ? `${env.API_URL}${processedPdfUrl.length > 80 
+                    ? `${processedPdfUrl.substring(0, 80)}...` 
+                    : processedPdfUrl}`
+                : processedPdfUrl?.length > 80 
+                  ? `${processedPdfUrl.substring(0, 80)}...` 
+                  : processedPdfUrl
+            }
+          </div>
+          <Button 
+            onClick={handleRetry}
+            className="bg-blue-500 hover:bg-blue-600 text-white font-medium"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Retry with Server Proxy
+          </Button>
         </div>
       </div>
     );
   }
   
   return (
-    <div 
-      className={cn("flex flex-col h-full bg-white rounded-xl shadow-md border border-gray-100", className)}
-      ref={pdfContainerRef}
-    >
-      <ErrorBoundary>
-        <div className="flex-1 overflow-hidden relative">
-          <PdfLoader 
-            document={processedPdfUrl}
-            beforeLoad={(progress) => (
-              <div className="p-4 text-center">
-                <p>Loading PDF... {progress.loaded ? Math.round(progress.loaded / progress.total * 100) : 0}%</p>
-              </div>
-            )}
-            onError={(error: Error) => (
-              <div className="p-4 text-center">
-                <p className="text-red-500 font-medium">Error loading PDF</p>
-                <p className="text-sm text-gray-600 mt-2">{error.message}</p>
-                <div className="mt-4 p-2 bg-gray-100 rounded text-xs text-left overflow-auto max-h-36">
-                  <p className="font-mono">URL: {processedPdfUrl}</p>
-                  <p className="font-mono">Error: {error.toString()}</p>
-                </div>
-              </div>
-            )}
-          >
-            {pdfDocument => (
-              <PdfHighlighter
-                pdfDocument={pdfDocument}
-                enableAreaSelection={(event) => event.altKey}
-                onScrollAway={resetHash}
-                selectionTip={
-                  selectedText && ghostHighlight && !isProcessingHighlight && !tooltipManuallyClosed ? (
-                    <PdfTip 
-                      onOpen={() => {}}
-                      highlightedText={selectedText}
-                      onConfirm={(action) => {
-                        // Immediately block tooltip reappearance
-                        setIsProcessingHighlight(true);
-                        
-                        // Call the actual handler (which will clear selection)
-                        handleExplainOrSummarize(action);
-                      }}
-                      isProcessing={isProcessingHighlight}
-                      actionTaken={lastActionTaken}
-                      onClose={() => {
-                        // Force tooltip closing - this is important
-                        handleCloseTooltip();
-                      }}
-                    />
-                  ) : null
-                }
-                highlights={highlights as unknown as PdfHighlightType[]}
-                utilsRef={(utils) => {
-                  scrollViewerTo.current = utils.scrollToHighlight;
-                  scrollToHighlightFromHash();
-                }}
-                onSelection={(selection) => {
-                  // Don't process selection if we're already processing a highlight
-                  if (isProcessingHighlight) {
-                    return;
-                  }
-                  
-                  // Clear any existing timeout
-                  if (selectionTimeoutRef.current) {
-                    clearTimeout(selectionTimeoutRef.current);
-                  }
-                  
-                  // Clear previous selection state immediately
-                  setSelectedText('');
-                  setGhostHighlight(null);
-                  setLastActionTaken(null);
-                  
-                  // Add a small delay to ensure selection is complete
-                  selectionTimeoutRef.current = setTimeout(() => {
-                    // Extract the selected text
-                    const content = selection.content;
-                    const text = content?.text?.trim() || '';
-                    
-                    if (text) {
-                      console.log("Selected text:", text);
-                      setSelectedText(text);
-                      
-                      // Create ghost highlight
-                      const newGhostHighlight = selection.makeGhostHighlight();
-                      handleGhostHighlight(newGhostHighlight as unknown as PdfHighlightType);
-                    } else {
-                      console.log("Empty selection detected");
-                    }
-                  }, 50); // Small delay to ensure selection is fully captured
-                }}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  overflow: 'auto'
-                }}
-              >
-                <HighlightContainer>
-                  {/* The highlight rendering will be handled through the HighlightContainer */}
-                </HighlightContainer>
-              </PdfHighlighter>
-            )}
-          </PdfLoader>
-        </div>
-      </ErrorBoundary>
+    <div className={cn("flex flex-col h-full overflow-hidden", className)}>
+      <PdfLoader 
+        document={{
+          url: processedPdfUrl.startsWith('/') 
+            ? `${env.API_URL}${processedPdfUrl}` 
+            : processedPdfUrl,
+          withCredentials: false, // Don't send cookies with cross-origin requests
+          cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/cmaps/',
+          cMapPacked: true,
+        }}
+        beforeLoad={() => (
+          <div className="flex flex-col items-center justify-center h-full">
+            <Loader2 className="h-8 w-8 text-blue-500 animate-spin mb-4" />
+            <p className="text-gray-600">Loading PDF document...</p>
+          </div>
+        )}
+        errorMessage={(error) => (
+          <div className="flex flex-col items-center justify-center h-full p-4">
+            <AlertTriangle className="h-12 w-12 text-amber-500 mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">PDF Loading Error</h3>
+            <p className="text-gray-600 text-center mb-4 max-w-md">
+              The PDF document couldn't be loaded. It may be corrupted or in an unsupported format.
+            </p>
+            <Button 
+              onClick={handleRetry}
+              className="bg-blue-500 hover:bg-blue-600 text-white font-medium"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry with Different Method
+            </Button>
+          </div>
+        )}
+      >
+        {(pdfDocument) => (
+          <PdfHighlighter
+            pdfDocument={pdfDocument}
+            enableAreaSelection={(event) => event.altKey}
+            onScrollAway={resetHash}
+            pdfScaleValue={pdfScaleValue}
+            utilsRef={utilsCallback}
+            // Add a selection tip component
+            selectionTip={selectionTipComponent}
+            onSelection={(selection) => {
+              // Call our highlight action handler for the selected text
+              console.log('Text selected:', selection.content.text);
+              return null;
+            }}
+            highlightTransform={(
+              highlight,
+              index,
+              setTip,
+              hideTip,
+              viewportToScaled,
+              screenshot,
+              isScrolledTo
+            ) => {
+              // Ignore the screenshot param which isn't needed
+              return (
+                <PdfAreaHighlight
+                  isScrolledTo={isScrolledTo}
+                  highlight={highlight}
+                  onChange={() => {
+                    // Dummy onChange function for AreaHighlight
+                    // We're not allowing edits in this implementation
+                  }}
+                  onContextMenu={() => {
+                    // Handle click via context menu instead
+                    handleHighlightClick(highlight as IHighlight);
+                  }}
+                />
+              );
+            }}
+            highlights={highlights.map(highlight => ({
+              ...highlight,
+              position: {
+                ...highlight.position,
+                // Ensure rects have pageNumber property required by the library
+                rects: highlight.position.rects.map(rect => ({
+                  ...rect,
+                  pageNumber: highlight.position.pageNumber
+                }))
+              }
+            }))}
+          />
+        )}
+      </PdfLoader>
     </div>
   );
 };

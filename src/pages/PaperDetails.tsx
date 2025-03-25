@@ -27,6 +27,7 @@ import { toast } from 'sonner';
 import { useQuizHistory } from '@/hooks/useQuizHistory';
 import { formatCitation } from '@/utils/citationUtils';
 import { useToast } from '@/hooks/use-toast';
+import { getCachedPdf, clearCachedPdf } from '@/utils/cacheUtils';
 
 const PaperDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -149,39 +150,115 @@ const PaperDetails = () => {
   // Add state for cached content
   const [cachedContent, setCachedContent] = useState<string | File | null>(null);
   const [contentType, setContentType] = useState<'url' | 'file' | null>(null);
+  const [isCacheLoading, setIsCacheLoading] = useState(false);
 
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if we have cached content from navigation state
-    if (location.state?.cachedContent) {
-      setCachedContent(location.state.cachedContent);
-      setContentType(location.state.contentType);
-    } else {
-      // Try to restore from localStorage
-      const storedType = localStorage.getItem(`paper_${id}_content_type`);
-      if (storedType === 'url') {
-        const storedUrl = localStorage.getItem(`paper_${id}_content`);
-        if (storedUrl) {
-          setCachedContent(storedUrl);
-          setContentType('url');
+    const loadContent = async () => {
+      if (!id) return;
+
+      // Check if we have cached content from navigation state
+      if (location.state?.cachedContent) {
+        setCachedContent(location.state.cachedContent);
+        setContentType(location.state.contentType);
+        return;
+      } 
+      
+      // Try to get content from IndexedDB cache
+      setIsCacheLoading(true);
+      try {
+        const cachedData = await getCachedPdf(id);
+        if (cachedData) {
+          console.log(`Retrieved cached PDF for paper ${id} (type: ${cachedData.contentType})`);
+          
+          // Normalize cached URL if it's an arXiv abstract URL
+          if (cachedData.contentType === 'url' && 
+              typeof cachedData.content === 'string' && 
+              cachedData.content.includes('arxiv.org/abs/')) {
+            
+            try {
+              const arxivId = cachedData.content.split('arxiv.org/abs/')[1].split(/[?#]/)[0];
+              const normalizedUrl = `https://arxiv.org/pdf/${arxivId}.pdf`;
+              console.log(`Normalizing cached arXiv abstract URL to PDF URL: ${normalizedUrl}`);
+              
+              // Update component state with normalized URL
+              setCachedContent(normalizedUrl);
+              setContentType('url');
+              
+              // Update the cache with the normalized URL for future use
+              const { cachePdf } = await import('@/utils/cacheUtils');
+              cachePdf(id, 'url', normalizedUrl)
+                .then(() => console.log(`Updated cache with normalized URL for paper ${id}`))
+                .catch(err => console.error('Failed to update cache with normalized URL:', err));
+            } catch (normalizationError) {
+              console.error('Error normalizing cached arXiv URL:', normalizationError);
+              // Fall back to using the original cached content
+              setCachedContent(cachedData.content);
+              setContentType(cachedData.contentType);
+            }
+          } else {
+            // For non-arXiv URLs or file content, use as-is
+            setCachedContent(cachedData.content);
+            setContentType(cachedData.contentType);
+          }
+        } else {
+          console.log(`No cached PDF found for paper ${id}`);
+          
+          // Legacy: Try to restore from localStorage if no IndexedDB cache
+          const storedType = localStorage.getItem(`paper_${id}_content_type`);
+          if (storedType === 'url') {
+            const storedUrl = localStorage.getItem(`paper_${id}_content`);
+            if (storedUrl) {
+              setCachedContent(storedUrl);
+              setContentType('url');
+            }
+          }
         }
+      } catch (error) {
+        console.error('Error loading cached PDF:', error);
+      } finally {
+        setIsCacheLoading(false);
       }
-    }
+    };
+
+    loadContent();
   }, [id, location]);
 
   // Create memoized PDF source that prioritizes cached content
   const pdfSource = useMemo(() => {
+    // First priority: If we have a cached PDF, use it
+    if (cachedContent) {
+      console.log('Using cached PDF content');
+      if (contentType === 'url') {
+        // Handle relative URLs in cached content
+        const urlContent = cachedContent as string;
+        if (urlContent.startsWith('/')) {
+          console.log('Converting relative cached URL to absolute URL');
+          return `${window.location.origin}${urlContent}`;
+        }
+        return urlContent;
+      } else if (contentType === 'file') {
+        // Create temporary URL for the file
+        return URL.createObjectURL(cachedContent as File);
+      }
+    }
+    
+    // Second priority: If paper has processed PDF URL, use it
     if (paper?.pdf_url || paper?.source_url) {
       // Paper is processed, use the actual PDF URL from Supabase
-      // Clear localStorage once we have the actual paper data
-      if (id) {
-        localStorage.removeItem(`paper_${id}_content`);
-        localStorage.removeItem(`paper_${id}_content_type`);
-      }
       
       // Use the pdf_url if available, otherwise use source_url
-      const url = paper.pdf_url || paper.source_url;
+      let url = paper.pdf_url || paper.source_url;
+      
+      // Important: Make sure ArXiv abstract URLs are converted to PDF URLs
+      if (url && url.includes('arxiv.org/abs/')) {
+        // Convert abstract URL to PDF URL
+        const arxivId = url.split('arxiv.org/abs/')[1].split(/[?#]/)[0];
+        const pdfUrl = `https://arxiv.org/pdf/${arxivId}.pdf`;
+        console.log('Converting ArXiv abstract URL to PDF URL:', pdfUrl);
+        url = pdfUrl;
+      }
       
       // If it's an ArXiv URL, we might need to use our proxy in dev mode to avoid CORS issues
       if (url && url.includes('arxiv.org') && process.env.NODE_ENV === 'development') {
@@ -189,16 +266,44 @@ const PaperDetails = () => {
         console.log('Using ArXiv URL that will be processed for CORS:', url);
       }
       
-      return url;
-    } else if (cachedContent) {
-      // Paper is still processing, use cached content
-      if (contentType === 'url') {
-        return cachedContent as string;
-      } else if (contentType === 'file') {
-        // Create temporary URL for the file
-        return URL.createObjectURL(cachedContent as File);
+      // Only clear cache if the paper has a non-arXiv URL that's permanent
+      // Keep cache for arXiv URLs because they may have CORS issues
+      const shouldClearCache = 
+        id && 
+        (cachedContent || localStorage.getItem(`paper_${id}_content`)) && 
+        paper.pdf_url && 
+        !paper.pdf_url.includes('arxiv.org');
+      
+      if (shouldClearCache) {
+        console.log(`Paper ${id} has a permanent PDF URL, clearing cache`);
+        
+        // Clear IndexedDB cache
+        clearCachedPdf(id).catch(err => console.error('Error clearing PDF cache:', err));
+        
+        // Clear localStorage (legacy)
+        localStorage.removeItem(`paper_${id}_content`);
+        localStorage.removeItem(`paper_${id}_content_type`);
+        
+        // Clear component state (don't do this immediately to avoid UI flickering)
+        // We'll let the effect handle this on the next render cycle
+        setTimeout(() => {
+          setCachedContent(null);
+          setContentType(null);
+        }, 0);
+      } else {
+        console.log(`Keeping cache for paper ${id} (arXiv URL or no permanent PDF URL)`);
       }
+      
+      // Handle relative URLs from the backend
+      if (url && url.startsWith('/')) {
+        console.log('Converting relative backend URL to absolute URL');
+        return `${window.location.origin}${url}`;
+      }
+      
+      return url;
     }
+    
+    // No PDF source available
     return null;
   }, [paper, cachedContent, contentType, id]);
 
@@ -571,7 +676,7 @@ const PaperDetails = () => {
       </header>
       
       <main className="w-full overflow-hidden">
-        <div className="grid grid-cols-1 md:grid-cols-2 h-[calc(100vh-12rem)] overflow-hidden">
+        <div className="grid grid-cols-1 md:grid-cols-[1fr,auto,1fr] h-[calc(100vh-12rem)] overflow-hidden">
           {(showPdf || window.innerWidth >= 768) && (
             <div className={`h-full p-2 sm:p-4 ${!showPdf ? 'hidden md:block' : ''} `}>
               <PdfViewerCard 
@@ -582,6 +687,11 @@ const PaperDetails = () => {
               />
             </div>
           )}
+          
+          {/* Vertical Divider - only visible on md screens and above */}
+          <div className="hidden md:flex flex-col justify-center items-center">
+            <div className="w-[1px] bg-gray-200 h-[calc(100%-2rem)] rounded-full shadow-sm"></div>
+          </div>
           
           {(!showPdf || window.innerWidth >= 768) && (
             <div className={`h-full p-2 sm:p-4 flex flex-col overflow-hidden ${showPdf ? 'hidden md:block' : ''}`}>

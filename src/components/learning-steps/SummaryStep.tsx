@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText } from 'lucide-react';
+import { FileText, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import LearningStepCard from '@/components/ui-components/LearningStepCard';
 import MarkdownRenderer from '@/components/ui-components/MarkdownRenderer';
@@ -63,6 +63,15 @@ const SummaryStep: React.FC<SummaryStepProps> = ({ paper, onComplete }) => {
     }
   };
 
+  // Helper function to render summary not available message
+  const renderSummaryNotAvailable = (type: string) => (
+    <div className="flex flex-col items-center justify-center py-8 bg-gray-50 rounded-lg border border-gray-100">
+      <Loader2 className="h-6 w-6 text-blue-500 animate-spin mb-3" />
+      <p className="text-gray-600 font-medium mb-1">{type.charAt(0).toUpperCase() + type.slice(1)} summary is being generated</p>
+      <p className="text-xs text-gray-500">This may take a few moments. Please check back later.</p>
+    </div>
+  );
+
   return (
     <LearningStepCard 
       title="Paper Summary" 
@@ -108,11 +117,15 @@ const SummaryStep: React.FC<SummaryStepProps> = ({ paper, onComplete }) => {
               maxHeight="300px"
             />
           ) : (
-            <MarkdownRenderer 
-              content={paper?.summaries?.[selectedSummaryType] || `${selectedSummaryType} summary not available`} 
-              className="text-gray-700"
-              maxHeight="300px"
-            />
+            paper?.summaries?.[selectedSummaryType] ? (
+              <MarkdownRenderer 
+                content={paper.summaries[selectedSummaryType]} 
+                className="text-gray-700"
+                maxHeight="300px"
+              />
+            ) : (
+              renderSummaryNotAvailable(selectedSummaryType)
+            )
           )}
         </div>
       </div>

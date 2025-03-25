@@ -16,6 +16,7 @@ import { papersAPI } from '@/services/papersAPI';
 import { PaperResponse } from '@/services/types';
 import { isArxivUrl } from '@/utils/urlUtils';
 import { usePaperSearch } from '@/hooks/usePaperSearch';
+import { cachePdf } from '@/utils/cacheUtils';
 import {
   Dialog,
   DialogContent,
@@ -320,44 +321,79 @@ const Dashboard = () => {
         throw new Error("Unsupported upload type");
       }
 
-      // Cache the content and ID in local storage for recovery
-      localStorage.setItem(`paper_${response.id}_content_type`, type);
-      if (type === 'url') {
-        localStorage.setItem(`paper_${response.id}_content`, cachedContent as string);
+      // Safety check: Only cache if we got a valid response with an ID
+      if (response && response.id) {
+        // Normalize the URL if it's an arXiv abstract URL before caching
+        let contentToCache = cachedContent;
+        if (type === 'url' && typeof cachedContent === 'string' && cachedContent.includes('arxiv.org/abs/')) {
+          try {
+            const arxivId = cachedContent.split('arxiv.org/abs/')[1].split(/[?#]/)[0];
+            const normalizedUrl = `https://arxiv.org/pdf/${arxivId}.pdf`;
+            console.log('Normalized arXiv URL before caching:', normalizedUrl);
+            contentToCache = normalizedUrl;
+          } catch (error) {
+            console.error('Error normalizing arXiv URL for caching:', error);
+            // Continue with original URL if normalization fails
+          }
+        }
+        
+        // Cache the content using IndexedDB
+        try {
+          await cachePdf(response.id, type, contentToCache);
+          console.log(`Content cached successfully for paper ${response.id}`);
+        } catch (cacheError) {
+          console.error('Failed to cache content:', cacheError);
+          
+          // Fallback to localStorage for URL caching if IndexedDB fails
+          if (type === 'url') {
+            try {
+              localStorage.setItem(`paper_${response.id}_content_type`, type);
+              localStorage.setItem(`paper_${response.id}_content`, contentToCache as string);
+              console.log('Fallback: URL cached in localStorage');
+            } catch (localStorageError) {
+              console.error('Failed to cache in localStorage:', localStorageError);
+              // Continue even if caching fails entirely - it's not critical for operation
+            }
+          }
+        }
+        
+        // Create a paper object with minimal information
+        const newPaper: PaperResponse = {
+          id: response.id,
+          title: "Processing...",
+          authors: [],
+          abstract: "",
+          publication_date: new Date().toISOString(),
+          source_url: type === 'url' ? input as string : "",
+          source_type: type === 'url' ? (isArxivUrl(input as string) ? 'arxiv' : 'pdf') : 'other',
+          tags: []
+        };
+
+        // Add to paper list and navigate to details page
+        setPapers(prevPapers => [newPaper, ...prevPapers]);
+
+        toast({
+          title: "Paper submitted successfully",
+          description: "Your paper is now being processed.",
+        });
+
+        // Navigate to paper details page with cached content
+        navigate(`/papers/${response.id}`, { 
+          state: { 
+            cachedContent, 
+            contentType: type 
+          } 
+        });
+      } else {
+        // Handle case where response is missing or doesn't have an ID
+        throw new Error("Invalid response from server - missing paper ID");
       }
-      
-      // Create a paper object with minimal information
-      const newPaper: PaperResponse = {
-        id: response.id,
-        title: "Processing...",
-        authors: [],
-        abstract: "",
-        publication_date: new Date().toISOString(),
-        source_url: type === 'url' ? input as string : "",
-        source_type: type === 'url' ? (isArxivUrl(input as string) ? 'arxiv' : 'pdf') : 'other',
-        tags: []
-      };
-
-      // Add to paper list and navigate to details page
-      setPapers(prevPapers => [newPaper, ...prevPapers]);
-
-      toast({
-        title: "Paper submitted successfully",
-        description: "Your paper is now being processed.",
-      });
-
-      // Navigate to paper details page with cached content
-      navigate(`/papers/${response.id}`, { 
-        state: { 
-          cachedContent, 
-          contentType: type 
-        } 
-      });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error uploading paper:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to upload paper';
       toast({
         title: "Error",
-        description: err.message || 'Failed to upload paper',
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
