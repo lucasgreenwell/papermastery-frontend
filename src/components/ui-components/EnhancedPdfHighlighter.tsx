@@ -296,8 +296,307 @@ export interface EnhancedPdfHighlighterRef {
 // Define a proper interface for the utils object
 interface PdfHighlighterUtils {
   scrollTo?: (highlight: PdfHighlightType) => void;
-  [key: string]: any; // Allow other properties we might not know about
+  [key: string]: unknown; // More specific than any
 }
+
+// Define proper props for the selection tip component
+interface SelectionTipProps {
+  onConfirm: () => void;
+  content: { text: string };
+}
+
+// Create a standard function component for the selection tip
+// IMPORTANT: Define this OUTSIDE the main component to prevent re-creation
+// This is crucial because the library likely expects a component constructor
+function SelectionTip(props: SelectionTipProps) {
+  console.log('SelectionTip rendering with props:', props);
+  const { onConfirm, content } = props;
+  const text = content.text;
+  
+  return (
+    <div className="bg-white p-3 rounded-md shadow-lg border border-gray-200">
+      <p className="mt-1 italic line-clamp-2 text-sm text-gray-600 mb-3">
+        {text}
+      </p>
+      <div className="flex space-x-2">
+        <button
+          className="px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded text-sm"
+          onClick={() => {
+            console.log('Explain button clicked');
+            // We don't have direct access to onHighlightAction here
+            // Instead we'll use a custom event
+            const customEvent = new CustomEvent('highlight-action', {
+              detail: {
+                type: 'explain',
+                text
+              },
+              bubbles: true
+            });
+            document.dispatchEvent(customEvent);
+            onConfirm();
+          }}
+        >
+          Explain
+        </button>
+        <button
+          className="px-3 py-1 bg-green-100 hover:bg-green-200 text-green-800 rounded text-sm"
+          onClick={() => {
+            console.log('Summarize button clicked');
+            // We don't have direct access to onHighlightAction here
+            // Instead we'll use a custom event
+            const customEvent = new CustomEvent('highlight-action', {
+              detail: {
+                type: 'summarize',
+                text
+              },
+              bubbles: true
+            });
+            document.dispatchEvent(customEvent);
+            onConfirm();
+          }}
+        >
+          Summarize
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Add displayName for debugging purposes
+SelectionTip.displayName = 'SelectionTip';
+
+// Interface for the tooltip selection props from the library
+interface TooltipSelectionProps {
+  content: { text: string };
+  onConfirm: () => void;
+}
+
+// Define a React class component for the selection tooltip
+// The library appears to expect a class component instead of a function component
+class TooltipSelection extends React.Component<TooltipSelectionProps> {
+  render() {
+    const { content, onConfirm } = this.props;
+    console.log('TooltipSelection class rendering:', content);
+    
+    return (
+      <div className="bg-white p-3 rounded-md shadow-lg border border-gray-200">
+        <p className="mt-1 italic line-clamp-2 text-sm text-gray-600 mb-3">
+          {content.text}
+        </p>
+        <div className="flex space-x-2">
+          <button
+            className="px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded text-sm"
+            onClick={() => {
+              console.log('Explain button clicked');
+              // Create and dispatch custom event
+              const customEvent = new CustomEvent('highlight-action', {
+                detail: {
+                  type: 'explain',
+                  text: content.text
+                },
+                bubbles: true
+              });
+              document.dispatchEvent(customEvent);
+              onConfirm();
+            }}
+          >
+            Explain
+          </button>
+          <button
+            className="px-3 py-1 bg-green-100 hover:bg-green-200 text-green-800 rounded text-sm"
+            onClick={() => {
+              console.log('Summarize button clicked');
+              // Create and dispatch custom event
+              const customEvent = new CustomEvent('highlight-action', {
+                detail: {
+                  type: 'summarize',
+                  text: content.text
+                },
+                bubbles: true
+              });
+              document.dispatchEvent(customEvent);
+              onConfirm();
+            }}
+          >
+            Summarize
+          </button>
+        </div>
+      </div>
+    );
+  }
+}
+
+// This function creates a DOM structure for the selection tip
+const createTooltipElement = (content: { text: string }, onConfirm: () => void) => {
+  // Create tooltip container
+  const container = document.createElement('div');
+  container.className = 'bg-white p-3 rounded-md shadow-lg border border-gray-200';
+  
+  // Add text paragraph
+  const paragraph = document.createElement('p');
+  paragraph.className = 'mt-1 italic line-clamp-2 text-sm text-gray-600 mb-3';
+  paragraph.textContent = content.text || '';
+  container.appendChild(paragraph);
+  
+  // Create button container
+  const buttonContainer = document.createElement('div');
+  buttonContainer.className = 'flex space-x-2';
+  
+  // Add explain button
+  const explainButton = document.createElement('button');
+  explainButton.className = 'px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-800 rounded text-sm';
+  explainButton.textContent = 'Explain';
+  explainButton.style.marginRight = '8px';
+  explainButton.onclick = () => {
+    console.log('Explain button clicked');
+    const customEvent = new CustomEvent('highlight-action', {
+      detail: {
+        type: 'explain',
+        text: content.text || ''
+      },
+      bubbles: true
+    });
+    document.dispatchEvent(customEvent);
+    onConfirm();
+  };
+  buttonContainer.appendChild(explainButton);
+  
+  // Add summarize button
+  const summarizeButton = document.createElement('button');
+  summarizeButton.className = 'px-3 py-1 bg-green-100 hover:bg-green-200 text-green-800 rounded text-sm';
+  summarizeButton.textContent = 'Summarize';
+  summarizeButton.onclick = () => {
+    console.log('Summarize button clicked');
+    const customEvent = new CustomEvent('highlight-action', {
+      detail: {
+        type: 'summarize',
+        text: content.text || ''
+      },
+      bubbles: true
+    });
+    document.dispatchEvent(customEvent);
+    onConfirm();
+  };
+  buttonContainer.appendChild(summarizeButton);
+  
+  // Add button container to tooltip
+  container.appendChild(buttonContainer);
+  
+  return container;
+};
+
+// Special factory function that returns the tip element creation function
+const tipPlugin = {
+  mouseAdapter: () => null,
+  touchAdapter: () => null,
+  renderTip: (props: any) => {
+    console.log('renderTip called with props:', props);
+    
+    // Check if content and onConfirm exist in props
+    if (props?.content?.text && typeof props.onConfirm === 'function') {
+      return createTooltipElement(props.content, props.onConfirm);
+    }
+    
+    // Fallback div if props are missing
+    const fallbackDiv = document.createElement('div');
+    fallbackDiv.textContent = 'Select text to explain or summarize';
+    return fallbackDiv;
+  }
+};
+
+// A proper tooltip component based on the library's examples
+const SelectionTooltip: React.FC = () => {
+  console.log('SelectionTooltip rendering');
+  
+  return (
+    <div className="Tip" style={{ 
+      background: 'white', 
+      padding: '0.75rem', 
+      borderRadius: '0.375rem', 
+      boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)', 
+      border: '1px solid rgba(209, 213, 219, 1)',
+      maxWidth: '20rem'
+    }}>
+      <p style={{ 
+        fontStyle: 'italic', 
+        fontSize: '0.875rem', 
+        color: 'rgba(75, 85, 99, 1)', 
+        marginBottom: '0.75rem',
+        display: '-webkit-box',
+        WebkitLineClamp: 2,
+        WebkitBoxOrient: 'vertical',
+        overflow: 'hidden'
+      }}>
+        <span id="selected-text"></span>
+      </p>
+      <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <button
+          onClick={() => {
+            // Get the selected text from the DOM (library should have set this)
+            const textElement = document.getElementById('selected-text');
+            const selectedText = textElement?.textContent || '';
+            
+            console.log('Explain button clicked for text:', selectedText);
+            
+            // Dispatch the custom event for handling the explain action
+            const customEvent = new CustomEvent('highlight-action', {
+              detail: {
+                type: 'explain',
+                text: selectedText
+              },
+              bubbles: true
+            });
+            document.dispatchEvent(customEvent);
+          }}
+          style={{
+            padding: '0.25rem 0.75rem',
+            backgroundColor: 'rgba(219, 234, 254, 1)',
+            color: 'rgba(29, 78, 216, 1)',
+            borderRadius: '0.25rem',
+            fontSize: '0.875rem',
+            border: 'none',
+            cursor: 'pointer'
+          }}
+        >
+          Explain
+        </button>
+        <button
+          onClick={() => {
+            // Get the selected text from the DOM (library should have set this)
+            const textElement = document.getElementById('selected-text');
+            const selectedText = textElement?.textContent || '';
+            
+            console.log('Summarize button clicked for text:', selectedText);
+            
+            // Dispatch the custom event for handling the summarize action
+            const customEvent = new CustomEvent('highlight-action', {
+              detail: {
+                type: 'summarize',
+                text: selectedText
+              },
+              bubbles: true
+            });
+            document.dispatchEvent(customEvent);
+          }}
+          style={{
+            padding: '0.25rem 0.75rem',
+            backgroundColor: 'rgba(220, 252, 231, 1)',
+            color: 'rgba(22, 101, 52, 1)',
+            borderRadius: '0.25rem',
+            fontSize: '0.875rem',
+            border: 'none',
+            cursor: 'pointer'
+          }}
+        >
+          Summarize
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// For debugging purposes
+SelectionTooltip.displayName = 'SelectionTooltip';
 
 // Properly combine forwardRef and memo
 const EnhancedPdfHighlighterBase = forwardRef<EnhancedPdfHighlighterRef, EnhancedPdfHighlighterProps>(({ 
@@ -325,53 +624,35 @@ const EnhancedPdfHighlighterBase = forwardRef<EnhancedPdfHighlighterRef, Enhance
   
   // Use the interface in the callback
   const utilsCallback = useCallback((utils: PdfHighlighterUtils) => {
+    console.log('Utils callback called with:', utils);
     // Store the scrollViewerTo function if it exists
     if (utils && utils.scrollTo) {
       scrollViewerTo.current = utils.scrollTo;
     }
   }, []);
   
-  // Create a proper tip component for selection highlights
-  // The library expects a function that returns JSX, not a component
-  const renderTip = useCallback((props: { onConfirm: () => void; content: { text: string } }) => {
-    const { onConfirm, content } = props;
-    const text = content.text;
+  // Set up a custom event listener for highlight actions
+  useEffect(() => {
+    const handleHighlightAction = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail && onHighlightAction) {
+        const { type, text } = customEvent.detail;
+        console.log(`Custom event received for ${type} with text:`, text.substring(0, 30) + '...');
+        onHighlightAction(type, text);
+      }
+    };
     
-    return (
-      <div className="bg-white p-3 rounded-md shadow-lg border border-gray-200">
-        <p className="mt-1 italic line-clamp-2 text-sm text-gray-600 mb-3">
-          {text}
-        </p>
-        <div className="flex space-x-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              if (onHighlightAction) {
-                onHighlightAction('explain', text);
-              }
-              onConfirm();
-            }}
-          >
-            Explain
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              if (onHighlightAction) {
-                onHighlightAction('summarize', text);
-              }
-              onConfirm();
-            }}
-          >
-            Summarize
-          </Button>
-        </div>
-      </div>
-    );
+    document.addEventListener('highlight-action', handleHighlightAction);
+    
+    return () => {
+      document.removeEventListener('highlight-action', handleHighlightAction);
+    };
   }, [onHighlightAction]);
-  
+
+  // Log when component renders to track issues
+  console.log('EnhancedPdfHighlighter rendering with processedPdfUrl:', 
+    processedPdfUrl ? `${processedPdfUrl.substring(0, 30)}...` : 'null');
+
   // Function to scroll to a highlight based on URL hash
   const scrollToHighlightFromHash = useCallback(() => {
     const hash = window.location.hash?.substring(1);
@@ -766,7 +1047,7 @@ const EnhancedPdfHighlighterBase = forwardRef<EnhancedPdfHighlighterRef, Enhance
               // Cache the proxy URL if we have a paper ID
               if (paperId) {
                 console.log(`[${proxyRequestId}] Caching proxy URL for paper ${paperId}`);
-                await cachePdf(fullProxyUrl, paperId, "url" as const);
+                await cachePdf(paperId, "url" as const, fullProxyUrl);
               }
               
               setLoadingState({ state: 'success', message: 'PDF loaded successfully' });
@@ -863,7 +1144,7 @@ const EnhancedPdfHighlighterBase = forwardRef<EnhancedPdfHighlighterRef, Enhance
           // Cache the proxy URL if we have a paper ID
           if (paperId) {
             console.log(`[${retryRequestId}] Caching proxy URL for paper ${paperId}`);
-            await cachePdf(proxyUrl, paperId, "url" as const);
+            await cachePdf(paperId, "url" as const, proxyUrl);
           }
           
           setLoadingState({ state: 'success', message: 'PDF loaded successfully' });
@@ -969,6 +1250,7 @@ const EnhancedPdfHighlighterBase = forwardRef<EnhancedPdfHighlighterRef, Enhance
   }
   
   if (!processedPdfUrl || !isValidUrl(processedPdfUrl)) {
+    console.log('PDF URL invalid, showing error state');
     return (
       <div className={cn("flex flex-col h-full bg-white rounded-xl shadow-md border border-gray-100", className)}>
         <div className="flex-1 overflow-auto p-4 bg-gray-50 flex flex-col items-center justify-center">
@@ -1001,65 +1283,74 @@ const EnhancedPdfHighlighterBase = forwardRef<EnhancedPdfHighlighterRef, Enhance
     );
   }
   
+  console.log('Rendering PdfHighlighter component');
   return (
-    <div className={cn("flex flex-col h-full overflow-hidden", className)}>
+    <div className={cn("flex flex-col h-full overflow-hidden", className)} ref={pdfContainerRef}>
       {processedPdfUrl && isValidUrl(processedPdfUrl) ? (
         <PdfLoader 
           document={documentConfig}
           beforeLoad={loadingComponent}
           errorMessage={errorComponent}
         >
-          {(pdfDocument) => (
-            <PdfHighlighter
-              pdfDocument={pdfDocument}
-              enableAreaSelection={(event) => event.altKey}
-              onScrollAway={resetHash}
-              pdfScaleValue={pdfScaleValue}
-              utilsRef={utilsCallback}
-              selectionTip={renderTip}
-              onSelection={(selection) => {
-                // Call our highlight action handler for the selected text
-                console.log('Text selected:', selection.content.text);
-                return null;
-              }}
-              highlightTransform={(
-                highlight,
-                index,
-                setTip,
-                hideTip,
-                viewportToScaled,
-                screenshot,
-                isScrolledTo
-              ) => {
-                // Ignore the screenshot param which isn't needed
-                return (
-                  <PdfAreaHighlight
-                    isScrolledTo={isScrolledTo}
-                    highlight={highlight}
-                    onChange={() => {
-                      // Dummy onChange function for AreaHighlight
-                      // We're not allowing edits in this implementation
-                    }}
-                    onContextMenu={() => {
-                      // Handle click via context menu instead
-                      handleHighlightClick(highlight as IHighlight);
-                    }}
-                  />
-                );
-              }}
-              highlights={highlights.map(highlight => ({
-                ...highlight,
-                position: {
-                  ...highlight.position,
-                  // Ensure rects have pageNumber property required by the library
-                  rects: highlight.position.rects.map(rect => ({
-                    ...rect,
-                    pageNumber: highlight.position.pageNumber
-                  }))
-                }
-              }))}
-            />
-          )}
+          {(pdfDocument) => {
+            console.log('PdfLoader rendered with document, rendering PdfHighlighter');
+            return (
+              <PdfHighlighter
+                pdfDocument={pdfDocument}
+                enableAreaSelection={(event) => event.altKey}
+                onScrollAway={resetHash}
+                pdfScaleValue={pdfScaleValue}
+                utilsRef={utilsCallback}
+                selectionTip={<SelectionTooltip />}
+                onSelection={(selection) => {
+                  // Set the selected text in the DOM so the tooltip can access it
+                  const textElement = document.getElementById('selected-text');
+                  if (textElement) {
+                    textElement.textContent = selection.content.text;
+                  }
+                  console.log('Text selected:', selection.content.text);
+                  setSelectedText(selection.content.text);
+                  return null;
+                }}
+                highlightTransform={(
+                  highlight,
+                  index,
+                  setTip,
+                  hideTip,
+                  viewportToScaled,
+                  screenshot,
+                  isScrolledTo
+                ) => {
+                  // Ignore the screenshot param which isn't needed
+                  return (
+                    <PdfAreaHighlight
+                      isScrolledTo={isScrolledTo}
+                      highlight={highlight}
+                      onChange={() => {
+                        // Dummy onChange function for AreaHighlight
+                        // We're not allowing edits in this implementation
+                      }}
+                      onContextMenu={() => {
+                        // Handle click via context menu instead
+                        handleHighlightClick(highlight as IHighlight);
+                      }}
+                    />
+                  );
+                }}
+                highlights={highlights.map(highlight => ({
+                  ...highlight,
+                  position: {
+                    ...highlight.position,
+                    // Ensure rects have pageNumber property required by the library
+                    rects: highlight.position.rects.map(rect => ({
+                      ...rect,
+                      pageNumber: highlight.position.pageNumber
+                    }))
+                  }
+                }))}
+              />
+            )
+          }}
         </PdfLoader>
       ) : null}
     </div>
